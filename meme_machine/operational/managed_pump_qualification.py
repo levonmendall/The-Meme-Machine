@@ -7,7 +7,7 @@ screen is not reported as complete full qualification. In particular, missing
 executable sizing or postgraduation evaluation stays explicitly unproven.
 """
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, replace
+from dataclasses import asdict, dataclass, replace
 import asyncio
 import hashlib
 import json
@@ -24,6 +24,75 @@ EVIDENCE_SECONDS = 25
 
 def _canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
+
+
+@dataclass(frozen=True)
+class DecisionTarget:
+    lamports: int
+    native_value: object
+    provenance: dict
+
+    def validate(self, at):
+        # Provider/admission waits never extend the original oracle lifetime.
+        self.native_value.amount(1, int(at))
+
+
+class FreshReferenceSizing:
+    """Unfunded $1,000 reference input, with actual expiring SOL valuation.
+
+    This is not a ledger or financial inception. No entries, costs or realized
+    PnL can occur in the managed observation route. Its reference equity remains
+    the explicit fresh simulation input while production's exact sizing floor
+    and authenticated native conversion are evaluated for each admitted input.
+    """
+    def __init__(self, generation, *, clock=time.time, value_reader=None):
+        from meme_machine.runtime.usd_valuation import native_reader
+        self.generation, self.clock = generation, clock
+        self.value_reader = value_reader if value_reader is not None else native_reader('pump')
+        self.last = None
+
+    def identity(self):
+        from meme_machine.portfolio_accounting import PLANNED_SHARED_CAPITAL
+        return dict(scope='fresh_nonfunded_reference_no_entries_costs_or_realized_pnl',
+            generation=self.generation, reference_equity_usd=PLANNED_SHARED_CAPITAL,
+            target_bps=500, actual_shared_ledger=False, financial_authority=False)
+
+    def __call__(self, now):
+        from fractions import Fraction
+        from meme_machine.exact_money import money
+        from meme_machine.portfolio_accounting import PLANNED_SHARED_CAPITAL
+        from meme_machine.shared_capital.adapter import directional_native_target
+        self.last = None
+        at = max(int(now), int(self.clock()))
+        value = self.value_reader(at)
+        consumed_at = max(at, int(self.clock()))
+        unit = value.amount(1, consumed_at)
+        if value.asset != 'SOL' or value.decimals != 9:
+            raise ValueError('managed_pump_native_sizing_asset_required')
+        # USD/native reciprocals usually recur. Preserve production's positive
+        # integer sizing floor with an exact rational quotient, without
+        # rounding a rate or extending the canonical money envelope.
+        native_equity = Fraction(money(PLANNED_SHARED_CAPITAL)) // Fraction(unit)
+        size = directional_native_target(native_equity)
+        if size['requested_native_units'] <= 0:
+            raise ValueError('managed_pump_decision_target_required')
+        result = DecisionTarget(size['requested_native_units'], value, dict(self.identity(),
+            native_equity=size['native_equity'], target_lamports=size['requested_native_units'],
+            consumed_at=consumed_at, valuation=dict(asset=value.asset, decimals=value.decimals,
+                usd_per_unit=str(value.usd_per_unit), observed_at=value.observed_at,
+                valid_until=value.valid_until, evidence_id=value.evidence_id,
+                evidence_hash=value.evidence_hash)))
+        self.last = result
+        return result
+
+    def available(self, now):
+        if self.last is None:
+            return False
+        try:
+            self.last.validate(now)
+        except ValueError:
+            return False
+        return True
 
 
 class MarketSnapshotProvider:
@@ -100,9 +169,11 @@ class QualificationReader:
     """One bounded native read turn and one separate durable observation owner."""
     def __init__(self, config, *, decision_target=None, clock=time.time,
                  provider=None):
-        if decision_target is not None and (
+        if decision_target is not None and not isinstance(decision_target, FreshReferenceSizing) and (
                 type(decision_target) is not int or decision_target <= 0):
             raise ValueError('managed_pump_decision_target_required')
+        if isinstance(decision_target, FreshReferenceSizing) and decision_target.generation != config.generation:
+            raise ValueError('managed_pump_decision_target_generation')
         self.config, self.clock = config, clock
         self.target, self.provider = decision_target, provider
         self.history = self.plane = self.db = self.confirmations = None
@@ -155,11 +226,15 @@ class QualificationReader:
                     CREATE TABLE IF NOT EXISTS candidate_state(
                       mint TEXT PRIMARY KEY,last_evaluated INTEGER NOT NULL);
                     ''')
-                identity = _canonical(dict(schema=SCHEMA,
+                reference = self.target if isinstance(self.target, FreshReferenceSizing) else None
+                identity_value = dict(schema=SCHEMA,
                     generation=self.config.generation,
                     source_revision=self.config.source_revision,
-                    decision_target_lamports=self.target,
-                    canonical=str(self.config.evidence), history=str(self.config.history)))
+                    decision_target_lamports=None if reference else self.target,
+                    canonical=str(self.config.evidence), history=str(self.config.history))
+                if reference is not None:
+                    identity_value['decision_reference'] = reference.identity()
+                identity = _canonical(identity_value)
                 old = db.execute('SELECT body FROM identity WHERE id=1').fetchone()
                 if old and old[0] != identity:
                     raise ValueError('managed_pump_qualification_identity_changed')
@@ -276,6 +351,13 @@ class QualificationReader:
                 return dict(observed, stage='native_prospect_screened'), now
             if self.target is None:
                 return dict(observed, stage='decision_target_unavailable'), now
+            sizing = self.target(now) if isinstance(self.target, FreshReferenceSizing) else None
+            if isinstance(self.target, FreshReferenceSizing) and (not isinstance(sizing, DecisionTarget)
+                    or type(sizing.lamports) is not int or sizing.lamports <= 0):
+                raise ValueError('managed_pump_decision_target_required')
+            target = self.target if sizing is None else sizing.lamports
+            if sizing is not None:
+                observed['decision_sizing'] = sizing.provenance
             provider = self.provider
             if provider is None:
                 provider = self.provider = MarketSnapshotProvider()
@@ -284,15 +366,21 @@ class QualificationReader:
             events = [e for e in self.plane.pump_events(PUMP_SCOPE, mint, at-60, at,
                       upper_slot=int(snapshot['slot']))
                       if e.get('event_type') not in ('create', 'migration')]
+            if sizing is not None:
+                sizing.validate(self.clock())
             optimistic = full_late_signal(creation, events, snapshot, 0,
-                                          self.confirmations, self.target)
+                                          self.confirmations, target)
             qualification = qualify(optimistic)
             stage = 'native_optimistic_rejection'
             if qualification.qualified:
                 concentration = provider.concentration(mint, snapshot)
+                if sizing is not None:
+                    sizing.validate(self.clock())
                 qualification = qualify(full_late_signal(creation, events, snapshot,
-                    concentration, self.confirmations, self.target))
+                    concentration, self.confirmations, target))
                 stage = 'native_full_qualification'
+            if sizing is not None:
+                sizing.validate(self.clock())
             return dict(observed, stage=stage, qualification=asdict(qualification),
                 full_qualification_complete=True,
                 snapshot_sha256=hashlib.sha256(_canonical(snapshot).encode()).hexdigest()), now
@@ -375,7 +463,10 @@ class QualificationReader:
             full_qualifications=full, full_qualification_proven=False,
             qualification_scope='pump_current_late_curve',
             postgraduation_and_survivor_qualification_proven=False,
-            decision_target_available=self.target is not None, financial_authority=False)
+            decision_reference=self.target.identity() if isinstance(self.target, FreshReferenceSizing) else None,
+            decision_target_available=self.target.available(self.clock())
+                if isinstance(self.target, FreshReferenceSizing) else self.target is not None,
+            financial_authority=False)
 
     def close(self):
         if self.history is not None:

@@ -317,6 +317,7 @@ def _child(args):
     try:
         if args.lane == 'pump':
             from meme_machine.operational.managed_native_pump import PumpManagedConfig, run_pump
+            from meme_machine.operational.managed_pump_qualification import FreshReferenceSizing
             config = PumpManagedConfig(root=root, generation=args.generation,
                 request_id=args.request_id, source_revision=os.environ['MM_CAPACITY_SOURCE_COMMIT'],
                 endpoint=os.environ['MM_SOLANA_READ_RPC_URL'],
@@ -334,6 +335,8 @@ def _child(args):
                 monitor = asyncio.create_task(cancellation())
                 try:
                     return await run_pump(config, bounded_stop, sample_callback=sample,
+                                          decision_target_reader_factory=lambda:
+                                              FreshReferenceSizing(config.generation),
                                           drain_callback=drained)
                 finally:
                     cancel.set()

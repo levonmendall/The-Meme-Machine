@@ -410,7 +410,8 @@ def replay_pump(config, *, seconds=60):
 
 
 async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_seconds=5,
-                   decision_target_lamports=None, drain_callback=None):
+                   decision_target_lamports=None, decision_target_reader_factory=None,
+                   drain_callback=None):
     """Run until the parent's bounded stop; await production's original drain."""
     global _started
     _require(not _started, 'dedicated_child_process_required')
@@ -419,6 +420,8 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
              'sample_interval_bound')
     _require(decision_target_lamports is None or type(decision_target_lamports) is int
              and decision_target_lamports > 0, 'decision_target_required')
+    _require(decision_target_reader_factory is None or callable(decision_target_reader_factory)
+             and decision_target_lamports is None, 'decision_target_reader_required')
     # Check the inherited namespace before creating any state.
     _require(not any(k.startswith('MM_') for k in os.environ),
              'inherited_production_environment_refused')
@@ -430,6 +433,12 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         install_nonfinancial_history(config)
         rpc, driver, serve = production_components(config)
+        # Instantiate authenticated valuation only after the same production
+        # provider guards, accounting and pacing have been installed.
+        decision_target = decision_target_lamports
+        if decision_target_reader_factory is not None:
+            decision_target = decision_target_reader_factory()
+            _require(callable(decision_target), 'decision_target_reader_required')
         await asyncio.to_thread(rpc.validate_network)
         from meme_machine.runtime.evidence_worker import owner_thread_fairness
         from .managed_pump_qualification import read_qualifications
@@ -488,7 +497,7 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                 workload = asyncio.create_task(serve(config.evidence, config.endpoint,
                     repair_rpc=rpc, stop=stop, source_driver=driver))
                 qualification = asyncio.create_task(read_qualifications(config, stop,
-                    publish=publish_qualification, decision_target=decision_target_lamports))
+                    publish=publish_qualification, decision_target=decision_target))
                 done, _ = await asyncio.wait((workload, sampler, qualification), return_when=asyncio.FIRST_COMPLETED)
                 if sampler in done and not stop.is_set():
                     stop.set()

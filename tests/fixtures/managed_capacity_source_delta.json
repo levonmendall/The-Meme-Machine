@@ -32,8 +32,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_capacity_workload.py": {
-      "after_bytes": 19017,
-      "after_sha256": "902713461a4160762d43c2b8f9f32e7bd09d5d1a84bc05ef07af81bec9c0444e",
+      "after_bytes": 19282,
+      "after_sha256": "bbc369a3194ce4d568803d0facfcf752f9474fbede85bbf384d6ee22e0475db1",
       "status": "A"
     },
     "meme_machine/operational/managed_native_pons.py": {
@@ -42,8 +42,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
-      "after_bytes": 27606,
-      "after_sha256": "6207944b8f865fe1a1994455df80e6e91019e5ff5fb72f3898ed05b7ab4260bf",
+      "after_bytes": 28234,
+      "after_sha256": "7ff06dfa59d5b63138766762e2ab65ad52e7ed99d5066c8eef815f8100238128",
       "status": "A"
     },
     "meme_machine/operational/managed_pons_survivor.py": {
@@ -52,8 +52,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_pump_qualification.py": {
-      "after_bytes": 24228,
-      "after_sha256": "937128e9118cd0cac2589a2c3397e66ad1073352eb8cdb6f837f61630305d0cf",
+      "after_bytes": 28997,
+      "after_sha256": "c31ddeb6f17933d8ad335d7a46af7abbefe8f8628dfa7c768a9438a5b0519b81",
       "status": "A"
     },
     "meme_machine/runtime/evidence_worker.py": {
@@ -69,6 +69,17 @@
         "__statement_18",
         "__statement_20",
         "failure_diagnostic"
+      ],
+      "status": "M"
+    },
+    "meme_machine/shared_capital/adapter.py": {
+      "after_bytes": 3593,
+      "after_sha256": "d273b35f3fe4cd03f576cf447442068fd5ab4334f340af25ca3420f36975f6eb",
+      "before_bytes": 3105,
+      "before_sha256": "51b1d010a1ebeba48b905ebb958731b3437435815cc64ab2a562b8d66f6d253f",
+      "changed_nodes": [
+        "directional_native_target",
+        "directional_target"
       ],
       "status": "M"
     },
@@ -198,8 +209,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "4a5e8ce5547de7ce9826fddfd5cdecfcce9efa75",
-  "implementation_tree": "4c91f3752eb1f06b152438a67d88181df1ba05d6",
+  "implementation": "a8ff3c54904e73df3cf200cc35d08af1e9c5b09c",
+  "implementation_tree": "cb5a671c2c00eee2d5fca550e4e3175f358a47fa",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,
