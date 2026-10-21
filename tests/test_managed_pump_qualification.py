@@ -152,6 +152,29 @@ class ReaderSQLTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
                 worker._history_event(self.mint, self.identity, prepared=prepared)
 
+    def test_unserializable_discovery_outer_does_not_preempt_original_foreign_reference_guard(self):
+        from meme_machine.solana_evidence_plane import decode_body
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        raw = self.fixture.history.db.execute(
+            'SELECT body FROM canonical_evidence WHERE identity=?',
+            (self.row.identity,)).fetchone()[0]
+        malformed = decode_body(raw, self.fixture.history.db)
+        malformed['payload']['event']['nonfinite_corruption'] = float('nan')
+        with sqlite3.connect(self.config.evidence) as db:
+            db.execute('UPDATE rolling_economic_events SET body=? WHERE identity=?',
+                       (json.dumps(malformed), self.row.identity))
+        with sqlite3.connect(self.config.history) as db:
+            ref = json.loads(db.execute('SELECT body FROM canonical_event_refs WHERE identity=?',
+                                        (self.identity,)).fetchone()[0])
+            ref['path'] = '/original/financial/source.sqlite'
+            db.execute('UPDATE canonical_event_refs SET body=? WHERE identity=?',
+                       (qualification._canonical(ref), self.identity))
+        for worker in (old, new):
+            with self.assertRaisesRegex(ValueError, 'foreign_qualification_reference'):
+                worker.step()
+            self.assertEqual(self.observations(worker), [])
+
     def test_missing_creation_reuses_selection_without_caching_absence(self):
         self.publish()
         old, new = self.worker(True), self.worker()

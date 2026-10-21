@@ -505,8 +505,14 @@ class QualificationReader:
                 canonical = decode_body(row[1], reader.db)
                 mint, identity = canonical['payload']['event']['mint'], canonical['identity']
                 history_identity = 'pump-source:' + identity
+                try:
+                    prepared = canonical, _canonical(canonical)
+                except (ValueError, TypeError, OverflowError):
+                    # A malformed outer cannot move JSON serialization ahead
+                    # of the original locator/hash/legacy validation order.
+                    prepared = None
                 record = self._history_event(mint, history_identity,
-                    prepared=(canonical, _canonical(canonical)))
+                    prepared=prepared)
                 if record is None:
                     # Canonical delivery precedes CandidateHistory publication.
                     # Keep this exact native cursor pending until publication.
