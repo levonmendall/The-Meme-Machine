@@ -11,6 +11,7 @@ import tempfile
 import threading
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 from concurrent.futures.process import BrokenProcessPool
 from tests.test_solana_closure import NOW,state_at
@@ -963,6 +964,178 @@ class DeliverySeparationTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'configuration'):service.environment('solana')
         finally:
             if service.lock:service.lock.close()
+
+
+class CaptureActorTests(unittest.TestCase):
+    setUp=HistorySeparationTests.setUp
+    tearDown=HistorySeparationTests.tearDown
+
+    def actor(self):
+        from meme_machine.solana_history_delivery import CaptureActor,capture_context
+        self.h.lifecycle.delivery_separated=True
+        return CaptureActor(capture_context(self.h.lifecycle))
+
+    def test_reader_snapshot_is_coherent_and_closed_before_consumer_write_and_fresh_ack(self):
+        from meme_machine import solana_history_delivery as delivery
+        from meme_machine.solana_history_notifications import delivery_hint
+        from meme_machine.runtime.sqlite_failure import Connection
+        life=self.h.lifecycle;self.h.bind('pump','curve',market_address='old-mint')
+        first=life.emit('pump','curve','scout',dict(fields={}))
+        actor=self.actor();hint=delivery_hint(self.h)
+        entered=threading.Event();release=threading.Event();owner_thread=threading.get_ident()
+        original=Connection.execute
+        def execute(db,sql,*args,**kwargs):
+            if (threading.get_ident()!=owner_thread and
+                    sql.startswith('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?')):
+                entered.set()
+                if not release.wait(3):raise RuntimeError('offline-reader-binding-release')
+            return original(db,sql,*args,**kwargs)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            try:
+                with patch.object(Connection,'execute',execute):
+                    future=pool.submit(actor.capture,hint)
+                    self.assertTrue(entered.wait(2))
+                    with self.state.writer.transaction():
+                        self.h.db.execute("UPDATE evidence_bindings SET market_address='new-mint' WHERE family='pump' AND address='curve'")
+                        second=life.emit('pump','later','scout',dict(fields={}))
+                    release.set();snapshot=future.result(3)
+            finally:release.set()
+            self.assertEqual([row[0] for row in snapshot['rows']],[first])
+            self.assertEqual(snapshot['bindings'][('pump','curve')],('old-mint',))
+            self.assertEqual(self.h.db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0],0,
+                'completed capture retained a canonical WAL snapshot')
+            result=pool.submit(delivery.deliver,snapshot).result(3)
+            feedback=delivery.acknowledge_actor(life,snapshot,result)
+            self.assertFalse(feedback.accepted,'reader snapshot bypassed the fresh owner binding check')
+            repeated=pool.submit(actor.capture,feedback.hint,(snapshot,feedback)).result(3)
+            self.assertEqual([row[0] for row in repeated['rows']],[first,second])
+            self.assertEqual(repeated['bindings'][('pump','curve')],('new-mint',))
+            feedback=delivery.acknowledge_actor(life,repeated,pool.submit(delivery.deliver,repeated).result(3))
+            self.assertTrue(feedback.accepted)
+        self.assertFalse(hasattr(life,'_proof_delivery_progress'),'actor advanced owner-held scan hints')
+
+    def test_delayed_revision_reopens_behind_cursor_without_resetting_active_tail(self):
+        from meme_machine import solana_history_delivery as delivery
+        from meme_machine.solana_history_notifications import delivery_hint
+        life=self.h.lifecycle;actor=self.actor();scope=program_scope('pump')
+        def add(slot):
+            life.defer_proof(IntervalProof(scope,slot,slot,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=slot,upper_slot=slot,
+                    lineage_hash=digest([scope,slot])),NOW-1))
+        for slot in range(100,230):add(slot)
+        hint=delivery_hint(self.h);pages=[];original=delivery._proof_page
+        def page(*args,**kwargs):
+            rows=original(*args,**kwargs);pages.extend(row[3] for row in rows);return rows
+        empty=dict(acknowledgements=[],refreshed=[])
+        with patch.object(delivery._CaptureReader,'unconsumed',return_value=True),patch.object(delivery,'_proof_page',page):
+            snapshot=actor.capture(hint)
+            feedback=delivery.acknowledge_actor(life,snapshot,empty)
+            add(99)
+            # The WAL can already contain this insertion while its immutable
+            # callback is still queued. Keep the old hint through the old EOF.
+            for _ in range(3):
+                following=actor.capture(hint,(snapshot,feedback))
+                if following is None:break
+                snapshot=following;feedback=delivery.acknowledge_actor(life,snapshot,empty)
+            self.assertIsNone(following)
+            self.assertEqual(pages,list(range(100,230)))
+            reopened=actor.capture(delivery_hint(self.h))
+            self.assertIsNotNone(reopened)
+        self.assertIn(99,pages)
+        self.assertLess(pages.index(229),pages.index(99))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(131,))
+        self.assertFalse(hasattr(life,'_proof_delivery_progress'))
+
+    def test_refresh_eof_rejection_finishes_bounded_horizon_then_revisits_behind_cursor(self):
+        from meme_machine import solana_history_delivery as delivery
+        from meme_machine.solana_history_notifications import delivery_hint,changed
+        life=self.h.lifecycle;actor=self.actor()
+        with self.state.writer.transaction():
+            for index in range(66):
+                self.h.db.execute('INSERT INTO candidate_lifecycle VALUES(?,?,?,?,?,?,?,?,?,?)',
+                    ('pump','refresh:'+str(index),'cheap_retained' if index==0 else 'queued',0,
+                        100,100,NOW,NOW,NOW+50,100))
+        life.refresh();hint=delivery_hint(self.h)
+        first=actor.capture(hint)
+        self.assertEqual(len(first['refresh']),64);self.assertFalse(first['refresh_scan']['finished'])
+        feedback=delivery.acknowledge_actor(life,first,delivery.deliver(first))
+        with self.state.writer.transaction():
+            self.h.db.execute("UPDATE candidate_lifecycle SET state='queued' WHERE address='refresh:0'")
+            changed(self.h,publication=False,urgent_delivery=False)
+            # New work above the active horizon cannot prolong this sweep.
+            self.h.db.execute('INSERT INTO candidate_lifecycle VALUES(?,?,?,?,?,?,?,?,?,?)',
+                ('pump','refresh:later','queued',0,100,100,NOW,NOW,NOW+50,100))
+        last=actor.capture(delivery_hint(self.h),(first,feedback))
+        self.assertEqual([row[2] for row in last['refresh']],['refresh:65'])
+        self.assertTrue(last['refresh_scan']['finished'])
+        # A commit after capture invalidates EOF, even when it is an ordinary
+        # arrival. Its outbox work must still receive normal bounded service.
+        identity=life.emit('pump','during-refresh','scout',dict(fields={}))
+        feedback=delivery.acknowledge_actor(life,last,delivery.deliver(last))
+        self.assertTrue(feedback.accepted);self.assertFalse(feedback.refresh_cleared)
+        self.assertTrue(life._consumer_refresh_requested)
+        revisit=actor.capture(feedback.hint,(last,feedback))
+        self.assertIn('refresh:0',[row[2] for row in revisit['refresh']])
+        self.assertEqual([row[0] for row in revisit['rows']],[identity])
+        accepted=delivery.acknowledge_actor(life,revisit,delivery.deliver(revisit))
+        self.assertTrue(accepted.accepted)
+        self.assertIsNotNone(self.h.db.execute('SELECT consumed FROM candidate_history_outbox WHERE id=?',(identity,)).fetchone()[0])
+
+    def test_empty_refresh_feedback_cannot_clear_rearmed_request_and_own_ack_does_not_stale_eof(self):
+        from meme_machine import solana_history_delivery as delivery
+        from meme_machine.solana_history_notifications import delivery_hint
+        life=self.h.lifecycle;actor=self.actor();life.refresh()
+        old=actor.capture(delivery_hint(self.h));self.assertEqual(old['refresh'],[])
+        life._consumer_refresh_requested=False;life.refresh()
+        empty=dict(acknowledgements=[],refreshed=[])
+        feedback=delivery.acknowledge_actor(life,old,empty)
+        self.assertFalse(feedback.refresh_cleared);self.assertTrue(feedback.hint.refresh_requested)
+        identity=life.emit('pump','same-ack','scout',dict(fields={}))
+        current=actor.capture(delivery_hint(self.h),(old,feedback))
+        self.assertGreater(current['refresh_scan']['token'],old['refresh_scan']['token'])
+        feedback=delivery.acknowledge_actor(life,current,delivery.deliver(current))
+        self.assertTrue(feedback.refresh_cleared,'ACK compared EOF after incrementing its own delivery revision')
+        self.assertFalse(life._consumer_refresh_requested)
+        self.assertIsNone(actor.capture(feedback.hint,(current,feedback)))
+        self.assertIsNotNone(self.h.db.execute('SELECT consumed FROM candidate_history_outbox WHERE id=?',(identity,)).fetchone()[0])
+
+    def test_corrupt_receipt_and_new_generation_never_advance_actor_ack(self):
+        from meme_machine import solana_history_delivery as delivery
+        from meme_machine.solana_history_notifications import delivery_hint
+        life=self.h.lifecycle;actor=self.actor()
+        identity=life.emit('pump','replay','scout',dict(fields={}))
+        snapshot=actor.capture(delivery_hint(self.h));result=delivery.deliver(snapshot)
+        with sqlite3.connect(life.path) as db:
+            original=db.execute('SELECT hash FROM source_receipts WHERE id=?',(identity,)).fetchone()[0]
+            db.execute('UPDATE source_receipts SET hash=? WHERE id=?',('0'*64,identity))
+        with self.assertRaisesRegex(EvidenceUnavailable,'receipt_missing_or_corrupt'):
+            delivery.acknowledge_actor(life,snapshot,result)
+        repeated=actor.capture(delivery_hint(self.h))
+        self.assertEqual(repeated['rows'],snapshot['rows'])
+        with sqlite3.connect(life.path) as db:db.execute('UPDATE source_receipts SET hash=? WHERE id=?',(original,identity))
+        self.h.startup.begin()
+        feedback=delivery.acknowledge_actor(life,snapshot,result)
+        self.assertFalse(feedback.accepted)
+        fresh=actor.capture(feedback.hint,(snapshot,feedback))
+        self.assertNotEqual(fresh['generation'],snapshot['generation'])
+        self.assertEqual(fresh['rows'],snapshot['rows'])
+        self.assertEqual(fresh['proof_scan']['base'],{})
+
+    def test_replacement_during_read_fails_closed_and_does_not_pin_reader(self):
+        from meme_machine import solana_history_delivery as delivery
+        from meme_machine.solana_history_notifications import delivery_hint
+        actor=self.actor();self.h.lifecycle.emit('pump','old','scout',dict(fields={}))
+        replacement=Path(self.tmp.name)/'replacement.sqlite'
+        other,_=state_at(replacement,lambda:NOW);other.writer.close()
+        original=delivery.capture
+        def replace_after_read(*args,**kwargs):
+            snapshot=original(*args,**kwargs)
+            os.replace(replacement,self.path)
+            return snapshot
+        with patch.object(delivery,'capture',replace_after_read):
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_delivery_source_replaced'):
+                actor.capture(delivery_hint(self.h))
+        self.assertEqual(actor.proof_progress,{})
 
 
 class ColdRestoreTests(unittest.TestCase):

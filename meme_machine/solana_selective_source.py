@@ -571,6 +571,7 @@ def source_work(work,stop,observe=None):
                 retries+=1
                 await asyncio.sleep(min(.2,.01*2**min(retries-1,5)))
     resumable.candidate_delivery_continuation=getattr(work,'candidate_delivery_continuation',False) is True
+    resumable.candidate_delivery_capture_actor=getattr(work,'candidate_delivery_capture_actor',False) is True
     return resumable
 
 
@@ -598,6 +599,7 @@ class SelectiveSource:
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
         self.archive_preparation_wakeup=WorkPulse()
         self.delivery_urgent=WorkPulse();self.delivery_revision=0
+        self.delivery_capture_context=None;self.delivery_owner_hint=None
         self.source_drain=dict(state='RUNNING',terminal=False,source_pid=os.getpid(),run_identity=uuid.uuid4().hex,
             started_at_monotonic=time.monotonic(),terminal_at_monotonic=None,accepted_handlers=0,
             settled_handlers=0,closed_sessions=0,preserved_partial_sessions=0,
@@ -665,7 +667,18 @@ class SelectiveSource:
             self.handlers.fail(number,exc);raise
         else:self.handlers.finish(number)
 
-    def history_changed(self,*,publication=True,delivery=True,urgent_delivery=True):
+    def _history_delivery_hint(self,hint):
+        current=getattr(self,'delivery_owner_hint',None)
+        if current is not None:
+            if hint.revision<current.revision:return
+            # ACK feedback can clear a request after its own commit callback
+            # queued the same revision. That older true value cannot undo EOF.
+            if (hint.revision==current.revision and hint.refresh_token==current.refresh_token
+                    and not current.refresh_requested and hint.refresh_requested):return
+        self.delivery_owner_hint=hint
+
+    def history_changed(self,*,publication=True,delivery=True,urgent_delivery=True,delivery_hint=None):
+        if delivery_hint is not None:self._history_delivery_hint(delivery_hint)
         if publication:self.history_wakeup.notify()
         if delivery:
             self.delivery_revision=getattr(self,'delivery_revision',0)+1
@@ -1386,10 +1399,19 @@ class SelectiveSource:
                     self.drain_snapshot(),handler_boundary=self.retained_handler_recovery)
             h=install(state)
             from .solana_history_notifications import install as notifications
-            notifications(h,loop,self.history_changed)
+            actor=getattr(work,'candidate_delivery_capture_actor',False) is True
+            notifications(h,loop,self.history_changed,capture_hints=actor)
             if not position_only():h.startup.begin()
+            if actor:
+                from .solana_history_delivery import capture_context
+                from .solana_history_notifications import delivery_hint
+                return str(state.writer.path),capture_context(h.lifecycle),delivery_hint(h)
             return str(state.writer.path)
-        self.canonical_path=await work(boot,0)
+        booted=await work(boot,0)
+        if getattr(work,'candidate_delivery_capture_actor',False) is True:
+            self.canonical_path,self.delivery_capture_context,hint=booted
+            self._history_delivery_hint(hint)
+        else:self.canonical_path=booted
         from .solana_history_work import enabled as separated_history
         self.history_separated=separated_history()
         if separated_history() and not callable(getattr(getattr(self,'historical_executor',None),'submit',None)):
@@ -1772,14 +1794,21 @@ class SelectiveSource:
         never its untrusted result as completeness. Keep an owner admission
         between ACK and proof publication so protective work can still win.
         """
-        from .solana_history_delivery import acknowledge
+        from .solana_history_delivery import acknowledge,acknowledge_actor
         snapshot['proof_publication_changed']=False
         options={}
         if (continuation is not None and getattr(self.work,'candidate_delivery_continuation',False) is True
                 and len(snapshot['rows'])==64 and not snapshot.get('publication_ids',snapshot['proofs'])):
             options['continuation']=continuation
-        accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
-            label='candidate_delivery_ack',**options)
+        if snapshot.get('capture_actor'):
+            feedback=await self.work(lambda state:acknowledge_actor(install(state).lifecycle,snapshot,result),2,
+                label='candidate_delivery_ack')
+            snapshot['capture_ack']=feedback
+            self._history_delivery_hint(feedback.hint)
+            accepted=feedback.accepted
+        else:
+            accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
+                label='candidate_delivery_ack',**options)
         identities=tuple(snapshot.get('publication_ids',[proof['identity'] for proof in snapshot['proofs']]))
         if accepted and identities:
             # Retain the same accounting-before-publication fence as the
@@ -1793,6 +1822,8 @@ class SelectiveSource:
 
     async def candidate_history_delivery(self):
         """Mandatory bounded consumer work, independent of optional history."""
+        if getattr(self.work,'candidate_delivery_capture_actor',False) is True:
+            return await self._candidate_history_capture_actor()
         from .solana_history_delivery import capture,deliver,acknowledge
         failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None;carried=None
         while not self.stop.is_set():
@@ -1870,6 +1901,82 @@ class SelectiveSource:
                 if consumer_work or more or not accepted:self.delivery_wakeup.notify()
                 if publication or more or not accepted:self.delivery_urgent.notify()
                 carried=following or None
+                failures=0
+            except sqlite3.OperationalError as exc:
+                if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+                failures+=1
+                await self.work(lambda state:install(state)._observation(None,'candidate_consumer_write_busy',
+                    dict(complete=False,failures=failures,off_owner=True)),2)
+                await asyncio.sleep(min(2,.1*2**min(failures-1,5)))
+                self.delivery_wakeup.notify()
+            except (RuntimeError,MemoryError) as exc:
+                failures+=1
+                await self.work(lambda state:install(state)._observation(None,'candidate_delivery_unavailable',
+                    dict(complete=False,failures=failures,reason=type(exc).__name__)),2)
+                await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
+                self.delivery_wakeup.notify()
+
+    async def _candidate_history_capture_actor(self):
+        """Canonical read capture and consumer writes share the existing thread.
+
+        The read transaction closes before any consumer FULL write. Every ACK
+        and proof publication still enters the sole canonical owner normally.
+        """
+        from .solana_history_delivery import CaptureActor,deliver,acknowledge_actor
+        context=getattr(self,'delivery_capture_context',None)
+        if context is None or getattr(self,'delivery_owner_hint',None) is None:
+            raise EvidenceUnavailable('candidate_delivery_capture_seed_required')
+        actor=CaptureActor(context)
+        failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None;previous=None
+        while not self.stop.is_set():
+            seen=await self.delivery_wakeup.wait(seen,self.stop,
+                delay=None if deadline is None else max(0,deadline-time.time()))
+            if time.monotonic()<not_before:
+                await self.delivery_urgent.wait(urgent_seen,self.stop,delay=not_before-time.monotonic())
+            # Preserve these pre-submit epochs. A commit callback arriving while
+            # the reader runs must wake another capture, even after an empty one.
+            seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
+            if self.stop.is_set():break
+            hint=self.delivery_owner_hint
+            future=asyncio.wrap_future(self.delivery_executor.submit(actor.capture,hint,previous))
+            try:snapshot=await asyncio.shield(future)
+            except asyncio.CancelledError:
+                # A physical read must release its transaction before owner
+                # teardown. It has no external write requiring a canonical ACK.
+                await asyncio.shield(future)
+                raise
+            previous=None
+            if snapshot is None:
+                deadline=None;continue
+            deadline=snapshot.get('proof_deadline')
+            try:
+                consumer_work=bool(snapshot['rows'] or snapshot['proofs'] or snapshot['refresh'])
+                if consumer_work:
+                    future=asyncio.wrap_future(self.delivery_executor.submit(deliver,snapshot))
+                    try:result=await asyncio.shield(future)
+                    except asyncio.CancelledError:
+                        # Preserve accepted FULL delivery -> fresh owner ACK ->
+                        # cancellation. Pending proofs publish after restart.
+                        result=await asyncio.shield(future)
+                        await self.work(lambda state:acknowledge_actor(install(state).lifecycle,snapshot,result),2,
+                            label='candidate_delivery_ack')
+                        raise
+                else:result=dict(acknowledgements=[],refreshed=[])
+                try:accepted=await self._complete_history_delivery(snapshot,result)
+                finally:
+                    if 'capture_ack' in snapshot:previous=(snapshot,snapshot['capture_ack'])
+                if snapshot.get('proof_publication_changed'):self.history_changed(publication=False)
+                if consumer_work:self.observe('history_delivery_timing',**result['metrics'])
+                not_before=0 if len(snapshot['rows'])==64 else time.monotonic()+.1
+                publication=bool(snapshot.get('publication_ids',snapshot['proofs'])) or not accepted
+                more=bool(snapshot.get('proof_scan',{}).get('more'))
+                refresh=snapshot.get('refresh_scan');feedback=snapshot['capture_ack']
+                refresh_more=bool(refresh and (not refresh['finished'] or not feedback.refresh_cleared))
+                if publication:self.history_wakeup.notify()
+                if consumer_work or more or refresh_more or not accepted:self.delivery_wakeup.notify()
+                # Refresh retries retain the original nonurgent cadence. A busy
+                # stream cannot turn conservative EOF rejection into idle spin.
+                if publication or more or not accepted:self.delivery_urgent.notify()
                 failures=0
             except sqlite3.OperationalError as exc:
                 if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise

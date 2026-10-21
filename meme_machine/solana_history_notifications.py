@@ -5,6 +5,22 @@ always visits the durable outbox. Committed changes wake publication/delivery,
 while diagnostics and unrelated accounting deliberately do not.
 """
 import asyncio
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class DeliveryHint:
+    revision:int
+    refresh_token:int
+    refresh_requested:bool
+
+
+def delivery_hint(history):
+    """Copy owner scheduling state; none of these fields authorizes evidence."""
+    life=getattr(history,'lifecycle',None)
+    return DeliveryHint(getattr(history,'_history_delivery_revision',0),
+        getattr(life,'_consumer_refresh_token',0),
+        bool(getattr(life,'_consumer_refresh_requested',False)))
 
 
 class WorkPulse:
@@ -33,7 +49,7 @@ def changed(history,*,publication=True,delivery=True,urgent_delivery=True):
         if callback is not None:callback()
 
 
-def install(history,loop,wakeup):
+def install(history,loop,wakeup,*,capture_hints=False):
     def current():return (getattr(history,'_history_publication_revision',0),
         getattr(history,'_history_delivery_revision',0),getattr(history,'_history_urgent_revision',0))
     committed=[current()]
@@ -43,5 +59,10 @@ def install(history,loop,wakeup):
             publication=revision[0]!=committed[0][0];delivery=revision[1]!=committed[0][1]
             urgent=revision[2]!=committed[0][2]
             committed[0]=revision
-            if not loop.is_closed():loop.call_soon_threadsafe(lambda:wakeup(publication=publication,delivery=delivery,urgent_delivery=urgent))
+            # Freeze values on the owner before queueing. A reader may observe
+            # this commit before its callback arrives; the later pulse must
+            # still reopen its completed scheduling horizon.
+            options=dict(publication=publication,delivery=delivery,urgent_delivery=urgent)
+            if capture_hints:options['delivery_hint']=delivery_hint(history)
+            if not loop.is_closed():loop.call_soon_threadsafe(lambda:wakeup(**options))
     history.writer._history_committed=notify
