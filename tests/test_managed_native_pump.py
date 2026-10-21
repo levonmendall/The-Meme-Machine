@@ -300,6 +300,19 @@ class ManagedPumpTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
             managed.replay_pump(self.config)
 
+    def test_sealed_timing_catalog_uses_the_same_nonfinancial_snapshot(self):
+        self.stores()
+        metrics = {'publication_timing:shared': dict(calls=2,
+            owner_queue_total_microseconds=100, execution_total_microseconds=20)}
+        driver = SimpleNamespace(pipeline_metrics=metrics, drain_snapshot=lambda: {})
+        snapshot = managed.pump_snapshot(self.config, driver=driver)
+        self.assertEqual(snapshot['pipeline_timing'], snapshot['pipeline'])
+        self.assertEqual(snapshot['pipeline_timing'], metrics)
+        metrics['publication_timing:shared']['calls'] += 1
+        self.assertEqual(snapshot['pipeline_timing']['publication_timing:shared']['calls'], 2)
+        self.assertFalse(snapshot['financial_authority'])
+        self.assertEqual(snapshot['history']['funding'], 0)
+
     def test_replay_refuses_external_canonical_reference_before_opening_it(self):
         self.stores()
         raw = json.dumps(dict(path='/original/economic/source.sqlite'))

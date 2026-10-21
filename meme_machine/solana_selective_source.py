@@ -379,9 +379,16 @@ async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
         pending=join.pending.get(slot)
         required=bool(pending is not None and sig in pending['missing_logs']
             and any(pending['signature_text'].get(index)==sig for index in pending['log_required']))
-        byte_bound=MAX_PENDING_BYTES if required else MAX_PENDING_BYTES//2
+        # Intake has already accepted this packet. Closing the session must
+        # not turn its speculative soft-waterline wait into an interrupted
+        # handler when the original hard bound can still retain it. The
+        # normal join validation/ordered commit and partial-session recovery
+        # persistence still run before the handler or session may finish.
+        closing=stop.is_set() or local_stop.is_set()
+        closing_admission=closing and join.clock()-started<join.max_join_seconds
+        byte_bound=MAX_PENDING_BYTES if required or closing_admission else MAX_PENDING_BYTES//2
         if len(join.early_logs)<32768 and join.early_log_bytes+size<=byte_bound:return
-        if stop.is_set() or local_stop.is_set():raise asyncio.CancelledError()
+        if closing:raise asyncio.CancelledError()
         if join.clock()-started>=join.max_join_seconds:
             raise EvidenceUnavailable('candidate_log_buffer_pressure')
         progress.clear()

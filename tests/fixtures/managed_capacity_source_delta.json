@@ -42,8 +42,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
-      "after_bytes": 28234,
-      "after_sha256": "7ff06dfa59d5b63138766762e2ab65ad52e7ed99d5066c8eef815f8100238128",
+      "after_bytes": 29503,
+      "after_sha256": "ecd378ea4522b0a30b63286dee9f69aa0df52e2d033f0efcc98076c00f44c933",
       "status": "A"
     },
     "meme_machine/operational/managed_pons_survivor.py": {
@@ -52,8 +52,13 @@
       "status": "A"
     },
     "meme_machine/operational/managed_pump_qualification.py": {
-      "after_bytes": 28997,
-      "after_sha256": "c31ddeb6f17933d8ad335d7a46af7abbefe8f8628dfa7c768a9438a5b0519b81",
+      "after_bytes": 34076,
+      "after_sha256": "6a65db47801df876a61e04e517462682b6953acb55544204581bed0c504daa6e",
+      "status": "A"
+    },
+    "meme_machine/operational/managed_qualification_replay.py": {
+      "after_bytes": 10937,
+      "after_sha256": "69d96c4a3e60f586576e715ad230eef6fb2383175e4c412494521b4c1f23f548",
       "status": "A"
     },
     "meme_machine/runtime/evidence_worker.py": {
@@ -123,8 +128,8 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 167288,
-      "after_sha256": "c8c2f5cca1c6444b4b623c152b31c37655400ec67f0ff831b1a1eb518c801688",
+      "after_bytes": 167788,
+      "after_sha256": "f0b7c51c9957b27745e1390719d46a6bc99c76dc73997ce7b3e27fdff00b56fb",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -209,8 +214,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "a8ff3c54904e73df3cf200cc35d08af1e9c5b09c",
-  "implementation_tree": "cb5a671c2c00eee2d5fca550e4e3175f358a47fa",
+  "implementation": "f1593cae377d754d70611083a87f899d9f8e0bf1",
+  "implementation_tree": "6ac73e0799562593de3524755d511ba8cd4c3401",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,

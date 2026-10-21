@@ -360,6 +360,115 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE hi IS NULL').fetchone()[0],2)
 
+    async def close_accepted_soft_wait(self, *, retry=False, hard_full=False, expired=False):
+        """Real WS callback/session teardown; only transports and byte scale differ."""
+        import based58
+        from meme_machine import solana_selective_source as source_module
+        source=self.source;source.work=self.work;source.batched=True
+        tx=FIXTURE['pump'][0];slot=tx['slot'];waiting=asyncio.Event();close=asyncio.Event();native_ready=asyncio.Event()
+        first=['first accepted log'];size=len(str(first).encode());bound=size*3
+        second=['x'*(size*2)] if hard_full else list(first)
+        signatures=[tx['transaction']['signatures'][0],
+            based58.b58encode(b'2'*64).decode()]
+        lease=[0.]
+        original_wait=source_module.wait_candidate_log_space
+        async def space(join,progress,stop,local_stop,number,identity,logs):
+            if identity==signatures[1]:
+                if expired:join.clock=lambda:lease[0]
+                waiting.set()
+            return await original_wait(join,progress,stop,local_stop,number,identity,logs)
+        async def tip(*args):return slot-1
+        source.measured_rpc=tip
+        async def stream(channel,request,handler,family,local_stop):
+            native_ready.set()
+            await close.wait()
+            if retry:raise EvidenceUnavailable('candidate_log_buffer_pressure')
+            await local_stop.wait()
+        source.stream=stream
+        class Socket:
+            def __init__(socket):socket.acks=asyncio.Queue();socket.number=0
+            async def send(socket,raw):
+                request=json.loads(raw);await socket.acks.put(json.dumps(dict(id=request['id'],result=request['id']+10)))
+            async def recv(socket):
+                if not socket.acks.empty():return await socket.acks.get()
+                number=socket.number;socket.number+=1
+                if number<2:
+                    return json.dumps(dict(params=dict(subscription=11+number,result=dict(context=dict(slot=slot-1),
+                        value=dict(err={'InstructionError':[0,0]},signature='failed',logs=[])))))
+                await native_ready.wait()
+                if number<4:
+                    return json.dumps(dict(params=dict(subscription=11,result=dict(context=dict(slot=slot),
+                        value=dict(err=None,signature=signatures[number-2],logs=(first,second)[number-2])))))
+                await asyncio.Event().wait()
+        class Connection:
+            async def __aenter__(self):return Socket()
+            async def __aexit__(self,*args):pass
+        desired=[dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,deadline=NOW+150,
+            lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
+        local_stop=asyncio.Event()
+        with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()), \
+                patch('meme_machine.solana_selective_source.wait_candidate_log_space',space), \
+                patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound), \
+                patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            task=asyncio.create_task(source.live(None,desired,local_stop))
+            try:
+                await asyncio.wait_for(waiting.wait(),1)
+                self.assertFalse(task.done())
+                snapshot=source.drain_snapshot()
+                self.assertEqual(snapshot['pending_handlers'],1)
+                self.assertEqual(next(iter(source.handlers.records.values()))['phase'],'LOG_BUFFER_WAIT')
+                if expired:lease[0]=120.
+                close.set()
+                if not retry:local_stop.set()
+                if hard_full or expired:
+                    with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task,2)
+                elif retry:
+                    with self.assertRaisesRegex(EvidenceUnavailable,'^candidate_log_buffer_pressure$'):
+                        await asyncio.wait_for(task,2)
+                else:await asyncio.wait_for(task,2)
+            finally:
+                if not task.done():task.cancel()
+                await asyncio.gather(task,return_exceptions=True)
+        body=json.loads(self.history.db.execute("SELECT body FROM acquisition_observations WHERE kind='source_session_drain'").fetchone()[0])
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE lo=? AND hi IS NULL',(slot,)).fetchone()[0],2)
+        self.assertFalse(body['complete_history_claim'])
+        self.assertEqual(source.source_drain['preserved_partial_sessions'],1)
+        self.assertEqual(source.source_drain['unpreserved_sessions'],0)
+        self.assertLessEqual(body['early_log_bytes'],bound)
+        return body
+
+    async def test_normal_session_close_admits_owned_soft_wait_within_original_hard_bound(self):
+        body=await self.close_accepted_soft_wait()
+        self.assertEqual(body['early_log_count'],2)
+        self.assertTrue(body['drained'])
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
+        self.assertEqual(body['handler_dispositions'],[])
+
+    async def test_pressure_retry_preserves_original_error_but_finishes_owned_soft_wait(self):
+        body=await self.close_accepted_soft_wait(retry=True)
+        self.assertEqual(body['early_log_count'],2)
+        self.assertTrue(body['drained'])
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
+
+    async def test_close_without_hard_headroom_preserves_interrupted_handler_and_gap(self):
+        body=await self.close_accepted_soft_wait(hard_full=True)
+        self.assertEqual(body['early_log_count'],1)
+        self.assertFalse(body['drained'])
+        snapshot=self.source.drain_snapshot()
+        self.assertEqual(snapshot['pending_handlers'],1)
+        self.assertEqual(snapshot['handler_accounting']['recoverable'],1)
+        self.assertEqual(snapshot['handler_accounting']['returned'],snapshot['accepted_handlers']-1)
+
+    async def test_close_does_not_extend_original_wait_lease_to_use_hard_headroom(self):
+        body=await self.close_accepted_soft_wait(expired=True)
+        self.assertEqual(body['early_log_count'],1)
+        self.assertFalse(body['drained'])
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],1)
+        self.assertEqual(self.source.drain_snapshot()['handler_accounting']['recoverable'],1)
+
     async def test_actual_truncated_ws_packets_repair_once_without_program_restart_or_partial_decode(self):
         await self.actual_live(truncated=True)
         self.assertEqual(self.source.source_drain['closed_sessions'],1)
