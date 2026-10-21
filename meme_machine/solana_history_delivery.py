@@ -162,8 +162,15 @@ def capture(life,*,revision=None,schedule=False):
         # integer; either changes the exact consumer acknowledgement bytes.
         # Decode only these bounded scalars, never the full economic payload.
         references[row[0]]=tuple(None if value is None else json.loads(value) for value in full[7:])
-    bindings={(family,address):life.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',
-        (family,address)).fetchone() for _,family,address,*_ in rows}
+    # This synchronous owner turn cannot interleave a binding mutation. Reuse
+    # only its first lookup for each key, including a missing binding. ACK
+    # independently rereads the current binding after the consumer commits.
+    bindings={}
+    for _,family,address,*_ in rows:
+        key=(family,address)
+        if key not in bindings:
+            bindings[key]=life.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',
+                key).fetchone()
     current_generation=generation(life)
     if revision is None:revision=getattr(life.history,'_history_delivery_revision',0)
     raw_proofs,scan,proof_deadline=_proof_selection(life,current_generation,revision)
@@ -221,36 +228,41 @@ def deliver(snapshot):
     # These scheduling/coverage rows are consumer receipts, not canonical
     # completeness. The owner must independently verify and publish each proof.
     refreshed=[]
-    with closing(CandidateHistory(life.path,clock=life.clock,write_wait_seconds=0)) as shared:
-        with shared.transaction():
-            for proof in snapshot['proofs']:
-                p=IntervalProof(proof['scope'],proof['lo'],proof['hi'],proof['source'],proof['endpoint'],
-                    proof['witness'],proof['observed_at']);p.validate()
-                shared.commit_history_readiness('candidate:'+proof['family']+':'+proof['candidate'],
-                    proof['lo'],proof['hi'],proof_hash=proof['identity'],available=life.clock())
-                if proof['members']:
-                    members=dict(proof['members'])
-                    targets=shared.db.execute("SELECT DISTINCT candidate FROM work WHERE lane='meteora' AND status IN ('active','pending')").fetchall()
-                    for target, in targets:
-                        if target in members and members[target]<=proof['hi']:
-                            shared.commit_history_readiness('candidate:meteora:'+target,max(proof['lo'],members[target]),
-                                proof['hi'],proof_hash=proof['identity'],available=life.clock())
-                if proof['family'] in ('pump','pumpswap') and proof['lower'] and proof['upper']:
-                    from .solana_selective_history import FAMILIES
-                    from .solana_rolling_history import program_scope
-                    shared.commit_coverage(FAMILIES[proof['family']],proof['lo'],proof['hi'],
-                        int(proof['lower'][0]),int(proof['upper'][0]),proof_hash=proof['identity'],
-                        candidate=None if proof['scope']==program_scope(proof['family']) else proof['candidate'])
-                raw=canonical(proof)
-                shared.db.execute('INSERT OR REPLACE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
-                    ('coverage:'+proof['identity'],proof['family'],proof['address'],'coverage',life.clock(),raw,
-                     hashlib.sha256(raw.encode()).hexdigest()))
-            for rowid,family,address,state,deadline,promotion in snapshot['refresh']:
-                work=None if not promotion else shared.db.execute('SELECT status FROM work WHERE id=?',('provider:'+promotion[0],)).fetchone()
-                finished=bool(work and work[0] in ('failed','complete','deadline_missed') or deadline is not None and deadline<life.clock())
-                if finished and work and work[0] in ('active','pending'):
-                    shared.complete('provider:'+promotion[0],now=life.clock())
-                refreshed.append((rowid,'demoted' if finished else 'warming' if work and work[0]=='active' else state))
+    # deliver_rows already owns the necessary schema/open and FULL commit,
+    # including when rows is empty. An empty proof/refresh phase needs no
+    # second schema pass or writer lock. Necessary second-phase failures keep
+    # their original transaction, exception and replay behavior.
+    if snapshot['proofs'] or snapshot['refresh']:
+        with closing(CandidateHistory(life.path,clock=life.clock,write_wait_seconds=0)) as shared:
+            with shared.transaction():
+                for proof in snapshot['proofs']:
+                    p=IntervalProof(proof['scope'],proof['lo'],proof['hi'],proof['source'],proof['endpoint'],
+                        proof['witness'],proof['observed_at']);p.validate()
+                    shared.commit_history_readiness('candidate:'+proof['family']+':'+proof['candidate'],
+                        proof['lo'],proof['hi'],proof_hash=proof['identity'],available=life.clock())
+                    if proof['members']:
+                        members=dict(proof['members'])
+                        targets=shared.db.execute("SELECT DISTINCT candidate FROM work WHERE lane='meteora' AND status IN ('active','pending')").fetchall()
+                        for target, in targets:
+                            if target in members and members[target]<=proof['hi']:
+                                shared.commit_history_readiness('candidate:meteora:'+target,max(proof['lo'],members[target]),
+                                    proof['hi'],proof_hash=proof['identity'],available=life.clock())
+                    if proof['family'] in ('pump','pumpswap') and proof['lower'] and proof['upper']:
+                        from .solana_selective_history import FAMILIES
+                        from .solana_rolling_history import program_scope
+                        shared.commit_coverage(FAMILIES[proof['family']],proof['lo'],proof['hi'],
+                            int(proof['lower'][0]),int(proof['upper'][0]),proof_hash=proof['identity'],
+                            candidate=None if proof['scope']==program_scope(proof['family']) else proof['candidate'])
+                    raw=canonical(proof)
+                    shared.db.execute('INSERT OR REPLACE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
+                        ('coverage:'+proof['identity'],proof['family'],proof['address'],'coverage',life.clock(),raw,
+                         hashlib.sha256(raw.encode()).hexdigest()))
+                for rowid,family,address,state,deadline,promotion in snapshot['refresh']:
+                    work=None if not promotion else shared.db.execute('SELECT status FROM work WHERE id=?',('provider:'+promotion[0],)).fetchone()
+                    finished=bool(work and work[0] in ('failed','complete','deadline_missed') or deadline is not None and deadline<life.clock())
+                    if finished and work and work[0] in ('active','pending'):
+                        shared.complete('provider:'+promotion[0],now=life.clock())
+                    refreshed.append((rowid,'demoted' if finished else 'warming' if work and work[0]=='active' else state))
     return dict(acknowledgements=acknowledgements,refreshed=refreshed,
         metrics=dict(wall_seconds=time.monotonic()-begun,cpu_seconds=time.thread_time()-cpu))
 

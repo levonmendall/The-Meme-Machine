@@ -89,30 +89,51 @@
       "status": "M"
     },
     "meme_machine/solana_candidate_join.py": {
-      "after_bytes": 28170,
-      "after_sha256": "d8ba10cd5b4edb26a6edbc819684263baffe0a6b883c30cb918a1a231a3dc181",
+      "after_bytes": 31511,
+      "after_sha256": "9ea5f48c69433866dae0064f4f100dfcb27d15c5e201ee99664203bdb1831c2b",
       "before_bytes": 22910,
       "before_sha256": "cd570e5ed58519bf61ccfc553910d1a5093952e7754a9cab80d517f3e7269699",
       "changed_nodes": [
         "CandidateTransactionJoin.__init__",
         "CandidateTransactionJoin.__layout__",
+        "CandidateTransactionJoin._finish_drain",
+        "CandidateTransactionJoin._prepare_drain",
         "CandidateTransactionJoin.complete_deferred_log",
         "CandidateTransactionJoin.defer_log",
         "CandidateTransactionJoin.deferred_log_witness",
         "CandidateTransactionJoin.diagnostic",
         "CandidateTransactionJoin.drain",
         "CandidateTransactionJoin.feed",
-        "CandidateTransactionJoin.hold_complete_log"
+        "CandidateTransactionJoin.hold_complete_log",
+        "__statement_15",
+        "__statement_16",
+        "__statement_17",
+        "__statement_18",
+        "__statement_19",
+        "__statement_4",
+        "candidate_commit_size"
       ],
       "status": "M"
     },
     "meme_machine/solana_candidate_lifecycle.py": {
-      "after_bytes": 45132,
-      "after_sha256": "ca2169c1a4b1d41050547117c8453d2ad77afbb8292346df687c970e3ef64dc5",
+      "after_bytes": 45311,
+      "after_sha256": "8afdcbde1a3fd220cf3661861d6850b537da757b3e285d5ceadb5b5a01edf2ab",
       "before_bytes": 44124,
       "before_sha256": "4c48fe1247281b07e3b71235c533b76afe728a31db7a8b2cae85c1878a669293",
       "changed_nodes": [
+        "CandidateLifecycle.deliver_rows",
         "CandidateLifecycle.queue_records"
+      ],
+      "status": "M"
+    },
+    "meme_machine/solana_history_delivery.py": {
+      "after_bytes": 23338,
+      "after_sha256": "ab230fba876b17e181427a29f445ea2f5f7bbe67a2258c8d70305ea7c935a2e8",
+      "before_bytes": 22576,
+      "before_sha256": "ffcbde1f017bdc4fe9cacac2d0c97690878ae8e5e1b125ab09f67094212b2f89",
+      "changed_nodes": [
+        "capture",
+        "deliver"
       ],
       "status": "M"
     },
@@ -128,8 +149,8 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 167788,
-      "after_sha256": "f0b7c51c9957b27745e1390719d46a6bc99c76dc73997ce7b3e27fdff00b56fb",
+      "after_bytes": 167638,
+      "after_sha256": "e0340bf503e957bc211e8d29c88db99049eb7d82829a8c69fba39f2c8f1c4bf0",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -141,6 +162,7 @@
         "SelectiveSource.measured_rpc",
         "SelectiveSource.observe",
         "SelectiveSource.rolling_programs",
+        "__statement_15",
         "__statement_16",
         "__statement_17",
         "__statement_18",
@@ -164,15 +186,6 @@
         "__statement_36",
         "__statement_37",
         "__statement_38",
-        "__statement_39",
-        "__statement_40",
-        "__statement_41",
-        "__statement_42",
-        "__statement_43",
-        "__statement_44",
-        "__statement_45",
-        "__statement_49",
-        "__statement_50",
         "wait_candidate_log_space"
       ],
       "status": "M"
@@ -214,8 +227,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "f1593cae377d754d70611083a87f899d9f8e0bf1",
-  "implementation_tree": "6ac73e0799562593de3524755d511ba8cd4c3401",
+  "implementation": "668b50dae2ec72d447628fbd658fe0cc5d089b6d",
+  "implementation_tree": "d50819207f542b0993a577509de04d6ea0bf27ab",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,

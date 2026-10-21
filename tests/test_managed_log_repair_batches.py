@@ -302,6 +302,32 @@ class RepairLogOccupancyTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 stop.set();progress.set();await asyncio.gather(waiting,return_exceptions=True)
 
+    async def test_atomic_oldest_transfer_wakes_native_required_packet_at_actual_hard_bound(self):
+        from meme_machine.solana_candidate_join import scope_labels
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        case=captured_logs.StreamFullLogContentTests()
+        join,_,full,complete,_,bound=case.pressured();slot=full['slot'];sig=full['transaction']['signatures'][0]
+        wanted=SIGS[1];future=slot+2;progress=asyncio.Event();stop=asyncio.Event()
+        u=pb.SubscribeUpdate(filters=[scope_labels(join.programs)[next(iter(join.programs.values()))]])
+        u.transaction_status.slot=future;u.transaction_status.index=0;u.transaction_status.signature=based58.b58decode(wanted.encode())
+        join.feed(u,u.ByteSize(),captured_logs.NOW+1)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound), \
+                patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+            waiting=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,future,wanted,['held']))
+            try:
+                await asyncio.sleep(.01);self.assertFalse(waiting.done())
+                self.assertEqual(join.early_log_bytes,bound)
+                transferred=join.complete_deferred_log(slot,sig,complete,captured_logs.NOW+2)
+                progress.set() # Same ordering as the production HTTP callback.
+                await asyncio.wait_for(waiting,.5)
+                self.assertEqual(transferred.update.block.slot,slot)
+                self.assertNotIn((future,wanted),join.early_logs)
+                join.feed_log(future,wanted,['held'],None,captured_logs.NOW+2)
+                self.assertLessEqual(join.early_log_bytes,bound)
+            finally:
+                stop.set();progress.set();await asyncio.gather(waiting,return_exceptions=True)
+
     async def test_http_install_of_waiting_key_releases_duplicate_without_new_capacity(self):
         from meme_machine.solana_selective_source import wait_candidate_log_space
         join,_,_,full,_,bound=self.pressured();slot=full['slot']+2;sig='same-http-key';logs=['installed']

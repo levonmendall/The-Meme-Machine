@@ -371,9 +371,11 @@ class CandidateLifecycle:
                     receipt=dict(source_hash=checksum,scope=coverage_scope(family,address),
                         canonical_identity=(body.get('record') or {}).get('identity'))
                     receipt_raw=canonical(receipt)
-                    with shared.transaction():
-                        shared.db.execute('INSERT OR IGNORE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
-                            (identity,family,address,kind,at,receipt_raw,hashlib.sha256(receipt_raw.encode()).hexdigest()))
+                    # The surrounding batch transaction owns this receipt and
+                    # its economic changes. Nothing catches an insertion error
+                    # here: it must roll back that complete batch unchanged.
+                    shared.db.execute('INSERT OR IGNORE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
+                        (identity,family,address,kind,at,receipt_raw,hashlib.sha256(receipt_raw.encode()).hexdigest()))
                 shared.observe_pump_source_groups(pump_observations)
         return acknowledgements
 

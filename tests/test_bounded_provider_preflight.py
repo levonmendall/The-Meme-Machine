@@ -598,11 +598,27 @@ class ReplayCapabilityDiagnosticTests(unittest.TestCase):
 
     def test_absolute_deadline_cancels_hung_unary_and_releases_receipt(self):
         import time
-        origin=time.monotonic()-43.95
-        result,_,state=self.exercise(hang_unary=True,window=self.diagnostic.Window(origin))
+        budget,state,channel,factory,governor,http=self.fixture(hang_unary=True)
+        window=self.diagnostic.Window();original=channel.unary_unary
+        def expiring_unary(*args,**kwargs):
+            invoke=original(*args,**kwargs)
+            def call(request,**options):
+                pending=invoke(request,**options)
+                # Exercise expiry with a real in-flight call. Starting this
+                # 50-ms remainder before SQLite fixture setup instead tests
+                # legitimate pre-dispatch expiry on a busy offline runner.
+                window.origin=time.monotonic()-43.95
+                return pending
+            return call
+        channel.unary_unary=expiring_unary
+        result=asyncio.run(self.diagnostic.experiment(self.config,self.config.credential,
+            budget,governor,self.root/f'probe-{self.serial}',channel_factory=factory,http=http,window=window))
         self.assertEqual(result['status'],'STOPPED');self.assertEqual(len(state.unary),1)
         self.assertTrue(state.unary_call.cancelled);self.assertEqual(state.requests,[])
         self.assertLess(result['elapsed_seconds'],45)
+        self.assertEqual(budget.snapshot()['native_reserved'],'0')
+        self.assertEqual(budget.snapshot()['http_reserved'],'0')
+        self.assertEqual(state.active,0);self.assertTrue(state.closed)
         budget,state,_,factory,governor,http=self.fixture()
         window=self.diagnostic.Window()
         def expired_admission(*args,**kwargs):window.origin-=45;return 0
