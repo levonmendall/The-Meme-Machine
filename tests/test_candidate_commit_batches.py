@@ -855,4 +855,3 @@ class PublicationSQLCostTests(unittest.TestCase):
             self.assertEqual(shared.db.execute("SELECT COUNT(*) FROM source_receipts WHERE kind='coverage'").fetchone()[0],1)
         self.assertTrue(acknowledge(life,snapshot,result))
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
-
