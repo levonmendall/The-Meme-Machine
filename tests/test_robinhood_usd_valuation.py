@@ -2989,7 +2989,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(SOURCE_RECORDER_PUBLICATION_DELTAS))
         for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():
-            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())
+            current=pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact recorder transport')
             prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(source_recorder_publication_predecessor(self,relative,current),prior)
@@ -3867,7 +3867,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(MAINTENANCE_ENTRY_CLOCK_DELTAS))
         for relative,(_,after,_) in MAINTENANCE_ENTRY_CLOCK_DELTAS.items():
-            current=source_recorder_publication_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+            current=source_recorder_publication_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact maintenance clock repair')
             prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(maintenance_entry_clock_predecessor(self,relative,current),prior)

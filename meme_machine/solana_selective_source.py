@@ -570,6 +570,7 @@ def source_work(work,stop,observe=None):
                 # or changing its original work/deadline.
                 retries+=1
                 await asyncio.sleep(min(.2,.01*2**min(retries-1,5)))
+    resumable.candidate_delivery_continuation=getattr(work,'candidate_delivery_continuation',False) is True
     return resumable
 
 
@@ -592,9 +593,10 @@ class SelectiveSource:
         self.control_bootstrap_tip=None;self.control_committed_slot=None
         self.control_committed_market_time=None
         self.acquisition_plan_lock=asyncio.Lock();self.acquisition_idle_until=0
-        self.preparation_lock=asyncio.Lock()
+        self.preparation_lock=asyncio.Lock();self.archive_preparation_lock=asyncio.Lock()
         from .solana_history_notifications import WorkPulse
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
+        self.archive_preparation_wakeup=WorkPulse()
         self.delivery_urgent=WorkPulse();self.delivery_revision=0
         self.source_drain=dict(state='RUNNING',terminal=False,source_pid=os.getpid(),run_identity=uuid.uuid4().hex,
             started_at_monotonic=time.monotonic(),terminal_at_monotonic=None,accepted_handlers=0,
@@ -973,8 +975,20 @@ class SelectiveSource:
                     try:
                         from .solana_evidence_service import STREAM_PROCESS_DECODE_MIN_BYTES
                         if priority==0 or sum(r[1] for r in rows)>=STREAM_PROCESS_DECODE_MIN_BYTES:
-                            prepared,preparation=await asyncio.wrap_future(self.preparation_executor.submit(
+                            pending=asyncio.wrap_future(self.preparation_executor.submit(
                                 prepare_candidate_frames,frames,addresses,session,self.config.identity))
+                            try:prepared,preparation=await asyncio.shield(pending)
+                            except asyncio.CancelledError:
+                                # The physical worker still owns this accepted
+                                # batch. Keep the single-native admission lock
+                                # until it finishes, preserving the cancellation
+                                # even if the worker subsequently fails.
+                                while not pending.done():
+                                    try:await asyncio.shield(pending)
+                                    except asyncio.CancelledError:continue
+                                    except BaseException:break
+                                if not pending.cancelled():pending.exception()
+                                raise
                             preparation['mode']='existing_process_pool'
                         else:
                             # Reuse the already validated source-decode boundary.
@@ -1750,7 +1764,7 @@ class SelectiveSource:
                     job,reason,**diagnostic),2,label='history_apply')
                 await asyncio.sleep(.1)
 
-    async def _complete_history_delivery(self,snapshot,result):
+    async def _complete_history_delivery(self,snapshot,result,*,continuation=None):
         """ACK then publish this exact durable proof batch, in separate turns.
 
         The background proof cursor may have passed the batch while its
@@ -1760,8 +1774,12 @@ class SelectiveSource:
         """
         from .solana_history_delivery import acknowledge
         snapshot['proof_publication_changed']=False
+        options={}
+        if (continuation is not None and getattr(self.work,'candidate_delivery_continuation',False) is True
+                and len(snapshot['rows'])==64 and not snapshot.get('publication_ids',snapshot['proofs'])):
+            options['continuation']=continuation
         accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
-            label='candidate_delivery_ack')
+            label='candidate_delivery_ack',**options)
         identities=tuple(snapshot.get('publication_ids',[proof['identity'] for proof in snapshot['proofs']]))
         if accepted and identities:
             # Retain the same accounting-before-publication fence as the
@@ -1776,17 +1794,37 @@ class SelectiveSource:
     async def candidate_history_delivery(self):
         """Mandatory bounded consumer work, independent of optional history."""
         from .solana_history_delivery import capture,deliver,acknowledge
-        failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None
+        failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None;carried=None
         while not self.stop.is_set():
-            seen=await self.delivery_wakeup.wait(seen,self.stop,
-                delay=None if deadline is None else max(0,deadline-time.time()))
-            if time.monotonic()<not_before:
-                await self.delivery_urgent.wait(urgent_seen,self.stop,delay=not_before-time.monotonic())
-            seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
-            if self.stop.is_set():break
-            snapshot=await self.work(lambda state:capture(install(state).lifecycle,
-                revision=getattr(self,'delivery_revision',0),schedule=True),2,
-                label='candidate_delivery_capture')
+            if carried is None:
+                seen=await self.delivery_wakeup.wait(seen,self.stop,
+                    delay=None if deadline is None else max(0,deadline-time.time()))
+                if time.monotonic()<not_before:
+                    await self.delivery_urgent.wait(urgent_seen,self.stop,delay=not_before-time.monotonic())
+                seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
+                if self.stop.is_set():break
+                snapshot=await self.work(lambda state:capture(install(state).lifecycle,
+                    revision=getattr(self,'delivery_revision',0),schedule=True),2,
+                    label='candidate_delivery_capture')
+            else:
+                # Only a full prior batch can carry one capture. Keep the
+                # epochs from that capture boundary; later notifications must
+                # still wake a new ordinary turn, including after an empty cap.
+                following=carried;carried=None
+                seen=following['seen'];urgent_seen=following['urgent_seen']
+                if 'error' in following:
+                    error=following['error']
+                    if (not isinstance(error,EvidenceUnavailable)
+                            or str(error) not in ('evidence_background_yield','evidence_control_overloaded')):raise error
+                    # source_work retries these two outcomes, never a durable
+                    # ACK. Resume only capture, through an ordinary admission,
+                    # with its original first backoff and unchanged deadlines.
+                    await asyncio.sleep(.01)
+                    seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
+                    snapshot=await self.work(lambda state:capture(install(state).lifecycle,
+                        revision=getattr(self,'delivery_revision',0),schedule=True),2,
+                        label='candidate_delivery_capture')
+                else:snapshot=following['snapshot']
             if snapshot is None:
                 deadline=None;continue
             deadline=snapshot.get('proof_deadline')
@@ -1803,7 +1841,21 @@ class SelectiveSource:
                             label='candidate_delivery_ack')
                         raise
                 else:result=dict(acknowledgements=[],refreshed=[])
-                accepted=await self._complete_history_delivery(snapshot,result)
+                following={}
+                def capture_next(state):
+                    # Read only epoch integers here; Event mutation stays on
+                    # its event loop. Pending commit callbacks/revision changes
+                    # remain wakeups, not evidence or permission to skip pages.
+                    following['seen']=self.delivery_wakeup.epoch
+                    following['urgent_seen']=self.delivery_urgent.epoch
+                    try:
+                        following['snapshot']=capture(install(state).lifecycle,
+                            revision=getattr(self,'delivery_revision',0),schedule=True)
+                    except Exception as exc:
+                        # ACK has already FULL-committed. Expose a failure at
+                        # the next capture site; never retry or undo this ACK.
+                        following['error']=exc
+                accepted=await self._complete_history_delivery(snapshot,result,continuation=capture_next)
                 if snapshot.get('proof_publication_changed'):self.history_changed(publication=False)
                 if consumer_work:self.observe('history_delivery_timing',**result['metrics'])
                 # Noncritical short batches coalesce within the ORIGINAL 100-ms
@@ -1817,6 +1869,7 @@ class SelectiveSource:
                 if publication:self.history_wakeup.notify()
                 if consumer_work or more or not accepted:self.delivery_wakeup.notify()
                 if publication or more or not accepted:self.delivery_urgent.notify()
+                carried=following or None
                 failures=0
             except sqlite3.OperationalError as exc:
                 if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
@@ -1832,11 +1885,102 @@ class SelectiveSource:
                 await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
                 self.delivery_wakeup.notify()
 
+    async def _archive_preparation_turn(self,job,pool,context,raw):
+        """One bounded transaction per FIFO turn across the eight RPC carriers.
+
+        Urgent jobs never wait for this optimization. A canceled/timed-out
+        carrier releases its turn, while the pool retains any physical slot
+        until its future is terminal. Neither path grants a renewed deadline.
+        """
+        from .solana_economic_preparation import prepare_archive_transaction
+        stop=self.stop;lock=self.archive_preparation_lock;pulse=self.archive_preparation_wakeup
+        ticket=job.get('_archive_preparation_ticket')
+        def invalid():return ticket is not None and ticket.invalid.is_set()
+        if stop is None or stop.is_set() or invalid() or time.time()>=job['deadline']:return None
+        owned=False
+        try:
+            if job['priority']<=2:
+                if lock.locked():return None
+                # A released Lock may still have a woken FIFO waiter. Urgent
+                # work never awaits it: the pool atomically claims its slot.
+            else:
+                acquire=asyncio.create_task(lock.acquire());end=asyncio.create_task(stop.wait())
+                wake=asyncio.create_task(ticket.changed.wait()) if ticket is not None else None
+                waits=(acquire,end,wake) if wake is not None else (acquire,end)
+                try:
+                    await asyncio.wait(waits,timeout=max(0,job['deadline']-time.time()),
+                        return_when=asyncio.FIRST_COMPLETED)
+                finally:
+                    if not acquire.done():acquire.cancel()
+                    else:owned=not acquire.cancelled() and acquire.exception() is None and acquire.result()
+                    for task in waits[1:]:task.cancel()
+                    await asyncio.gather(*waits,return_exceptions=True)
+                if not owned:return None
+            while not stop.is_set() and not invalid() and time.time()<job['deadline'] and not pool.closed:
+                # Capture before admission: completion may race try_submit.
+                seen=pulse.epoch
+                future=pool.try_submit_optional(prepare_archive_transaction,context,job['family'],raw)
+                if future is not None:
+                    if future.done():return future.result()
+                    pending=asyncio.wrap_future(future);end=asyncio.create_task(stop.wait())
+                    wake=asyncio.create_task(ticket.changed.wait()) if ticket is not None else None
+                    waits=(pending,end,wake) if wake is not None else (pending,end)
+                    try:
+                        await asyncio.wait(waits,timeout=max(0,job['deadline']-time.time()),
+                            return_when=asyncio.FIRST_COMPLETED)
+                        if pending.done() and not stop.is_set() and not invalid() and time.time()<job['deadline']:
+                            return pending.result()
+                        return None
+                    finally:
+                        for task in waits:
+                            if not task.done():task.cancel()
+                        await asyncio.gather(*waits,return_exceptions=True)
+                if job['priority']<=2:return None
+                await pulse.wait(seen,stop,delay=max(0,job['deadline']-time.time()))
+            return None
+        finally:
+            if owned:lock.release()
+
+    async def prepare_archive_page(self,job,value,supplements):
+        """Opportunistic small decodes; original owner failures stay original."""
+        from .solana_economic_preparation import (archive_preparation_context,
+            PreparedArchiveTransaction,ARCHIVE_TRANSACTION_BYTES)
+        pool=getattr(self,'archive_preparation_executor',None)
+        if pool is None or job['family'] not in ('pump','pumpswap'):return ()
+        try:
+            rows=value['data']
+            if type(rows) is not list or len(rows)>100:return ()
+            context=archive_preparation_context(job,self.config.identity)
+            ticket=job.get('_archive_preparation_ticket')
+            if context is None or ticket is not None and ticket.invalid.is_set():return ()
+            by_original={item.original_json:item for item in supplements}
+            products=[None]*len(rows);size=0
+            from .solana_selective_history import complete_archive_transaction
+            for index,original in enumerate(rows):
+                if (self.stop is None or self.stop.is_set() or time.time()>=job['deadline']
+                        or ticket is not None and ticket.invalid.is_set()):break
+                raw=canonical(original);supplement=by_original.get(raw)
+                tx=(complete_archive_transaction(original,supplement,endpoint_identity=self.config.identity)
+                    if supplement is not None else original)
+                if supplement is not None:raw=canonical(tx)
+                if len(raw.encode())>ARCHIVE_TRANSACTION_BYTES:continue
+                product=await self._archive_preparation_turn(job,pool,context,raw)
+                if type(product) is not PreparedArchiveTransaction:break
+                size+=len(product.events_json.encode())
+                if size>MAX_FRAME_BYTES:break
+                products[index]=product
+            if ticket is not None and ticket.invalid.is_set():return ()
+            return tuple(products) if any(p is not None for p in products) else ()
+        except asyncio.CancelledError:raise
+        except Exception:return () # Decode/shape/size failures run at the old owner point.
+
     async def acquire(self):
         from .operational.position_continuation import position_only
         from .runtime.evidence_worker import DeliveredRPCError,failure_diagnostic
         from .solana_selective_history import (missing_archive_log_transactions,
             join_archive_log_supplement,complete_archive_transaction)
+        from .solana_preparation_pool import ArchivePreparationTicket
+        preparation_loop=asyncio.get_running_loop()
         while not self.stop.is_set():
             def request_development(state):
                 from .lanes.pump.pump_acceleration_strategy import POLICY
@@ -1901,6 +2045,11 @@ class SelectiveSource:
                     if result:
                         state.acquisition_inflight.add(result[0]['id'])
                         result[0]['finalized_hint']=frontier
+                        ticket=ArchivePreparationTicket(result[0]['priority'],result[0]['deadline'],
+                            preparation_loop,self.archive_preparation_wakeup)
+                        if not hasattr(h,'_archive_preparation_tickets'):h._archive_preparation_tickets={}
+                        h._archive_preparation_tickets[result[0]['id']]=ticket
+                        result[0]['_archive_preparation_ticket']=ticket
                 return result
             # All archive workers use the same sole owner and pending queue.
             # After an empty plan, eight identical polls otherwise contend with
@@ -1918,11 +2067,17 @@ class SelectiveSource:
                 h=install(state)
                 if job['family']=='pump':
                     from .solana_program_decoders import pump_events
-                    for tx in value['data']:
-                        supplement=supplement_by_original.get(canonical(tx))
+                    from .solana_economic_preparation import archive_prepared_events,archive_preparation_context
+                    context=archive_preparation_context(job,self.config.identity) if archive_products else None
+                    for index,tx in enumerate(value['data']):
+                        product=(archive_products[index] if type(archive_products) is tuple
+                            and index<len(archive_products) else None)
+                        raw=canonical(tx);supplement=supplement_by_original.get(raw)
                         if supplement is not None:
                             tx=complete_archive_transaction(tx,supplement,endpoint_identity=self.config.identity)
-                        for event in pump_events(tx):
+                            if product is not None:raw=canonical(tx)
+                        events=archive_prepared_events(product,context,job['family'],tx,raw=raw) if product is not None else None
+                        for event in pump_events(tx) if events is None else events:
                             if event['event_type']=='create' and job['address'] in (event.get('mint'),event.get('bonding_curve')):
                                 # Initial curve identity is upgraded, not rejected,
                                 # when its canonical creation reveals the mint.
@@ -1937,10 +2092,10 @@ class SelectiveSource:
                             if event['event_type']=='migration':
                                 h.observe('pumpswap',event['pool'],slot=event['slot'],signature=tx['transaction']['signatures'][0],fields=dict(mint=event['mint'],graduation=event['market_time']))
                                 h.bind('pumpswap',event['pool'])
-                result=h.commit_page(job,value,finalized_through=finalized,supplements=supplements)
+                result=h.commit_page(job,value,finalized_through=finalized,supplements=supplements,prepared=archive_products)
                 h.lifecycle.publish()
                 return result
-            supplement_inputs=None
+            supplement_inputs=None;archive_products=()
             try:
                 value=await self.measured_rpc('getTransactionsForAddress',[job['address'],config],job['family'],job['priority'])
                 # The immutable upper bound is already finalized when the linked
@@ -1963,6 +2118,7 @@ class SelectiveSource:
                     acquired.append(supplement)
                 supplements=tuple(acquired)
                 supplement_by_original={item.original_json:item for item in supplements}
+                archive_products=await self.prepare_archive_page(job,value,supplements)
                 # A fetched page publishes required canonical evidence. Priority
                 # four is the owner's interruptible maintenance class: using it
                 # here repeatedly rolled a 100-row Meteora page back whenever
@@ -2019,7 +2175,12 @@ class SelectiveSource:
                             deadline=job['deadline'],funding_closed=True)),1)
                 else:raise
             finally:
-                await self.work(lambda state:state.acquisition_inflight.discard(job['id']),1)
+                def release(state):
+                    state.acquisition_inflight.discard(job['id'])
+                    tickets=getattr(install(state),'_archive_preparation_tickets',{})
+                    if tickets.get(job['id']) is job.get('_archive_preparation_ticket'):
+                        tickets.pop(job['id'],None)
+                await self.work(release,1)
 
     async def live_manager(self,channel):
         from .solana_stable_shards import StableShards

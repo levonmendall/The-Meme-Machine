@@ -1557,6 +1557,312 @@ class ArchiveFullLogContentTests(unittest.TestCase):
             self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
+    def test_archive_decode_products_bind_current_transaction_job_page_and_supplement(self):
+        from meme_machine.solana_economic_preparation import (archive_preparation_context,
+            prepare_archive_transaction,archive_prepared_events)
+        original,fetched,_,_=truncated_transaction();job=self.request(original)
+        supplement=join_archive_log_supplement(original,fetched,endpoint_identity=ENDPOINT)
+        complete=complete_archive_transaction(original,supplement,endpoint_identity=ENDPOINT)
+        context=archive_preparation_context(job,ENDPOINT)
+        product=prepare_archive_transaction(context,'pump',canonical(complete))
+        self.assertEqual(archive_prepared_events(product,context,'pump',complete),pump_events(complete))
+        swap=FIXTURE['pumpswap'][0];swap_job=dict(job,family='pumpswap')
+        swap_context=archive_preparation_context(swap_job,ENDPOINT)
+        swap_product=prepare_archive_transaction(swap_context,'pumpswap',canonical(swap))
+        self.assertEqual(archive_prepared_events(swap_product,swap_context,'pumpswap',swap),
+            pumpswap_trade_events(swap))
+        with self.assertRaises(FrozenInstanceError):product.events_json='[]'
+        for changed in (dict(job,pages=job['pages']+1),dict(job,token='different-page'),
+                        dict(job,address='different-candidate')):
+            self.assertIsNone(archive_prepared_events(product,archive_preparation_context(changed,ENDPOINT),
+                'pump',complete))
+        self.assertIsNone(archive_prepared_events(product,archive_preparation_context(job,'b'*64),'pump',complete))
+        tampered=replace(product,events_json='[]')
+        self.assertIsNone(archive_prepared_events(tampered,context,'pump',complete))
+        changed=copy.deepcopy(fetched);changed['meta']['logMessages'].append('Program log: new authenticated tail')
+        replacement=join_archive_log_supplement(original,changed,endpoint_identity=ENDPOINT)
+        current=complete_archive_transaction(original,replacement,endpoint_identity=ENDPOINT)
+        self.assertIsNone(archive_prepared_events(product,context,'pump',current))
+        with patch('meme_machine.solana_selective_history.pump_events',wraps=pump_events) as decoder:
+            rows=economic_records('pump',self.address,current,endpoint_identity=ENDPOINT,seen=NOW,
+                source='alchemy_finalized_repair',prepared=product,preparation_context=context)
+            self.assertEqual(decoder.call_count,1)
+        self.assertEqual(rows,economic_records('pump',self.address,current,endpoint_identity=ENDPOINT,
+            seen=NOW,source='alchemy_finalized_repair'))
+
+    def test_real_inflight_request_upgrade_after_rpc_skips_optional_wait_and_retains_new_deadline(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class NoOptional:
+            def __init__(self):self.calls=0
+            def submit(self,*args,**kwargs):
+                self.calls+=1;raise AssertionError('upgraded job must skip optional decoding')
+        original,fetched,_,_=truncated_transaction()
+        async def exercise():
+            source,claimed,_,_=await self.incomplete_archive_source(original,fetched,upgrade=True)
+            executor=NoOptional();source.archive_preparation_executor=PreparationPool(executor)
+            rpc=source.measured_rpc
+            async def keep_running(method,*args):
+                result=await rpc(method,*args);source.stop.clear();return result
+            source.measured_rpc=keep_running;captured=[]
+            async def work(callback,*args,**metadata):
+                if metadata.get('label')=='source_commit':
+                    ticket=self.h._archive_preparation_tickets[claimed['id']]
+                    captured.append(ticket)
+                    self.assertTrue(ticket.invalid.is_set())
+                    self.assertEqual(ticket.claim,(claimed['priority'],claimed['deadline']))
+                    self.assertEqual(self.h.db.execute('SELECT priority,deadline FROM acquisition_jobs '
+                        'WHERE id=?',(claimed['id'],)).fetchone(),(1,NOW+3))
+                try:return callback(self.state)
+                finally:
+                    if metadata.get('label')=='source_commit':source.stop.set()
+            source.work=work
+            with patch('time.time',return_value=NOW):await source.acquire()
+            self.assertEqual(len(captured),1);self.assertEqual(executor.calls,0)
+            self.assertEqual(self.h.db.execute('SELECT status,priority,deadline,pages FROM acquisition_jobs '
+                'WHERE id=?',(claimed['id'],)).fetchone(),('complete',1,NOW+3,claimed['pages']+1))
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assertEqual(self.h._archive_preparation_tickets,{})
+            self.assertTrue(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+        asyncio.run(exercise())
+
+    def test_real_overlap_plan_upgrade_invalidates_only_volatile_preparation_and_survives_restart(self):
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        async def exercise():
+            scope=self.h.bind('pumpswap','pool')
+            leader=self.h.request('pumpswap','pool',100,120,priority=3,deadline=NOW+150)
+            claimed=self.h.plan()[0]
+            source=SelectiveSource(SimpleNamespace(identity=ENDPOINT),None,token='offline')
+            ticket=ArchivePreparationTicket(claimed['priority'],claimed['deadline'],
+                asyncio.get_running_loop(),source.archive_preparation_wakeup)
+            self.h._archive_preparation_tickets={leader:ticket}
+            original=self.h.db.execute('SELECT status,pages,token,lineage FROM acquisition_jobs '
+                'WHERE id=?',(leader,)).fetchone()
+            self.h.request('pumpswap','pool',110,130,priority=0,deadline=NOW+75)
+            self.assertFalse(ticket.invalid.is_set())
+            self.assertIsNone(self.h.plan(excluding=(leader,)))
+            self.assertTrue(ticket.invalid.is_set())
+            self.assertEqual(self.h.db.execute('SELECT priority,deadline FROM acquisition_jobs '
+                'WHERE id=?',(leader,)).fetchone(),(0,NOW+75))
+            self.assertEqual(self.h.db.execute('SELECT status,pages,token,lineage FROM acquisition_jobs '
+                'WHERE id=?',(leader,)).fetchone(),original)
+            self.assertEqual(self.h.rolling.missing('pumpswap',scope,100,130),[(100,130)])
+            self.assertFalse(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+            self.state.writer.close();self.open_owner()
+            self.assertFalse(hasattr(self.h,'_archive_preparation_tickets'))
+            self.assertEqual(self.h.db.execute('SELECT priority,deadline,status,pages,token,lineage '
+                'FROM acquisition_jobs WHERE id=?',(leader,)).fetchone(),(0,NOW+75,*original))
+            self.assertEqual(self.h.rolling.missing('pumpswap',scope,100,130),[(100,130)])
+        asyncio.run(exercise())
+
+    def test_real_alias_repair_upgrade_invalidates_existing_preparation_without_new_job_or_coverage(self):
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        async def exercise():
+            scope=self.h.bind('pumpswap','pool',aliases=('alias',))
+            leader=self.h.request('pumpswap','pool',100,120,priority=3,deadline=NOW+150)
+            claimed=self.h.plan()[0]
+            source=SelectiveSource(SimpleNamespace(identity=ENDPOINT),None,token='offline')
+            ticket=ArchivePreparationTicket(claimed['priority'],claimed['deadline'],
+                asyncio.get_running_loop(),source.archive_preparation_wakeup)
+            self.h._archive_preparation_tickets={leader:ticket}
+            before=self.h.db.execute('SELECT status,pages,token,lineage FROM acquisition_jobs '
+                'WHERE id=?',(leader,)).fetchone()
+            desired=[dict(family='pumpswap',address='alias',scope=scope,
+                priority=1,deadline=NOW+5,lower_slot=100)]
+            self.assertEqual(self.h.lifecycle.repair(desired,120),[leader])
+            self.assertTrue(ticket.invalid.is_set())
+            self.assertEqual(self.h.db.execute('SELECT priority,deadline,status,pages,token,lineage '
+                'FROM acquisition_jobs WHERE id=?',(leader,)).fetchone(),(1,NOW+5,*before))
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],1)
+            self.assertEqual(self.h.rolling.missing('pumpswap',scope,100,120),[(100,120)])
+            self.assertFalse(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+            # A failed advisory callback cannot replace the original owner SQL
+            # result or grant durable evidence/priority authority.
+            def broken(*args):raise RuntimeError('offline-advisory-failure')
+            self.h._archive_preparation_tickets[leader]=SimpleNamespace(tighten=broken)
+            self.h.request('pumpswap','pool',100,120,priority=0,deadline=NOW+3)
+            self.assertEqual(self.h.db.execute('SELECT priority,deadline,status,pages,token,lineage '
+                'FROM acquisition_jobs WHERE id=?',(leader,)).fetchone(),(0,NOW+3,*before))
+        asyncio.run(exercise())
+
+    def test_spawn_pool_archive_product_roundtrip_preserves_real_economic_rows(self):
+        from concurrent.futures import ProcessPoolExecutor
+        import multiprocessing
+        from meme_machine.solana_preparation_pool import PreparationPool
+        from meme_machine.solana_economic_preparation import (archive_preparation_context,
+            prepare_archive_transaction,archive_prepared_events)
+        original,fetched,_,_=truncated_transaction();job=self.request(original)
+        supplement=join_archive_log_supplement(original,fetched,endpoint_identity=ENDPOINT)
+        complete=complete_archive_transaction(original,supplement,endpoint_identity=ENDPOINT)
+        context=archive_preparation_context(job,ENDPOINT)
+        pool=PreparationPool(ProcessPoolExecutor(max_workers=2,
+            mp_context=multiprocessing.get_context('spawn')))
+        try:
+            future=pool.try_submit_optional(prepare_archive_transaction,context,'pump',canonical(complete))
+            self.assertIsNotNone(future)
+            native=pool.native.submit(str,'native-spawn-slot')
+            product=future.result(timeout=30)
+            self.assertEqual(native.result(timeout=30),'native-spawn-slot')
+            self.assertEqual(archive_prepared_events(product,context,'pump',complete),pump_events(complete))
+            kwargs=dict(endpoint_identity=ENDPOINT,seen=NOW,source='alchemy_finalized_repair')
+            self.assertEqual(economic_records('pump',self.address,complete,**kwargs,
+                prepared=product,preparation_context=context),
+                economic_records('pump',self.address,complete,**kwargs))
+        finally:pool.shutdown(wait=True,cancel_futures=True)
+
+    def test_archive_preparation_and_short_transaction_preserve_exact_evidence_and_restart(self):
+        from tests.test_solana_closure import state_at
+        from meme_machine.solana_economic_preparation import archive_preparation_context,prepare_archive_transaction
+        from meme_machine.solana_evidence_plane import FinalizedRecord
+        full=copy.deepcopy(FIXTURE['pump'][0]);job=self.request(full)
+        page=dict(data=[full],paginationToken=None)
+        other,h=state_at(Path(self.tmp.name)/'prepared-archive.sqlite')
+        h.lifecycle.delivery_separated=True
+        h.bind('pump',self.address,market_address=self.mint,aliases=(self.mint,))
+        h.request('pump',self.address,job['lo'],job['hi'],priority=job['priority'],deadline=job['deadline'])
+        other_job,_=h.plan()
+        product=prepare_archive_transaction(archive_preparation_context(other_job,ENDPOINT),'pump',canonical(full))
+        serialized=FinalizedRecord.serialized_body;inside=[]
+        def observe(record):inside.append(h.db.in_transaction);return serialized(record)
+        try:
+            # Disable only successful eager serialization for the unchanged
+            # reference path, retaining the original inside-page-TX operation.
+            with patch('meme_machine.solana_economic_preparation.prepare_serialized_economics',return_value=None):
+                reference=self.h.commit_page(job,page,finalized_through=job['hi'])
+            with (patch('meme_machine.solana_selective_history.pump_events',side_effect=AssertionError('redundant owner decode')),
+                    patch.object(FinalizedRecord,'serialized_body',observe)):
+                result=h.commit_page(other_job,page,finalized_through=job['hi'],prepared=(product,))
+            self.assertEqual(result,reference);self.assertTrue(inside);self.assertEqual(set(inside),{False})
+            expected=self.snapshot();original=self.h;self.h=h
+            try:self.assertEqual(self.snapshot(),expected)
+            finally:self.h=original
+            identities=h.db.execute('SELECT identity,hash,first_seen FROM rolling_economic_events ORDER BY identity').fetchall()
+            path=other.writer.path;other.writer.close();other,h=state_at(path)
+            self.assertEqual(h.db.execute('SELECT identity,hash,first_seen FROM rolling_economic_events ORDER BY identity').fetchall(),identities)
+            self.assertEqual(h.commit_page(other_job,page,finalized_through=job['hi'],prepared=(product,)),reference)
+            self.assertEqual(h.db.execute('SELECT identity,hash,first_seen FROM rolling_economic_events ORDER BY identity').fetchall(),identities)
+        finally:other.writer.close()
+
+    def test_eager_serialization_failure_keeps_duplicate_receipt_and_stale_lease_precedence(self):
+        from meme_machine.solana_evidence_plane import FinalizedRecord
+        full=copy.deepcopy(FIXTURE['pump'][0]);job=self.request(full);page=dict(data=[full],paginationToken=None)
+        result=self.h.commit_page(job,page,finalized_through=job['hi']);before=self.snapshot()
+        with patch.object(FinalizedRecord,'serialized_body',side_effect=ValueError('offline-serialization-failure')):
+            self.assertEqual(self.h.commit_page(job,page,finalized_through=job['hi']),result)
+            self.assertEqual(self.snapshot(),before)
+            with self.state.writer.transaction():
+                self.h.db.execute('DELETE FROM acquisition_page_receipts WHERE job=?',(job['id'],))
+            stale=self.snapshot()
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_page_lease_stale'):
+                self.h.commit_page(job,page,finalized_through=job['hi'])
+            self.assertEqual(self.snapshot(),stale)
+
+    def test_serialization_failure_occurs_inside_original_ingest_and_cannot_reuse_cross_turn_products(self):
+        from meme_machine.solana_economic_preparation import prepare_serialized_economics
+        from meme_machine.solana_evidence_plane import FinalizedRecord
+        full=copy.deepcopy(FIXTURE['pump'][0]);job=self.request(full);page=dict(data=[full],paginationToken=None)
+        before=self.snapshot();calls=[]
+        def fail(record):calls.append(self.h.db.in_transaction);raise ValueError('offline-serialization-failure')
+        with patch.object(FinalizedRecord,'serialized_body',fail):
+            with self.assertRaisesRegex(ValueError,'offline-serialization-failure'):
+                self.h.commit_page(job,page,finalized_through=job['hi'])
+        self.assertEqual(calls,[False,True]);self.assertEqual(self.snapshot(),before)
+        rows=economic_records('pump',self.address,full,endpoint_identity=ENDPOINT,seen=NOW,
+            source='alchemy_finalized_repair')
+        prepared=prepare_serialized_economics(rows)
+        # A local object is not a cache permission for another call, even with
+        # the same row identities. Its current payload takes the scalar guard.
+        rows[0].payload['event']['mint']='changed-after-preparation'
+        with patch.object(FinalizedRecord,'serialized_body',side_effect=ValueError('current-payload-checked')):
+            with self.assertRaisesRegex(ValueError,'current-payload-checked'):
+                self.h.ingest(rows,prepared_serialization=prepared)
+            with self.assertRaisesRegex(ValueError,'current-payload-checked'):
+                self.h.ingest(rows,prepared_serialization=replace(prepared,products=()))
+        self.assertEqual(self.snapshot(),before)
+
+    def test_actual_archive_acquisition_reuses_successful_decode_at_both_owner_points(self):
+        from concurrent.futures import Future
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class Completed:
+            def submit(self,fn,*args,**kwargs):
+                future=Future()
+                try:future.set_result(fn(*args,**kwargs))
+                except Exception as error:future.set_exception(error)
+                return future
+        original,fetched,_,_=truncated_transaction()
+        async def exercise():
+            source,job,_,_=await self.incomplete_archive_source(original,fetched)
+            source.archive_preparation_executor=PreparationPool(Completed())
+            rpc=source.measured_rpc
+            async def keep_running(method,*args):
+                result=await rpc(method,*args)
+                source.stop.clear() # This fixture now stops after its real commit.
+                return result
+            source.measured_rpc=keep_running
+            owner=[False];calls=[]
+            async def work(callback,*args,**metadata):
+                owner[0]=True
+                try:return callback(self.state)
+                finally:
+                    owner[0]=False
+                    if metadata.get('label')=='source_commit':source.stop.set()
+            source.work=work
+            def decoded(tx):calls.append(owner[0]);return pump_events(tx)
+            with (patch('time.time',return_value=NOW),
+                    patch('meme_machine.solana_program_decoders.pump_events',decoded),
+                    patch('meme_machine.solana_selective_history.pump_events',decoded)):
+                await source.acquire()
+            self.assertEqual(calls,[False])
+            self.assertEqual(self.h.db.execute('SELECT status,pages FROM acquisition_jobs WHERE id=?',
+                (job['id'],)).fetchone(),('complete',job['pages']+1))
+            self.assertTrue(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+            self.assertFalse(self.state.acquisition_inflight)
+        asyncio.run(exercise())
+
+    def test_failed_archive_preparation_preserves_earlier_binding_commit_and_original_decoder_failure(self):
+        from concurrent.futures import Future
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class Completed:
+            def submit(self,fn,*args,**kwargs):
+                future=Future()
+                try:future.set_result(fn(*args,**kwargs))
+                except Exception as error:future.set_exception(error)
+                return future
+        original,fetched,_,_=truncated_transaction()
+        bad=copy.deepcopy(fetched);bad['transaction']['signatures']=['offline-bad-decode']
+        bad['transactionIndex']=original['transactionIndex']+1
+        async def exercise():
+            source,job,_,_=await self.incomplete_archive_source(original,fetched)
+            # The first source event must retain its original already-committed
+            # identity upgrade when a later transaction cannot be decoded.
+            with self.state.writer.transaction():
+                self.h.db.execute('UPDATE evidence_bindings SET market_address=? WHERE family=? AND address=?',
+                    (self.address,'pump',self.address))
+            original_rpc=source.measured_rpc
+            async def rpc(method,*args):
+                if method=='getTransactionsForAddress':return dict(data=[original,bad],paginationToken=None)
+                result=await original_rpc(method,*args);source.stop.clear();return result
+            source.measured_rpc=rpc;source.archive_preparation_executor=PreparationPool(Completed())
+            original_work=source.work
+            async def work(callback,*args,**metadata):
+                try:return await original_work(callback,*args,**metadata)
+                finally:
+                    if metadata.get('label')=='source_commit':source.stop.set()
+            source.work=work
+            def decoded(tx):
+                if tx['transaction']['signatures'][0]=='offline-bad-decode':raise ValueError('truncated trade event')
+                return pump_events(tx)
+            with (patch('time.time',return_value=NOW),
+                    patch('meme_machine.solana_program_decoders.pump_events',decoded),
+                    patch('meme_machine.solana_selective_history.pump_events',decoded)):
+                await source.acquire()
+            self.assertEqual(self.h.db.execute('SELECT market_address FROM evidence_bindings '
+                'WHERE family=? AND address=?',('pump',self.address)).fetchone(),(self.mint,))
+            self.assertEqual(self.h.db.execute('SELECT status,error,pages,token FROM acquisition_jobs WHERE id=?',
+                (job['id'],)).fetchone(),('failed','candidate_archive_decoder_unavailable',job['pages'],job['token']))
+            self.assertFalse(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+            self.assertFalse(self.state.acquisition_inflight)
+        asyncio.run(exercise())
+
 
 class ArchiveFailureDiscriminatorTests(unittest.TestCase):
     """Fixed attribution leaves every existing rejection and raw input intact."""

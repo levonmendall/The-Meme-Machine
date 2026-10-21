@@ -424,6 +424,7 @@ class CandidateLifecycle:
                         if not any(p<=y and q>=x for x,y in remaining):continue
                         self.db.execute('UPDATE acquisition_jobs SET priority=MIN(priority,?),deadline=MIN(deadline,?) WHERE id=?',
                             (row['priority'],row['deadline'],identity))
+                        self.history._archive_preparation_tightened(identity,row['priority'],row['deadline'])
                         if identity not in jobs:jobs.append(identity)
                         tail=[]
                         for x,y in remaining:

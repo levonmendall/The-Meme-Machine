@@ -1,8 +1,14 @@
 """Prepared outer decoding preserves the existing lossless codec contract."""
 import copy
+import asyncio
+from concurrent.futures import Future,CancelledError as FutureCancelledError
 import hashlib
 import json
 import sqlite3
+import threading
+import time
+from types import SimpleNamespace
+from unittest.mock import patch
 import unittest
 import zlib
 
@@ -185,6 +191,366 @@ class PreparedEvidenceDecodeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '^hot_chunk_bound_or_corruption$'):
             storage.finish_decode(storage.prepare_decode(raw),
                 chunks={'a' * 64: zlib.compress(b'x' * (LIMIT + 1), 1)})
+
+
+class ControlledPreparationExecutor:
+    def __init__(self):self.jobs=[];self.closed=None
+    def submit(self,fn,*args,**kwargs):
+        future=Future();future.set_running_or_notify_cancel()
+        self.jobs.append((future,fn,args,kwargs));return future
+    def finish(self,index,*,error=None):
+        future,fn,args,kwargs=self.jobs[index]
+        if error is not None:future.set_exception(error)
+        else:future.set_result(fn(*args,**kwargs))
+    def shutdown(self,**kwargs):self.closed=kwargs
+
+
+class PreparationPoolTests(unittest.IsolatedAsyncioTestCase):
+    async def test_reserved_native_slot_and_native_continuation_before_maintenance(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        executor=ControlledPreparationExecutor();pool=PreparationPool(executor)
+        native=pool.native.submit(str,'native-1')
+        optional=pool.try_submit_optional(str,'optional')
+        waiting_native=pool.native.submit(str,'native-2')
+        maintenance=pool.submit(str,'maintenance')
+        self.assertEqual(len(executor.jobs),2)
+        self.assertIsNone(pool.try_submit_optional(str,'must-not-queue'))
+        executor.finish(0)
+        self.assertEqual(executor.jobs[2][2],('native-2',))
+        self.assertEqual(native.result(),'native-1')
+        self.assertFalse(maintenance.done())
+        executor.finish(1)
+        self.assertEqual(executor.jobs[3][2],('maintenance',))
+        executor.finish(2);executor.finish(3)
+        self.assertEqual((optional.result(),waiting_native.result(),maintenance.result()),
+            ('optional','native-2','maintenance'))
+        self.assertTrue(all(value is None for value in pool.active.values()))
+
+    async def test_cancelled_optional_waiter_keeps_physical_slot_and_queued_cancel_enqueues_nothing(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        executor=ControlledPreparationExecutor();pool=PreparationPool(executor)
+        optional=pool.try_submit_optional(str,'accepted')
+        waiter=asyncio.ensure_future(asyncio.wrap_future(optional));await asyncio.sleep(0)
+        waiter.cancel()
+        with self.assertRaises(asyncio.CancelledError):await waiter
+        self.assertFalse(optional.cancel())
+        self.assertIsNone(pool.try_submit_optional(str,'overlap'))
+        maintenance=pool.submit(str,'cancel-before-admission')
+        self.assertTrue(maintenance.cancel())
+        native=pool.native.submit(str,'native')
+        self.assertEqual(len(executor.jobs),2)
+        executor.finish(0);executor.finish(1)
+        self.assertEqual(optional.result(),'accepted');self.assertEqual(native.result(),'native')
+        self.assertEqual(len(executor.jobs),2)
+        successor=pool.try_submit_optional(str,'successor');self.assertIsNotNone(successor)
+        executor.finish(2);self.assertEqual(successor.result(),'successor')
+
+    async def test_submit_failure_and_native_queue_cancellation_release_only_their_reservations(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class Refusing(ControlledPreparationExecutor):
+            def submit(self,*args,**kwargs):raise RuntimeError('offline-submit-failure')
+        pool=PreparationPool(Refusing());failed=pool.try_submit_optional(str,'failure')
+        with self.assertRaisesRegex(RuntimeError,'offline-submit-failure'):failed.result()
+        self.assertTrue(all(value is None for value in pool.active.values()))
+        executor=ControlledPreparationExecutor();pool=PreparationPool(executor)
+        native=pool.native.submit(str,'native');queued=pool.native.submit(str,'cancelled')
+        self.assertTrue(queued.cancel());successor=pool.native.submit(str,'successor')
+        error=RuntimeError('offline-native-failure');executor.finish(0,error=error)
+        with self.assertRaises(RuntimeError) as caught:native.result()
+        self.assertIs(caught.exception,error)
+        self.assertEqual(len(executor.jobs),2);executor.finish(1)
+        self.assertEqual(successor.result(),'successor')
+
+    async def test_shutdown_without_cancel_drains_accepted_maintenance_but_serve_close_cancels_pending(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        for cancel in (False,True):
+            with self.subTest(cancel=cancel):
+                executor=ControlledPreparationExecutor();pool=PreparationPool(executor)
+                active=pool.try_submit_optional(str,'active');queued=pool.submit(str,'mandatory')
+                entered=threading.Event();finished=threading.Event()
+                def close():
+                    entered.set();pool.shutdown(wait=True,cancel_futures=cancel);finished.set()
+                closer=threading.Thread(target=close,daemon=True);closer.start()
+                await asyncio.to_thread(entered.wait,1)
+                # The lock proves shutdown selected its policy before the test
+                # completes the still-running physical operation.
+                while not pool.closed:await asyncio.sleep(0)
+                self.assertFalse(finished.is_set())
+                executor.finish(0)
+                if cancel:self.assertTrue(queued.cancelled())
+                else:
+                    self.assertEqual(len(executor.jobs),2);executor.finish(1)
+                    self.assertEqual(queued.result(),'mandatory')
+                await asyncio.to_thread(closer.join,1)
+                self.assertTrue(finished.is_set());self.assertEqual(active.result(),'active')
+                self.assertEqual(executor.closed,dict(wait=True,cancel_futures=cancel))
+
+
+    async def test_cancel_shutdown_cancels_physical_pending_work_before_waiting_for_proxy(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class ShutdownCancelled:
+            def __init__(self):
+                self.physical=[];self.called=threading.Event();self.options=None
+                self.callbacks_done=threading.Event()
+            def submit(self,*args,**kwargs):
+                future=Future();self.physical.append(future);return future
+            def shutdown(self,**kwargs):
+                self.options=kwargs
+                def cancel():
+                    for future in self.physical:future.cancel()
+                    self.callbacks_done.set()
+                callbacks=threading.Thread(target=cancel,daemon=True);callbacks.start();self.called.set()
+                # A real executor's completion thread must acquire pool.lock
+                # while its caller is inside shutdown, not the caller's RLock.
+                if not self.callbacks_done.wait(1):
+                    raise RuntimeError('executor_callback_blocked_by_facade_lock')
+                callbacks.join(1)
+        executor=ShutdownCancelled();pool=PreparationPool(executor)
+        active=pool.submit(str,'pending-maintenance');native=pool.native.submit(str,'pending-native')
+        queued=pool.submit(str,'wrapper-queued');errors=[];returned=threading.Event()
+        def close():
+            try:pool.shutdown(wait=True,cancel_futures=True)
+            except BaseException as error:errors.append(error)
+            finally:returned.set()
+        closer=threading.Thread(target=close,daemon=True);closer.start()
+        try:
+            self.assertTrue(await asyncio.to_thread(executor.called.wait,1),
+                'executor shutdown must trigger cancellation before proxy drain')
+            await asyncio.to_thread(closer.join,1)
+            self.assertTrue(returned.is_set());self.assertFalse(closer.is_alive());self.assertEqual(errors,[])
+            self.assertEqual(executor.options,dict(wait=True,cancel_futures=True))
+            self.assertTrue(executor.callbacks_done.is_set())
+            self.assertEqual(len(executor.physical),2)
+            self.assertTrue(all(future.cancelled() for future in executor.physical))
+            self.assertTrue(queued.cancelled())
+            self.assertIsInstance(active.exception(),FutureCancelledError)
+            self.assertIsInstance(native.exception(),FutureCancelledError)
+            self.assertTrue(all(job is None for job in pool.active.values()))
+        finally:
+            # An ordering regression fails promptly, then releases its own
+            # daemon fixture instead of leaking an interpreter-blocking waiter.
+            for future in executor.physical:
+                if not future.done():future.cancel()
+            await asyncio.to_thread(closer.join,1)
+
+    async def test_cancel_shutdown_preserves_running_physical_slot_until_terminal(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class Recording(ControlledPreparationExecutor):
+            def __init__(self):super().__init__();self.called=threading.Event()
+            def shutdown(self,**kwargs):super().shutdown(**kwargs);self.called.set()
+        for wait in (True,False):
+            with self.subTest(wait=wait):
+                executor=Recording();pool=PreparationPool(executor)
+                active=pool.try_submit_optional(str,'still-running');returned=threading.Event();errors=[]
+                def close():
+                    try:pool.shutdown(wait=wait,cancel_futures=True)
+                    except BaseException as error:errors.append(error)
+                    finally:returned.set()
+                closer=threading.Thread(target=close,daemon=True);closer.start()
+                try:
+                    self.assertTrue(await asyncio.to_thread(executor.called.wait,1))
+                    if wait:self.assertFalse(returned.is_set())
+                    else:self.assertTrue(await asyncio.to_thread(returned.wait,1))
+                    self.assertFalse(active.done());self.assertFalse(executor.jobs[0][0].cancel())
+                    self.assertIsNotNone(pool.active['maintenance'])
+                    self.assertIsNone(pool.try_submit_optional(str,'closed-admission'))
+                    executor.finish(0);await asyncio.to_thread(closer.join,1)
+                    self.assertTrue(returned.is_set());self.assertFalse(closer.is_alive());self.assertEqual(errors,[])
+                    self.assertEqual(active.result(),'still-running')
+                    self.assertIsNone(pool.active['maintenance'])
+                finally:
+                    if not executor.jobs[0][0].done():executor.finish(0)
+                    await asyncio.to_thread(closer.join,1)
+
+
+class ArchivePreparationHandoffTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_preparation_pool import PreparationPool
+        self.source=SelectiveSource(SimpleNamespace(identity='a'*64),None,token='offline')
+        self.source.stop=asyncio.Event();self.executor=ControlledPreparationExecutor()
+        loop=asyncio.get_running_loop()
+        self.pool=PreparationPool(self.executor,notify=lambda:loop.call_soon_threadsafe(
+            self.source.archive_preparation_wakeup.notify))
+        self.patch=patch('meme_machine.solana_economic_preparation.prepare_archive_transaction',
+            lambda context,family,raw:raw)
+        self.patch.start();self.tasks=[]
+    async def asyncTearDown(self):
+        for task in self.tasks:
+            if not task.done():task.cancel()
+        await asyncio.gather(*self.tasks,return_exceptions=True)
+        for index,job in enumerate(self.executor.jobs):
+            if not job[0].done():self.executor.finish(index)
+        self.patch.stop()
+    async def settle(self,predicate):
+        for _ in range(100):
+            if predicate():return
+            await asyncio.sleep(0)
+        self.fail('bounded handoff did not reach expected state')
+    def task(self,coroutine):
+        task=asyncio.create_task(coroutine);self.tasks.append(task);return task
+    def job(self,*,priority=3,seconds=30):
+        return dict(priority=priority,deadline=time.time()+seconds,family='pump')
+    async def turn(self,raw,**kw):
+        return await self.source._archive_preparation_turn(self.job(**kw),self.pool,'context',raw)
+
+    async def test_eight_carriers_handoff_each_transaction_with_reserved_native_and_maintenance_first(self):
+        native=self.pool.native.submit(str,'native')
+        async def carrier(index):
+            return [await self.turn(str(index)+'-'+str(part)) for part in range(2)]
+        carriers=[self.task(carrier(index)) for index in range(8)]
+        await self.settle(lambda:len(self.executor.jobs)==2)
+        maintenance=self.pool.submit(str,'mandatory')
+        self.executor.finish(1)
+        self.assertEqual(self.executor.jobs[2][2],('mandatory',))
+        self.assertFalse(carriers[1].done());self.executor.finish(2)
+        for offset in range(15):
+            expected=offset+3
+            await self.settle(lambda:len(self.executor.jobs)>expected)
+            # Each physical turn returns to the back of the eight-carrier FIFO.
+            value=str((offset+1)%8)+'-'+str((offset+1)//8)
+            self.assertEqual(self.executor.jobs[expected][2][-1],value)
+            self.assertIsNone(self.pool.try_submit_optional(str,'must-not-overlap'))
+            self.executor.finish(expected)
+        results=await asyncio.gather(*carriers)
+        self.assertEqual(results,[[str(i)+'-0',str(i)+'-1'] for i in range(8)])
+        self.assertEqual(maintenance.result(),'mandatory');self.assertFalse(native.done())
+        self.executor.finish(0);self.assertEqual(native.result(),'native')
+
+    async def test_urgent_job_never_waits_for_busy_carrier_or_physical_slot(self):
+        await self.source.archive_preparation_lock.acquire()
+        try:self.assertIsNone(await asyncio.wait_for(self.turn('urgent-lock',priority=2),.2))
+        finally:self.source.archive_preparation_lock.release()
+        active=self.pool.try_submit_optional(str,'physical')
+        self.assertIsNone(await asyncio.wait_for(self.turn('urgent-slot',priority=0),.2))
+        self.assertEqual(len(self.executor.jobs),1);self.executor.finish(0)
+        self.assertEqual(active.result(),'physical')
+
+    async def test_urgent_release_woken_waiter_race_never_awaits_carrier_lock(self):
+        lock=self.source.archive_preparation_lock
+        await lock.acquire();waiter=self.task(lock.acquire());await asyncio.sleep(0)
+        lock.release()
+        self.assertFalse(lock.locked());self.assertFalse(waiter.done())
+        original=self.pool.try_submit_optional
+        def completed(*args,**kwargs):
+            future=original(*args,**kwargs)
+            if future is not None:self.executor.finish(0)
+            return future
+        with patch.object(self.pool,'try_submit_optional',completed):
+            self.assertEqual(await self.turn('urgent-race',priority=1),'urgent-race')
+        self.assertFalse(waiter.done()) # Urgent admission had no async lock wait.
+        await waiter;lock.release()
+        self.assertEqual(len(self.executor.jobs),1)
+
+    async def test_canceled_carrier_releases_turn_but_not_accepted_physical_slot(self):
+        first=self.task(self.turn('first'));await self.settle(lambda:len(self.executor.jobs)==1)
+        first.cancel()
+        with self.assertRaises(asyncio.CancelledError):await first
+        self.assertFalse(self.source.archive_preparation_lock.locked())
+        second=self.task(self.turn('second'));await asyncio.sleep(0);await asyncio.sleep(0)
+        self.assertEqual(len(self.executor.jobs),1)
+        self.executor.finish(0);await self.settle(lambda:len(self.executor.jobs)==2)
+        self.executor.finish(1);self.assertEqual(await second,'second')
+
+    async def test_stop_and_original_deadline_bound_wait_without_new_admission(self):
+        active=self.pool.try_submit_optional(str,'physical')
+        timed=self.task(self.turn('expired',seconds=.02))
+        self.assertIsNone(await asyncio.wait_for(timed,.5))
+        stopped=self.task(self.turn('stopped'));await asyncio.sleep(0);self.source.stop.set()
+        self.assertIsNone(await asyncio.wait_for(stopped,.5))
+        self.assertEqual(len(self.executor.jobs),1);self.executor.finish(0)
+        self.assertEqual(active.result(),'physical')
+        self.assertFalse(self.source.archive_preparation_lock.locked())
+
+    async def test_epoch_before_admission_closes_inline_release_lost_wakeup(self):
+        original=self.pool.try_submit_optional;calls=[]
+        def racing(*args,**kwargs):
+            calls.append(1)
+            if len(calls)==1:
+                self.source.archive_preparation_wakeup.notify();return None
+            future=original(*args,**kwargs)
+            self.executor.finish(0)
+            return future
+        with patch.object(self.pool,'try_submit_optional',racing):
+            self.assertEqual(await asyncio.wait_for(self.turn('race'),.5),'race')
+        self.assertEqual(len(calls),2)
+
+    async def test_accepted_result_does_not_depend_on_advisory_notification(self):
+        self.pool.notify=lambda:(_ for _ in ()).throw(RuntimeError('offline-notifier'))
+        task=self.task(self.turn('actual-future'))
+        await self.settle(lambda:len(self.executor.jobs)==1)
+        self.executor.finish(0)
+        self.assertEqual(await asyncio.wait_for(task,.5),'actual-future')
+
+    async def test_accepted_stop_and_deadline_release_carrier_without_freeing_physical_slot(self):
+        for stop in (False,True):
+            with self.subTest(stop=stop):
+                self.source.stop.clear();index=len(self.executor.jobs)
+                task=self.task(self.turn('accepted',seconds=30 if stop else .02))
+                await self.settle(lambda:len(self.executor.jobs)>index)
+                if stop:self.source.stop.set()
+                self.assertIsNone(await asyncio.wait_for(task,.5))
+                self.assertIsNone(self.pool.try_submit_optional(str,'overlap'))
+                self.assertFalse(self.source.archive_preparation_lock.locked())
+                self.executor.finish(index)
+        self.source.stop.clear()
+
+    async def test_owner_urgency_tightening_interrupts_carrier_spare_and_accepted_waits(self):
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        for mode in ('carrier','spare','accepted'):
+            with self.subTest(mode=mode):
+                job=self.job();ticket=ArchivePreparationTicket(job['priority'],job['deadline'],
+                    asyncio.get_running_loop(),self.source.archive_preparation_wakeup)
+                job['_archive_preparation_ticket']=ticket
+                first=len(self.executor.jobs)
+                if mode=='carrier':await self.source.archive_preparation_lock.acquire()
+                elif mode=='spare':self.pool.try_submit_optional(str,'retained-physical')
+                task=self.task(self.source._archive_preparation_turn(job,self.pool,'context','must-fall-back'))
+                for _ in range(8):await asyncio.sleep(0)
+                if mode=='accepted':self.assertEqual(len(self.executor.jobs),first+1)
+                ticket.tighten(2,job['deadline']-1)
+                self.assertTrue(ticket.invalid.is_set())
+                self.assertIsNone(await asyncio.wait_for(task,.5))
+                if mode=='carrier':
+                    self.assertTrue(self.source.archive_preparation_lock.locked())
+                    self.source.archive_preparation_lock.release()
+                    self.assertEqual(len(self.executor.jobs),first)
+                else:
+                    self.assertFalse(self.source.archive_preparation_lock.locked())
+                    self.assertIsNone(self.pool.try_submit_optional(str,'cannot-reuse-physical-slot'))
+                    self.executor.finish(first)
+                    self.assertEqual(len(self.executor.jobs),first+1)
+
+    async def test_ticket_flag_is_immediate_but_async_events_are_only_notified_on_loop(self):
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        pulse=self.source.archive_preparation_wakeup
+        ticket=ArchivePreparationTicket(3,time.time()+30,asyncio.get_running_loop(),pulse)
+        epoch=pulse.epoch
+        thread=threading.Thread(target=ticket.tighten,args=(2,ticket.claim[1]-1))
+        thread.start();thread.join(timeout=1)
+        self.assertFalse(thread.is_alive());self.assertTrue(ticket.invalid.is_set())
+        self.assertFalse(ticket.changed.is_set());self.assertEqual(pulse.epoch,epoch)
+        await asyncio.sleep(0)
+        self.assertTrue(ticket.changed.is_set());self.assertEqual(pulse.epoch,epoch+1)
+        unneeded=ArchivePreparationTicket(2,ticket.claim[1],asyncio.get_running_loop(),pulse)
+        unneeded.tighten(3,ticket.claim[1]+1)
+        self.assertFalse(unneeded.invalid.is_set())
+        for priority,deadline in ((2,ticket.claim[1]+1),(3,ticket.claim[1]-1)):
+            tightened=ArchivePreparationTicket(3,ticket.claim[1],asyncio.get_running_loop(),pulse)
+            tightened.tighten(priority,deadline)
+            self.assertTrue(tightened.invalid.is_set())
+        class ClosedLoop:
+            def call_soon_threadsafe(self,*args):raise RuntimeError('offline-closed-loop')
+        closed=ArchivePreparationTicket(3,ticket.claim[1],ClosedLoop(),pulse)
+        closed.tighten(2,ticket.claim[1]-1)
+        self.assertTrue(closed.invalid.is_set()) # Failure cannot replace owner SQL outcome.
+
+    async def test_notifier_failure_never_hides_terminal_result_or_slot_release(self):
+        self.pool.notify=lambda:(_ for _ in ()).throw(RuntimeError('offline-notifier'))
+        future=self.pool.try_submit_optional(str,'retained')
+        self.executor.finish(0)
+        self.assertEqual(future.result(),'retained')
+        self.assertTrue(all(value is None for value in self.pool.active.values()))
 
 
 if __name__ == '__main__':
