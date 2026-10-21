@@ -193,8 +193,8 @@
       "status": "M"
     },
     "meme_machine/solana_preparation_pool.py": {
-      "after_bytes": 6038,
-      "after_sha256": "414c7d10d0dc6f32f384ddf148c320490a7d6c89cc77263ab136a758c1ff7fff",
+      "after_bytes": 6339,
+      "after_sha256": "c36357776eafc783fff2204a7cc234168a236576822c5e7c812aaa25643df6f4",
       "status": "A"
     },
     "meme_machine/solana_selective_history.py": {
@@ -305,8 +305,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "339c6a08ac118d364db047306ae7bb2135ed30d1",
-  "implementation_tree": "e7ed2a452888f8e63aafbd0b8cd0e5ed7abf59d0",
+  "implementation": "2fa5a12017c6f03efa8bf8fcb19965ada4efd975",
+  "implementation_tree": "556090ca87eb88e751a8fc14614e316084e7e0de",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 9312,
