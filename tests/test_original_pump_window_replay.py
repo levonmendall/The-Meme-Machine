@@ -2,6 +2,7 @@
 from copy import deepcopy
 from collections import Counter
 from pathlib import Path
+import os
 import sqlite3
 import tempfile
 import unittest
@@ -136,9 +137,15 @@ class OriginalWindowReplayTests(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
     def test_unprofiled_arm_never_copies_sql_counters_or_observes_publication_populations(self):
-        with (patch.object(replay.Costs, 'sql_snapshot', side_effect=AssertionError('profile_only')),
-              patch.object(replay.Costs, 'publication_probe', side_effect=AssertionError('profile_only'))):
-            result = replay.run_one(CapturedParcel(), self.root/'no-probes', 'optimized')
+        # Directly invoking a single arm must establish the same private-file
+        # umask as benchmark(), which normally owns the arm's setup boundary.
+        previous = os.umask(0o077)
+        try:
+            with (patch.object(replay.Costs, 'sql_snapshot', side_effect=AssertionError('profile_only')),
+                  patch.object(replay.Costs, 'publication_probe', side_effect=AssertionError('profile_only'))):
+                result = replay.run_one(CapturedParcel(), self.root/'no-probes', 'optimized')
+        finally:
+            os.umask(previous)
         self.assertEqual(result['classification_sql'], [])
         self.assertEqual(result['publication_batches'], [])
         self.assertFalse(result['timing']['profiled'])
