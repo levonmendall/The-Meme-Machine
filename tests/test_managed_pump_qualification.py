@@ -314,8 +314,8 @@ class FreshSizingTests(unittest.TestCase):
         namespace = dict(vars(adapter))
         exec(compile(ast.Module(body=[node], type_ignores=[]), '<immutable-sizing-predecessor>', 'exec'), namespace)
         previous = namespace['directional_target']
-        for equity in ('-1', '0', '.019999999', '.02', '1.0000000001', '1000', '100000000'):
-            for rate in ('.1', '1000', '10010010.01001001001001001001'):
+        for equity in ('-1', '0', '0.019999999', '0.02', '1.0000000001', '1000', '100000000'):
+            for rate in ('0.1', '1000', '10010010.01001001001001001001'):
                 ledger = dict(policy=dict(sizing_basis='shared_realized_equity'),
                     initial_capital=equity, realized={}, shared_costs='0')
                 expected = previous(ledger, 'pump_current', native_units_per_usd=rate)

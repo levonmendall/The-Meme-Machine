@@ -33,6 +33,7 @@ class ManagedWorkload(unittest.TestCase):
         from meme_machine.operational import managed_pump_qualification
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root/'pump').mkdir(mode=0o700)
             args = SimpleNamespace(root=str(root), lane='pump', generation='a'*32,
                 request_id='ec2-100-1', duration_seconds=120)
             constructed = Mock(return_value=Mock())
