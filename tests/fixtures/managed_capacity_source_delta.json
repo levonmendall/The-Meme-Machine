@@ -42,8 +42,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
-      "after_bytes": 28234,
-      "after_sha256": "7ff06dfa59d5b63138766762e2ab65ad52e7ed99d5066c8eef815f8100238128",
+      "after_bytes": 28591,
+      "after_sha256": "0fb4dab254dc041fa75945f85f2383b49b0e266a45d42d9fab5ae71cb1f0fa02",
       "status": "A"
     },
     "meme_machine/operational/managed_pons_survivor.py": {
@@ -123,8 +123,8 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 167288,
-      "after_sha256": "c8c2f5cca1c6444b4b623c152b31c37655400ec67f0ff831b1a1eb518c801688",
+      "after_bytes": 167788,
+      "after_sha256": "f0b7c51c9957b27745e1390719d46a6bc99c76dc73997ce7b3e27fdff00b56fb",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -209,8 +209,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "a8ff3c54904e73df3cf200cc35d08af1e9c5b09c",
-  "implementation_tree": "cb5a671c2c00eee2d5fca550e4e3175f358a47fa",
+  "implementation": "f5753cc01e58aee5a105b33c3a397a666d26e836",
+  "implementation_tree": "779a710496fdafced398cdd0208b5b692b826410",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,
