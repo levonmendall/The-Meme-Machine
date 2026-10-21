@@ -385,7 +385,11 @@ def _failure(error):
     candidate = error.args[0] if len(error.args) == 1 else None
     code = candidate if type(candidate) is str and candidate in allowed else None
     site = None
-    if pons_boundary:
+    # A source-local AttributeError was previously reduced to its type only.
+    # Report its bounded original package function/line without exception text,
+    # values, provider data, local variables, or host paths. This is purely
+    # failure attribution and confers no retry, coverage, or admission authority.
+    if pons_boundary or kind is AttributeError:
         application = Path(__file__).resolve().parents[1]
         trace = error.__traceback__
         while trace is not None:

@@ -588,6 +588,43 @@ class NativeFailureReceipts(unittest.TestCase):
                     self.assertIsNone(receipt['code'])
                     self.assertNotIn(canary, workload.canonical(receipt))
 
+    def test_pump_attribute_failure_retains_only_original_package_site(self):
+        from meme_machine.operational.isolated_native_pump import PumpNativeProjection
+        canary='PRIVATE_SQL_AND_PROVIDER_BODY https://private.invalid/API_KEY'
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            # The genuine package constructor raises before observing market
+            # data; only a disposable component is used. Never print the
+            # original attribute/exception content into the public receipt.
+            with patch.object(PumpNativeProjection,'_open',
+                    lambda self:setattr(self,'history',object())):
+                try:PumpNativeProjection(root)
+                except AttributeError as error:
+                    error.args=(canary,)
+                    receipt=workload._failure(error)
+                else:self.fail('missing native history DB was not rejected')
+        site=receipt['failure_site']
+        self.assertEqual(receipt['error_type'],'AttributeError')
+        self.assertEqual(site['module'],'meme_machine.operational.isolated_native_pump')
+        self.assertEqual(site['function'],'__init__')
+        self.assertEqual(set(site),{'module','function','line'})
+        self.assertIs(type(site['line']),int)
+        self.assertIsNone(receipt['code'])
+        self.assertNotIn(canary,workload.canonical(receipt))
+        self.assertNotIn(str(Path(__file__).resolve().parents[1]),workload.canonical(receipt))
+
+    def test_foreign_attribute_error_does_not_claim_source_site(self):
+        canary='PRIVATE_SQL_AND_PROVIDER_BODY'
+        try:
+            object().something_private
+        except AttributeError as error:
+            error.args=(canary,)
+            receipt=workload._failure(error)
+        else:self.fail('missing attribute not rejected')
+        self.assertIsNone(receipt['failure_site'])
+        self.assertIsNone(receipt['code'])
+        self.assertNotIn(canary,workload.canonical(receipt))
+
     def test_native_boundary_retains_only_application_failure_site_without_message_or_path(self):
         from meme_machine.lanes.pons import BoundaryError
         from meme_machine.lanes.pons.abi import calldata
