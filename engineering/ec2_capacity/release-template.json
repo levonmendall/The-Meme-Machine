@@ -1,0 +1,13 @@
+{
+  "acceptance_sha256": "a0f8d8a63752c0ce522cbeef12d00cef607921d9081933fac873619d6244fb2b",
+  "criteria_sha256": "4ac2433ea7d624eec951fb656c37594f20bc6ec08c96199ef75073d2b4c6f552",
+  "execution_enabled": true,
+  "gate_sha256": "c90fa88c280fb0840cab194ab873a995712bcbdaf49c36082f2cecc65e046358",
+  "identity_sha256": "54ed86ff4912f5d8c248b127a364e817172a3419f303ba57600e07e862a3974d",
+  "profile_sha256": {
+    "continuous.json": "04d17342ebfa242890250d5e1822d2a75f4783d65db54c5f62dfb0adeb39a4d5"
+  },
+  "projection_sha256": "a7ceb65e49020195a4d2e4b1a9220c7c6891d75f5840adc95e9106d69230a424",
+  "schema": "ec2-managed-capacity-owner-release-v1",
+  "worker_sha256": "ca17ed7fe56a9cbe9c01ea7e22871eb69ba93ed58a9bff5c474755e0bb6dd0b0"
+}
