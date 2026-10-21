@@ -407,9 +407,15 @@ def replay_pump(config, *, seconds=60):
     finally:
         history.close()
     from .managed_qualification_replay import compare_readers
-    comparison = compare_readers(config, until=until, as_of=int(time.time()))
+    comparison_error = None
+    try:
+        comparison = compare_readers(config, until=until, as_of=time.time())
+    except BaseException as error:
+        comparison_error = error
     after = fingerprint()
     _require(before == after, 'replay_mutated_native_history')
+    if comparison_error is not None:
+        raise comparison_error
     # A post-stop replay cannot manufacture provider quotes, current liveness
     # or Survivor decisions. Retain partial comparison evidence separately;
     # native byte replay and complete strategy equivalence are different gates.

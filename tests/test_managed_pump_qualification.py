@@ -555,6 +555,37 @@ class QualificationTests(unittest.TestCase):
         self.assertEqual(sizing['generation'], self.config.generation)
         self.assertEqual(sizing['valuation']['evidence_hash'], 'a'*64)
 
+    def test_identical_sizing_snapshot_and_native_inputs_keep_full_decision_and_evidence(self):
+        canonical, value_reader = self.admitted()
+        optimized = self.worker
+        target = qualification.FreshReferenceSizing(self.config.generation,
+            clock=lambda: self.now[0], value_reader=value_reader)
+        config = self.config
+        class Reference(_BaselineQualificationReader):
+            @property
+            def path(self):
+                return Path(config.root) / 'full-decision-reference.sqlite'
+        reference = Reference(config, decision_target=target,
+                              clock=lambda: self.now[0])
+        self.addCleanup(reference.close)
+        self.assertTrue(reference._open())
+        reference.confirmations = deepcopy(optimized.confirmations)
+        reference.provider = Mock()
+        reference.provider.snapshot.return_value = deepcopy(optimized.provider.snapshot.return_value)
+        reference.provider.concentration.return_value = optimized.provider.concentration.return_value
+        outputs = []
+        try:
+            for worker in (reference, optimized):
+                self.worker = worker
+                result, observed, _ = self.evaluate_admitted(canonical)
+                outputs.append((result, observed, worker.db.execute(
+                    'SELECT * FROM observations ORDER BY sequence').fetchall()))
+        finally:
+            self.worker = optimized
+        self.assertEqual(outputs[0], outputs[1])
+        self.assertEqual(outputs[0][0]['full_qualifications'], 1)
+        self.assertTrue(outputs[0][1]['full_qualification_complete'])
+
     def test_missing_or_expired_valuation_is_incomplete_and_does_not_invent_a_target(self):
         from meme_machine.runtime.usd_valuation import ValuationUnavailable
         canonical, reader = self.admitted(fail=ValuationUnavailable('secret-provider-unavailable'))

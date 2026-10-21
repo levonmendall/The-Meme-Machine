@@ -6,6 +6,7 @@ No held-position or complete strategy-readiness claim follows from this check.
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
@@ -81,6 +82,11 @@ def compare_readers(config, *, until, as_of, decision_target=None):
     results = []
     for base, name in ((ReferenceReader, 'reference'), (QualificationReader, 'optimized')):
         path = directory / (name + '.sqlite')
+        # The replay API is also used outside the isolated child's private
+        # umask. Create only our new file with the existing required0600 mode;
+        # never weaken _owned_path or alter source/history permissions.
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        os.close(descriptor)
         costs = {phase: dict(calls=0, wall_nanoseconds=0, cpu_nanoseconds=0)
                  for phase in ('native_reference', 'creation_history')}
         by_stage = {}

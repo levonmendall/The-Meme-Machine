@@ -182,7 +182,7 @@ class GlobalPumpPublicationTests(unittest.TestCase):
         with patch('meme_machine.operational.managed_pump_qualification.MarketSnapshotProvider',
                    side_effect=AssertionError('comparison_must_not_construct_network_provider')):
             result = compare_readers(self.config, until=time.monotonic()+20,
-                                     as_of=int(self.history.clock()))
+                                     as_of=row.observed_at + 1)
             repeated = compare_readers(self.config, until=time.monotonic()+20,
                                        as_of=result['as_of'])
         self.assertTrue(result['coherent'])
@@ -204,7 +204,7 @@ class GlobalPumpPublicationTests(unittest.TestCase):
         row = self.trade()
         self.history.ingest([row])
         result = compare_readers(self.config, until=time.monotonic()+20,
-                                 as_of=int(self.history.clock()))
+                                 as_of=row.observed_at + 1)
         self.assertTrue(result['coherent'])
         self.assertEqual(result['input_rows'], 0)
         self.assertEqual(result['output_rows'], 0)
@@ -212,7 +212,7 @@ class GlobalPumpPublicationTests(unittest.TestCase):
         self.assertEqual(result['reference']['snapshot']['native_event_backlog'], 1)
         with self.assertRaisesRegex(ValueError, 'retained_integer_target_required'):
             compare_readers(self.config, until=time.monotonic()+20,
-                            as_of=int(self.history.clock()), decision_target=lambda now: 1)
+                            as_of=row.observed_at + 1, decision_target=lambda now: 1)
 
 
 if __name__ == '__main__':
