@@ -309,8 +309,8 @@
   "implementation_tree": "e7ed2a452888f8e63aafbd0b8cd0e5ed7abf59d0",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
-      "bytes": 8522,
-      "sha256": "2530089f12e7cec92f7efa2edd3ec3d8243829caa389bb6135ee97edc6e85af0"
+      "bytes": 9312,
+      "sha256": "265404e3fafee47065071e88e95c1ebf2d4dbe5505925466cbb2ee0fac8a85ad"
     },
     "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
       "bytes": 9826,
@@ -318,11 +318,19 @@
     }
   },
   "read_guard": {
-    "after_bytes": 376979,
-    "after_sha256": "53ac85abd8d025cdebac56242aa1c774d512b0a25642ad86926c7fa3d296ea49",
+    "after_bytes": 377045,
+    "after_sha256": "aa666d7cb31dcd994e46e492d05b14c5b102e3098f123441ced8526fa4244801",
     "before_bytes": 376814,
     "before_sha256": "5512e1b375dfbe960f1e6927e9528ff51b28a2a329657d3a1e42b7b47107b3e6",
     "changes": [
+      {
+        "after": "        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+        "before": "        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())\n"
+      },
+      {
+        "after": "            current=source_recorder_publication_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
+        "before": "            current=source_recorder_publication_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"
+      },
       {
         "after": "            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
         "before": "            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"

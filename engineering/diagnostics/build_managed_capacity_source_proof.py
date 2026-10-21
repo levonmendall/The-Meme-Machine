@@ -97,6 +97,12 @@ def main():
     (ROOT / GUARD).write_bytes(after_guard)
     before_read_guard = git('show', BASE + ':' + READ_GUARD)
     read_changes = [
+        (b"        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n"
+         b"            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())\n",
+         b"        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n"
+         b"            current=pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"),
+        (b"            current=source_recorder_publication_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+         b"            current=source_recorder_publication_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n"),
         (b"            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
          b"            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n"),
         (b"                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
