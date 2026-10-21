@@ -333,7 +333,7 @@ class QualificationReader:
             _owned_path(path)
         return ref
 
-    def _history_event(self, mint, identity):
+    def _history_event(self, mint, identity, *, prepared=None):
         """Select a compact reference once, retaining legacy-event precedence."""
         from meme_machine.runtime.journal import digest
         reference = self.history.db.execute(
@@ -352,7 +352,10 @@ class QualificationReader:
             return None
         if digest(ref) != reference[2]:
             raise ValueError('candidate_history_corruption')
-        return self.history._reference_body('pump', mint, identity, reference[0], ref)
+        # Discovery's decoded outer is reused only by the native helper's
+        # exact freshly read body/hash check. Other representations fall back.
+        return self.history._reference_body('pump', mint, identity, reference[0], ref,
+                                            prepared=prepared)
 
     def _creation_events(self, mint):
         """Read/guard creation references once, with native ordering/cancellation."""
@@ -502,7 +505,8 @@ class QualificationReader:
                 canonical = decode_body(row[1], reader.db)
                 mint, identity = canonical['payload']['event']['mint'], canonical['identity']
                 history_identity = 'pump-source:' + identity
-                record = self._history_event(mint, history_identity)
+                record = self._history_event(mint, history_identity,
+                    prepared=(canonical, _canonical(canonical)))
                 if record is None:
                     # Canonical delivery precedes CandidateHistory publication.
                     # Keep this exact native cursor pending until publication.

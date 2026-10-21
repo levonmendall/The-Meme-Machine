@@ -19,7 +19,7 @@ from tests import test_managed_native_pump as fixtures
 
 class _BaselineQualificationReader(qualification.QualificationReader):
     """Exactly the predecessor read pairs, with the same strategy/cursor code."""
-    def _history_event(self, mint, identity):
+    def _history_event(self, mint, identity, *, prepared=None):
         self._reference_scope(mint, identity)
         return self.history.event('pump', mint, identity)
 
@@ -102,6 +102,55 @@ class ReaderSQLTests(unittest.TestCase):
             self.assertEqual(sum('SELECT archive FROM canonical_evidence' in sql for sql in statements), 1)
             self.assertEqual(sum('SELECT body,hash,archive FROM canonical_evidence' in sql for sql in statements), 1)
         self.assertEqual(sum('FROM canonical_event_refs' in sql for sql in new_sql), 1)
+
+    def test_actual_native_text_decodes_once_and_keeps_identical_decisions(self):
+        from meme_machine.solana_evidence_plane import decode_body
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        raw = self.fixture.history.db.execute(
+            'SELECT body FROM canonical_evidence WHERE identity=?',
+            (self.row.identity,)).fetchone()[0]
+        self.assertIs(type(raw), str)  # Actual normalized rolling native representation.
+        with patch('meme_machine.solana_evidence_plane.decode_body', wraps=decode_body) as decode:
+            before = old.step()
+            self.assertEqual(decode.call_count, 2)
+            decode.reset_mock()
+            after = new.step()
+            self.assertEqual(decode.call_count, 1)
+        self.assertEqual(before, after)
+        self.assertEqual(self.observations(old), self.observations(new))
+
+    def test_prepared_reference_retains_decode_fallback_for_compressed_and_changed_bytes(self):
+        from meme_machine.solana_evidence_plane import decode_body
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        raw = self.fixture.history.db.execute(
+            'SELECT body FROM canonical_evidence WHERE identity=?',
+            (self.row.identity,)).fetchone()[0]
+        record = decode_body(raw, self.fixture.history.db)
+        prepared = (record, qualification._canonical(record))
+        expected = old._history_event(self.mint, self.identity)
+        variants = (b'SEP1' + zlib.compress(raw.encode(), 1),
+                    json.dumps(record, sort_keys=True, indent=2))
+        for representation in variants:
+            with self.subTest(representation=type(representation).__name__):
+                with sqlite3.connect(self.config.evidence) as db:
+                    db.execute('UPDATE rolling_economic_events SET body=? WHERE identity=?',
+                               (representation, self.row.identity))
+                for worker in (old, new):
+                    with patch('meme_machine.solana_evidence_plane.decode_body', wraps=decode_body) as decode:
+                        self.assertEqual(worker._history_event(self.mint, self.identity,
+                            prepared=prepared), expected)
+                        self.assertEqual(decode.call_count, 1)
+        changed = deepcopy(record)
+        changed['payload']['event']['mint'] = 'different-mint'
+        with sqlite3.connect(self.config.evidence) as db:
+            db.execute('UPDATE rolling_economic_events SET body=?,hash=? WHERE identity=?',
+                (qualification._canonical(changed), hashlib.sha256(
+                    qualification._canonical(changed).encode()).hexdigest(), self.row.identity))
+        for worker in (old, new):
+            with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
+                worker._history_event(self.mint, self.identity, prepared=prepared)
 
     def test_missing_creation_reuses_selection_without_caching_absence(self):
         self.publish()
@@ -259,8 +308,9 @@ class ReaderSQLTests(unittest.TestCase):
                 ('cold', str(path), checksum, 1, len(raw), len(packed), self.row.observed_at))
             db.execute('UPDATE rolling_economic_events SET body=NULL,archive=? WHERE identity=?',
                        ('cold', self.row.identity))
-        self.assertEqual(old._history_event(self.mint, self.identity), expected)
-        self.assertEqual(new._history_event(self.mint, self.identity), expected)
+        prepared = (record, qualification._canonical(record))
+        self.assertEqual(old._history_event(self.mint, self.identity, prepared=prepared), expected)
+        self.assertEqual(new._history_event(self.mint, self.identity, prepared=prepared), expected)
         for case in ('payload_hash', 'foreign_archive', 'missing_manifest'):
             with self.subTest(case=case):
                 with sqlite3.connect(self.config.evidence) as db:
