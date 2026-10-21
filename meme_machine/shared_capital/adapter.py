@@ -34,6 +34,18 @@ def sizing_comparison(ledger, regime_name):
         effective_position_ceiling=scaled(max(ZERO, equivalent), 750), shared_position_ceiling=scaled(max(ZERO, equity), 750)))
 
 
+def directional_native_target(native_equity):
+    """Pure production sizing floor; it grants neither cash nor allocation.
+
+    Observation callers may supply an explicitly labeled reference equity.
+    Financial callers remain responsible for reading their authentic ledger.
+    """
+    if type(native_equity) is not int or native_equity < 0:
+        raise CapitalError('verified_native_sizing_base_required')
+    return dict(native_equity=native_equity,
+                requested_native_units=native_equity * 500 // 10000)
+
+
 @exact
 def directional_target(ledger, regime_name, *, native_units_per_usd, legacy_native_realized_equity=None):
     """Explicit realized base, then existing integer native-unit sizing floor.
@@ -52,5 +64,5 @@ def directional_target(ledger, regime_name, *, native_units_per_usd, legacy_nati
     else:
         equity = max(ZERO, _size_equity(ledger, r))
         native_equity = int(equity * rate)
-    return dict(sizing_basis=ledger["policy"]["sizing_basis"], native_equity=native_equity,
-                requested_native_units=native_equity * 500 // 10000)
+    return dict(sizing_basis=ledger["policy"]["sizing_basis"],
+                **directional_native_target(native_equity))

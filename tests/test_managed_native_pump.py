@@ -378,6 +378,7 @@ class ManagedPumpTests(unittest.TestCase):
 
     def test_actual_source_boundary_is_joined_on_parent_cancellation(self):
         drained = []
+        initialized = []
         async def scenario():
             stop = asyncio.Event()
             rpc = SimpleNamespace(validate_network=Mock())
@@ -393,13 +394,25 @@ class ManagedPumpTests(unittest.TestCase):
                     drained.append(True)
                 finally:
                     state.writer.close()
-            with patch.object(managed, 'production_components', return_value=(rpc, driver, serve)):
-                task = asyncio.create_task(managed.run_pump(self.config, stop))
+            def components(_):
+                initialized.append('provider-guards')
+                return rpc, driver, serve
+            def sizing():
+                from meme_machine.operational.managed_pump_qualification import FreshReferenceSizing
+                self.assertEqual(initialized, ['provider-guards'])
+                self.assertEqual(os.environ['MM_PROVIDER_OPERATION_MODE'], 'CONTINUOUS')
+                initialized.append('native-valuation-reader')
+                return FreshReferenceSizing(self.config.generation, value_reader=Mock(
+                    side_effect=AssertionError('no_admitted_native_inputs_no_valuation_rpc')))
+            with patch.object(managed, 'production_components', side_effect=components):
+                task = asyncio.create_task(managed.run_pump(self.config, stop,
+                    decision_target_reader_factory=sizing))
                 await asyncio.sleep(.05)
                 task.cancel()
                 with self.assertRaises(asyncio.CancelledError):
                     await task
             self.assertTrue(drained)
+            self.assertEqual(initialized, ['provider-guards', 'native-valuation-reader'])
             self.assertFalse(any(k.startswith('MM_') for k in os.environ))
             self.assertEqual(managed.replay_pump(self.config)['events'], 0)
         asyncio.run(scenario())

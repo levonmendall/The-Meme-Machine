@@ -28,6 +28,33 @@ def _accepted_decoder_fixture(directory):
 
 
 class ManagedWorkload(unittest.TestCase):
+    def test_actual_pump_child_supplies_fresh_reference_factory_with_no_financial_environment(self):
+        from meme_machine.operational import managed_native_pump
+        from meme_machine.operational import managed_pump_qualification
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            args = SimpleNamespace(root=str(root), lane='pump', generation='a'*32,
+                request_id='ec2-100-1', duration_seconds=120)
+            constructed = Mock(return_value=Mock())
+            async def native(config, stop, **kwargs):
+                self.assertFalse(any(key.startswith('MM_') for key in os.environ))
+                self.assertIsNone(kwargs.get('decision_target_lamports'))
+                constructed.assert_not_called()
+                self.assertIs(kwargs['decision_target_reader_factory'](), constructed.return_value)
+                return dict(native_observation=True, financial_authority=False)
+            with patch.dict(os.environ, dict(MM_SOLANA_READ_RPC_URL='https://solana-mainnet.g.alchemy.com/v2/offline-key',
+                    MM_CAPACITY_SOURCE_COMMIT='b'*40, MM_CAPACITY_USAGE_DB=str(root/'usage.sqlite'),
+                    MM_CAPACITY_PROVIDER_PROFILE=str(root/'profile.json')), clear=True), \
+                    patch.object(workload.signal, 'signal'), \
+                    patch.object(managed_native_pump, 'run_pump', side_effect=native), \
+                    patch.object(managed_pump_qualification, 'FreshReferenceSizing', constructed):
+                self.assertEqual(workload._child(args), 0)
+            constructed.assert_called_once_with(args.generation)
+            report = json.loads((root/'pump/result.json').read_bytes())
+            self.assertEqual(report['state'], 'NATIVE_RESULT')
+            self.assertFalse(report['financial_authority'])
+            self.assertFalse(list(root.rglob('portfolio.sqlite')))
+
     def _run_exited_lane_sampling_race(self, *, global_denial=False):
         """Real failed child and process-group cleanup; no native/provider work."""
         from meme_machine.operational import bounded_provider
