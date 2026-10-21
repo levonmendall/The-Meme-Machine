@@ -2436,7 +2436,7 @@ class SelectiveSource:
                 self.observe_join('rolling' if rolling else 'candidate',join,session,candidate_queue)
                 await commit(frame)
             except EvidenceUnavailable as exc:
-                diagnostic=dict(reason=str(exc),addresses=len(addresses),pending_slots=len(join.pending),
+                diagnostic=dict(reason=getattr(exc,'join_capacity_reason',str(exc)),addresses=len(addresses),pending_slots=len(join.pending),
                     pending_bytes=join.pending_bytes,missing_logs=sum(1 for slot,item in join.pending.items()
                         for index,fact in item['statuses'].items() if fact[2] is None and not join.full_scopes.intersection(fact[3])
                         and (slot,signature(fact[0])) not in join.early_logs),

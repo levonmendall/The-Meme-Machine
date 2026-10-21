@@ -94,6 +94,13 @@ def _log_transaction(slot,index,meta,sig,log):
         meta=dict(err=log[1],logMessages=log[0]))
 
 
+def _census_capacity_bound(reason):
+    # Preserve the native failure contract; only its bounded attribution differs.
+    error=EvidenceUnavailable('yellowstone_census_buffer_bound')
+    error.join_capacity_reason=reason
+    return error
+
+
 class CandidateTransactionJoin:
     """One bounded transient join, never a SQLite owner or market decision maker."""
     def __init__(self,programs,full_programs,*,clock=time.monotonic,filtered_from_slot,max_join_seconds=MAX_JOIN_SECONDS):
@@ -320,7 +327,7 @@ class CandidateTransactionJoin:
             # Retained authenticated completions have already reserved these
             # bytes. A native arrival cannot overwrite that reservation, even
             # on the terminal capacity-failure path.
-            raise EvidenceUnavailable('yellowstone_census_buffer_bound')
+            raise _census_capacity_bound('yellowstone_census_reserved_native_bytes_bound')
         s=self.pending.get(slot)
         if s is None:
             s=dict(started=now,statuses={},bodies={},body_seen={},status_seen={},banks=set(),meta=None,finality=None,expected={},required={},log_required={},signature_text={},missing_logs=set(),relevant_count=0,max_index=-1,bytes=0,status_bytes=0,content_bytes=0,continuity_bytes=0)
@@ -329,8 +336,12 @@ class CandidateTransactionJoin:
         if item.bank_id:s['banks'].add(item.bank_id)
         if len(s['banks'])>1:raise EvidenceUnavailable('yellowstone_finalized_bank_mismatch')
         s['bytes']+=size;self.pending_bytes+=size
-        if len(self.pending)>MAX_PENDING_SLOTS or self.pending_bytes>MAX_PENDING_BYTES or s['bytes']>MAX_SLOT_BYTES:
-            raise EvidenceUnavailable('yellowstone_census_buffer_bound')
+        if len(self.pending)>MAX_PENDING_SLOTS:
+            raise _census_capacity_bound('yellowstone_census_pending_slots_bound')
+        if self.pending_bytes>MAX_PENDING_BYTES:
+            raise _census_capacity_bound('yellowstone_census_pending_bytes_bound')
+        if s['bytes']>MAX_SLOT_BYTES:
+            raise _census_capacity_bound('yellowstone_census_slot_bytes_bound')
         self.peak_bytes=max(self.peak_bytes,self.pending_bytes);self.peak_slots=max(self.peak_slots,len(self.pending))
         if kind=='transaction_status':
             valid=(bool(labels) and labels.issubset(self.filter_scopes) if self.filtered_from_slot is not None
@@ -349,7 +360,8 @@ class CandidateTransactionJoin:
             if old is not None and old!=fact:raise EvidenceUnavailable('yellowstone_conflicting_status_census')
             if old is None and scopes:
                 s['relevant_count']+=1
-                if s['relevant_count']>MAX_RELEVANT_TRANSACTIONS:raise EvidenceUnavailable('yellowstone_census_buffer_bound')
+                if s['relevant_count']>MAX_RELEVANT_TRANSACTIONS:
+                    raise _census_capacity_bound('yellowstone_census_relevant_transactions_bound')
                 if err is None:
                     s['expected'][item.index]=fact
                     if self.full_scopes.intersection(scopes):s['required'][item.index]=fact
@@ -371,7 +383,8 @@ class CandidateTransactionJoin:
             if old is None:s['bodies'][tx.index]=tx
             s['max_index']=max(s['max_index'],tx.index)
             s['body_seen'].setdefault(tx.index,seen);s['content_bytes']+=size
-            if len(s['bodies'])>MAX_RELEVANT_TRANSACTIONS:raise EvidenceUnavailable('yellowstone_census_buffer_bound')
+            if len(s['bodies'])>MAX_RELEVANT_TRANSACTIONS:
+                raise _census_capacity_bound('yellowstone_census_body_transactions_bound')
         elif kind=='block_meta':
             if labels!={CONTINUITY} or item.executed_transaction_count>MAX_CHAIN_TRANSACTIONS:
                 raise EvidenceUnavailable('yellowstone_finalized_block_shape')
