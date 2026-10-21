@@ -77,8 +77,20 @@ class OriginalWindowReplayTests(unittest.TestCase):
         self.assertFalse(result['throughput_readiness_proven'])
         hashes = {r['semantic_sha256'] for r in result['runs']}
         self.assertEqual(len(hashes), 1)
+        self.assertEqual([r['implementation'] for r in result['architecture_runs']],
+                         ['owner_optimized', 'optimized', 'optimized', 'owner_optimized'])
+        for row in result['architecture_runs']:
+            self.assertEqual(row['qualification_implementation'], 'optimized')
+            self.assertEqual(row['semantic_sha256'], result['runs'][0]['semantic_sha256'])
+            self.assertEqual(row['history_semantic_sha256'], result['runs'][0]['history_semantic_sha256'])
+            self.assertEqual(row['history_state_sha256'], result['runs'][0]['history_state_sha256'])
+            self.assertTrue(row['reader_restart_verified'])
+            self.assertFalse(row['publication_thread_handoff_exercised'])
         counts = []
         for row in result['runs']:
+            self.assertEqual(row['publication_implementation'],
+                'owner_capture' if row['implementation'] == 'reference' else 'readonly_capture_actor')
+            self.assertFalse(row['publication_thread_handoff_exercised'])
             self.assertEqual(row['initial']['durably_observed_native_events'], 0)
             self.assertEqual(row['initial']['native_event_backlog'], 1)
             self.assertEqual(row['completed'], {'warmup': 1, 'measured': len(parcel.measured)})
@@ -129,6 +141,17 @@ class OriginalWindowReplayTests(unittest.TestCase):
         self.assertFalse(mismatch['same_semantics']); self.assertFalse(mismatch['timing_comparison_available'])
         self.assertEqual(mismatch['unprofiled_timing'], {})
         self.assertIn('history_state_sha256', mismatch['arms'][3]['differing_fields'])
+        self.assertTrue(comparison['architecture_comparison_available'])
+        self.assertEqual(len(comparison['arms']), 10)
+        changed = deepcopy(result); changed['architecture_runs'][1]['history_state_sha256']['source_receipts'] = '0'*64
+        mismatch = replay.compare_reports(result, changed)
+        self.assertFalse(mismatch['same_semantics']); self.assertFalse(mismatch['timing_comparison_available'])
+        self.assertIn('history_state_sha256', mismatch['arms'][7]['differing_fields'])
+        legacy = deepcopy(result); del legacy['architecture_runs']
+        compatible = replay.compare_reports(legacy, result)
+        self.assertTrue(compatible['same_semantics'])
+        self.assertFalse(compatible['architecture_comparison_available'])
+        self.assertEqual(len(compatible['arms']), 6)
         changed = deepcopy(result); changed['input_parcel_sha256'] = '0'*64
         with self.assertRaisesRegex(ValueError, 'comparison_input_or_scope_mismatch'):
             replay.compare_reports(result, changed)
@@ -167,6 +190,12 @@ class OriginalWindowReplayTests(unittest.TestCase):
         self.assertFalse(any(row['bucket'] == 'trace_INSERT' for row in rows))
 
     def test_external_commit_before_ack_replays_original_outbox_without_duplicates(self):
+        self._external_commit_before_ack(actor=False)
+
+    def test_read_actor_commit_before_ack_reconstructs_from_durable_outbox(self):
+        self._external_commit_before_ack(actor=True)
+
+    def _external_commit_before_ack(self, *, actor):
         from meme_machine.solana_evidence_plane import EvidenceWriter
         from meme_machine.solana_evidence_service import FinalizedFence
         from meme_machine.solana_selective_history import SelectiveHistory
@@ -184,7 +213,7 @@ class OriginalWindowReplayTests(unittest.TestCase):
         history.lifecycle = life = CandidateLifecycle(history, candidate_path=self.root/'history.sqlite')
         history.rolling = RollingHistory(history); life.delivery_separated = True
         history.ingest([prepare_economic_record(row)])
-        result = replay.publish(life, interrupt_before_ack=True)
+        result = replay.publish(life, actor_state={} if actor else None, interrupt_before_ack=True)
         self.assertGreater(result['outbox_rows'], 0)
         self.assertIsNone(history.db.execute(
             'SELECT 1 FROM candidate_history_outbox WHERE consumed IS NULL').fetchone())

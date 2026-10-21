@@ -15,11 +15,11 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 BASE='83c3716aefc21d59780db64beb8681e772ac628c'
 BASE_TREE='8afdc31b017c36bcd23dc6f89bf5011270c47cf1'
-IMPLEMENTATION='2fa5a12017c6f03efa8bf8fcb19965ada4efd975'
-IMPLEMENTATION_TREE='556090ca87eb88e751a8fc14614e316084e7e0de'
+IMPLEMENTATION='df8db7ef6ee16e4495e53d1e8ee7e7857fd164e7'
+IMPLEMENTATION_TREE='fdaea9d5db6f8f9d6c36c146dee9bedd97361bf5'
 MANIFEST=ROOT/'tests/fixtures/managed_capacity_source_delta.json'
-MANIFEST_SHA256='cad322470595eccc6f681277cda6a8d65cdf7f1f0c2a89e913bb8458c506039d'
-MODIFIED=('meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pons/provider_topology.py', 'meme_machine/runtime/evidence_worker.py', 'meme_machine/shared_capital/adapter.py', 'meme_machine/solana_candidate_join.py', 'meme_machine/solana_candidate_lifecycle.py', 'meme_machine/solana_economic_preparation.py', 'meme_machine/solana_evidence_control.py', 'meme_machine/solana_evidence_service.py', 'meme_machine/solana_history_delivery.py', 'meme_machine/solana_selective_history.py', 'meme_machine/solana_selective_source.py')
+MANIFEST_SHA256='87f41d0bde0bb0bf0aab3ecc12db43ca70d2272761ab0a3f884906942a1f4d2f'
+MODIFIED=('meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pons/provider_topology.py', 'meme_machine/runtime/evidence_worker.py', 'meme_machine/shared_capital/adapter.py', 'meme_machine/solana_candidate_join.py', 'meme_machine/solana_candidate_lifecycle.py', 'meme_machine/solana_economic_preparation.py', 'meme_machine/solana_evidence_control.py', 'meme_machine/solana_evidence_service.py', 'meme_machine/solana_history_delivery.py', 'meme_machine/solana_history_notifications.py', 'meme_machine/solana_selective_history.py', 'meme_machine/solana_selective_source.py')
 ADDED=('meme_machine/operational/managed_capacity_evidence.py', 'meme_machine/operational/managed_capacity_workload.py', 'meme_machine/operational/managed_native_pons.py', 'meme_machine/operational/managed_native_pump.py', 'meme_machine/operational/managed_pons_survivor.py', 'meme_machine/operational/managed_pump_qualification.py', 'meme_machine/operational/managed_qualification_replay.py', 'meme_machine/solana_preparation_pool.py', 'meme_machine/solana_stream_log_repair.py')
 GUARD='tests/test_native_audit_source_guard.py'
 READ_GUARD='tests/test_robinhood_usd_valuation.py'
