@@ -289,6 +289,10 @@ def pump_snapshot(config, *, driver=None):
             result['history'] = counts
     if driver is not None:
         result['pipeline'] = {k: dict(v) for k, v in driver.pipeline_metrics.items()}
+        # The installed sealed collector accepts the existing numeric timing
+        # catalog under this key. Keep the original field for the native root
+        # receipt; both fields describe the same copied process-local snapshot.
+        result['pipeline_timing'] = result['pipeline']
         # Accepted/committed use the same native joined-frame unit, including
         # replay. Slot frontiers and coverage above independently expose gaps.
         result['source_frames'] = driver.drain_snapshot()
@@ -464,6 +468,7 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                             observed_at=time.time(), monotonic=time.monotonic(),
                             observation_unavailable=code, financial_authority=False)
                     sample['pipeline'] = {k: dict(v) for k, v in driver.pipeline_metrics.items()}
+                    sample['pipeline_timing'] = sample['pipeline']
                     sample['source_frames'] = driver.drain_snapshot()
                     sample['qualification_worker'] = dict(qualification_metrics)
                     sample['authenticated_finalized_head'] = head
