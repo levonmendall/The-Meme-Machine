@@ -1230,6 +1230,52 @@ class ArchiveFullLogContentTests(unittest.TestCase):
             self.assert_unpublished()
         asyncio.run(exercise())
 
+    def test_accepted_optional_truncation_failure_commits_once_after_waiter_cancellation(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            source,job,baseline,calls=await self.incomplete_archive_source(original,fetched)
+            queued=asyncio.Event();accepted=[]
+            async def queued_work(callback,*args,**metadata):
+                # Accept the first owner command after the physical supplement
+                # response, but run it only after its async waiter has exited.
+                if calls and calls[-1]=='getTransaction' and not accepted:
+                    accepted.append(callback);queued.set()
+                    await asyncio.Future()
+                return callback(self.state)
+            source.work=queued_work
+            task=asyncio.create_task(source.acquire())
+            try:
+                await asyncio.wait_for(queued.wait(),1)
+                self.assertEqual(self.h.db.execute('SELECT status FROM acquisition_jobs WHERE id=?',
+                    (job['id'],)).fetchone(),('pending',))
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):await task
+            finally:
+                if not task.done():task.cancel()
+                await asyncio.gather(task,return_exceptions=True)
+            self.assertEqual(len(accepted),1)
+            self.assertFalse(self.state.acquisition_inflight)
+            accepted[0](self.state)
+            row=self.h.db.execute('SELECT status,deadline,pages,token,lineage,error FROM acquisition_jobs '
+                'WHERE id=?',(job['id'],)).fetchone()
+            self.assertEqual(row[:5],('failed',job['deadline'],job['pages'],job['token'],job['lineage']))
+            failure=json.loads(row[5])
+            self.assertIn(':archive_log_check=fetched_log_truncation',failure['diagnostic'])
+            for key in ('complete','economic_rejection','deadline_reset'):self.assertIs(failure[key],False)
+            self.assertIs(failure['candidate_retained'],True)
+            self.assertEqual(len(self.snapshot()['acquisition_observations']),
+                len(baseline['acquisition_observations'])+1)
+            after=self.snapshot()
+            accepted[0](self.state)
+            self.assertEqual(self.snapshot(),after)
+            for table in baseline:
+                if table not in ('acquisition_jobs','acquisition_observations'):
+                    self.assertEqual(after[table],baseline[table],table)
+            self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
+            self.assert_unpublished()
+        asyncio.run(exercise())
+
     def test_critical_truncated_provider_supplement_still_fails_closed(self):
         original,fetched,_,_=truncated_transaction()
         fetched['meta']['logMessages'].append('Log truncated')

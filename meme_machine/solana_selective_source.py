@@ -1983,8 +1983,10 @@ class SelectiveSource:
                     # The owner rechecks priority in case protection upgraded it
                     # while the RPC was in flight. Other identity failures escape.
                     if job['priority']<=2:raise
-                    await self.work(lambda state:install(state).defer_provider_failure(job,
-                        retryable=False,diagnostic=failure_diagnostic(exc)),job['priority'])
+                    diagnostic=failure_diagnostic(exc)
+                    await self.work(lambda state,job=job,diagnostic=diagnostic:
+                        install(state).defer_provider_failure(job,retryable=False,
+                            diagnostic=diagnostic),job['priority'])
                 elif str(exc)=='bootstrap_optional_work_closed':
                     await self.work(lambda state:install(state)._observation(job['id'],
                         'bootstrap_optional_work_closed',dict(candidate_retained=True,complete=False,
