@@ -14,7 +14,7 @@ from unittest.mock import patch
 import based58
 
 from meme_machine.solana_candidate_join import YellowstoneTransactionFrame,CandidateTransactionJoin,scope_labels
-from meme_machine.solana_evidence_plane import EvidenceUnavailable
+from meme_machine.solana_evidence_plane import EvidenceUnavailable,digest
 from meme_machine.solana_rolling_history import program_scope
 from meme_machine.solana_selective_history import PROGRAMS
 from meme_machine.solana_selective_source import (
@@ -710,3 +710,149 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class PublicationSQLCostTests(unittest.TestCase):
+    """N-U binding SELECTs, 2N receipt statements and 31E empty-phase SQL saved.
+
+    Counts describe delivery rows/batches, not measured market speed or fsyncs.
+    Removing an empty writer can remove only its unnecessary SQLITE_BUSY;
+    necessary write/authentication/outer FULL rollback guarantees remain.
+    """
+    from tests import test_solana_history_separation as _fixtures
+    setUp=_fixtures.HistorySeparationTests.setUp
+    tearDown=_fixtures.HistorySeparationTests.tearDown
+    pump=_fixtures.HistorySeparationTests.pump
+    seal=_fixtures.HistorySeparationTests.seal
+
+    def test_capture_reuses_repeated_and_missing_bindings_only_for_its_owner_turn(self):
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        life=self.h.lifecycle;life.delivery_separated=True
+        self.h.bind('pump','bound',market_address='original-mint')
+        for index,address in enumerate(('bound','missing','bound','missing','bound')):
+            life.emit('pump',address,'scout',dict(fields=dict(index=index)))
+        lookups=[]
+        query='SELECT market_address FROM evidence_bindings WHERE family='
+        self.h.db.set_trace_callback(lambda sql:lookups.append(sql) if sql.startswith(query) else None)
+        try:snapshot=capture(life)
+        finally:self.h.db.set_trace_callback(None)
+        self.assertEqual(len(snapshot['rows']),5)
+        self.assertEqual(len(lookups),2)
+        self.assertEqual(snapshot['bindings'],{('pump','bound'):('original-mint',),('pump','missing'):None})
+        result=deliver(snapshot)
+        # A later owner turn can change either a known or absent binding. The
+        # original snapshot must never authorize ACK using the capture memo.
+        with self.state.writer.transaction():
+            self.h.db.execute("UPDATE evidence_bindings SET market_address='changed-mint' WHERE family='pump' AND address='bound'")
+        self.assertFalse(acknowledge(life,snapshot,result))
+        self.assertEqual(capture(life)['bindings'][('pump','bound')],('changed-mint',))
+        with self.state.writer.transaction():
+            self.h.db.execute("UPDATE evidence_bindings SET market_address='original-mint' WHERE family='pump' AND address='bound'")
+        self.h.bind('pump','missing',market_address='late-mint')
+        self.assertFalse(acknowledge(life,snapshot,result))
+        self.assertEqual(capture(life)['bindings'][('pump','missing')],('late-mint',))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],5)
+        with self.state.writer.transaction():
+            self.h.db.execute("DELETE FROM evidence_bindings WHERE family='pump' AND address='missing'")
+        self.assertTrue(acknowledge(life,snapshot,result))
+
+
+    def test_row_only_delivery_uses_one_full_commit_without_receipt_savepoints(self):
+        from contextlib import closing
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        life=self.h.lifecycle;life.delivery_separated=True
+        for index in range(3):life.emit('pump','scout-'+str(index),'scout',dict(fields=dict(index=index)))
+        snapshot=capture(life)
+        self.assertEqual(snapshot['proofs'],[]);self.assertEqual(snapshot['refresh'],[])
+        original=CandidateHistory.__init__;opened=[];statements=[]
+        def initialize(shared,*args,**kwargs):
+            original(shared,*args,**kwargs)
+            opened.append(shared.path);shared.db.set_trace_callback(statements.append)
+        with patch.object(CandidateHistory,'__init__',initialize):result=deliver(snapshot)
+        self.assertEqual(opened,[life.path])
+        verbs=[sql.lstrip().split(None,1)[0].upper() for sql in statements]
+        self.assertEqual(verbs.count('BEGIN'),1);self.assertEqual(verbs.count('COMMIT'),1)
+        # Each scout's observe keeps its existing savepoint. The receipt no
+        # longer adds a second pair inside the same outer FULL transaction.
+        self.assertEqual(verbs.count('SAVEPOINT'),3);self.assertEqual(verbs.count('RELEASE'),3)
+        self.assertEqual(sum(sql.startswith('INSERT OR IGNORE INTO source_receipts') for sql in statements),3)
+        self.assertTrue(acknowledge(life,snapshot,result))
+        with closing(CandidateHistory(life.path)) as shared:
+            self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM source_receipts').fetchone()[0],3)
+            self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM candidates').fetchone()[0],3)
+
+
+    def test_intermediate_receipt_error_rolls_back_candidates_and_all_receipts(self):
+        from contextlib import closing
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        from meme_machine.runtime.sqlite_failure import Connection
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        life=self.h.lifecycle;life.delivery_separated=True
+        for index in range(3):life.emit('pump','scout-'+str(index),'scout',dict(fields=dict(index=index)))
+        snapshot=capture(life)
+        pending=self.h.db.execute('SELECT * FROM candidate_history_outbox ORDER BY id').fetchall()
+        original=Connection.execute;receipts=[]
+        error=sqlite3.OperationalError('offline_intermediate_receipt_insert_failed')
+        def insert(db,sql,parameters=()):
+            if sql.startswith('INSERT OR IGNORE INTO source_receipts'):
+                receipts.append(parameters[0])
+                if len(receipts)==2:raise error
+            return original(db,sql,parameters)
+        with patch.object(Connection,'execute',insert):
+            with self.assertRaises(sqlite3.OperationalError) as caught:deliver(snapshot)
+        self.assertIs(caught.exception,error);self.assertEqual(len(receipts),2)
+        with closing(CandidateHistory(life.path)) as shared:
+            self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM source_receipts').fetchone()[0],0)
+            self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM candidates').fetchone()[0],0)
+        self.assertEqual(self.h.db.execute('SELECT * FROM candidate_history_outbox ORDER BY id').fetchall(),pending)
+        repeated=capture(life)
+        self.assertEqual(repeated['rows'],snapshot['rows'])
+        self.assertTrue(acknowledge(life,repeated,deliver(repeated)))
+
+
+    def test_final_metadata_error_rolls_back_native_references_and_receipts(self):
+        from contextlib import closing
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        life=self.h.lifecycle;life.delivery_separated=True;self.pump()
+        snapshot=capture(life);self.assertTrue(snapshot['rows'])
+        pending=self.h.db.execute('SELECT * FROM candidate_history_outbox ORDER BY id').fetchall()
+        original=CandidateHistory.observe_pump_source_groups
+        error=RuntimeError('offline_final_metadata_fold_failed');finished=[]
+        def fold(shared,groups):
+            receipts=shared.db.execute('SELECT COUNT(*) FROM source_receipts').fetchone()[0]
+            if receipts==len(snapshot['rows']):
+                finished.append(receipts);raise error
+            return original(shared,groups)
+        with patch.object(CandidateHistory,'observe_pump_source_groups',fold):
+            with self.assertRaises(RuntimeError) as caught:deliver(snapshot)
+        self.assertIs(caught.exception,error);self.assertEqual(finished,[len(snapshot['rows'])])
+        with closing(CandidateHistory(life.path)) as shared:
+            for table in ('candidates','events','canonical_event_refs','source_receipts'):
+                self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0],0,table)
+        self.assertEqual(self.h.db.execute('SELECT * FROM candidate_history_outbox ORDER BY id').fetchall(),pending)
+        repeated=capture(life);self.assertEqual(repeated['rows'],snapshot['rows'])
+        self.assertTrue(acknowledge(life,repeated,deliver(repeated)))
+
+
+    def test_proof_only_delivery_retains_initial_receipt_schema_and_second_commit(self):
+        from contextlib import closing
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        life=self.h.lifecycle;life.delivery_separated=True;scope=program_scope('pump')
+        life.defer_proof(IntervalProof(scope,100,100,'alchemy_finalized_stream','a'*64,
+            dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=100,
+                 lineage_hash=digest([scope,100])),NOW))
+        snapshot=capture(life)
+        self.assertEqual(snapshot['rows'],[]);self.assertTrue(snapshot['proofs'])
+        original=CandidateHistory.__init__;opened=[]
+        def initialize(shared,*args,**kwargs):
+            original(shared,*args,**kwargs);opened.append(shared.path)
+        with patch.object(CandidateHistory,'__init__',initialize):result=deliver(snapshot)
+        self.assertEqual(opened,[life.path,life.path])
+        with closing(CandidateHistory(life.path)) as shared:
+            self.assertEqual(shared.db.execute("SELECT COUNT(*) FROM source_receipts WHERE kind='coverage'").fetchone()[0],1)
+        self.assertTrue(acknowledge(life,snapshot,result))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+
