@@ -42,8 +42,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
-      "after_bytes": 29331,
-      "after_sha256": "ec3978e1cd445d0b9a9cd30256f2edd2eaf3dc8f29829bf333ad5e2124020ff9",
+      "after_bytes": 29503,
+      "after_sha256": "ecd378ea4522b0a30b63286dee9f69aa0df52e2d033f0efcc98076c00f44c933",
       "status": "A"
     },
     "meme_machine/operational/managed_pons_survivor.py": {
@@ -57,8 +57,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_qualification_replay.py": {
-      "after_bytes": 10576,
-      "after_sha256": "f27dd98b312311996df31fc8defbbcfa617b97dd1e87de3ec78391883570084c",
+      "after_bytes": 10937,
+      "after_sha256": "69d96c4a3e60f586576e715ad230eef6fb2383175e4c412494521b4c1f23f548",
       "status": "A"
     },
     "meme_machine/runtime/evidence_worker.py": {
@@ -214,8 +214,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "a2948daa3cafb9304cb268aa1f273b2b14f753a7",
-  "implementation_tree": "bde3a558e452a1d1e45b54b81261bea068ed2c45",
+  "implementation": "f1593cae377d754d70611083a87f899d9f8e0bf1",
+  "implementation_tree": "6ac73e0799562593de3524755d511ba8cd4c3401",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,
