@@ -11,7 +11,7 @@ remains required by the existing interval view. No failed bodies are requested.
 from dataclasses import dataclass,field
 import time
 import based58
-from .solana_evidence_plane import EvidenceUnavailable,digest
+from .solana_evidence_plane import EvidenceUnavailable,digest,canonical
 from .solana_native_evidence import NativeFrame,signature,transaction_error
 from .yellowstone import geyser_pb2 as pb
 
@@ -25,6 +25,7 @@ MAX_CHAIN_TRANSACTIONS=8192
 MAX_RELEVANT_TRANSACTIONS=2048
 MAX_PENDING_SLOTS=256
 MAX_PENDING_BYTES=32*1024*1024
+CANDIDATE_COMMIT_BYTES=32*1024*1024
 MAX_SLOT_BYTES=16*1024*1024
 MAX_JOIN_SECONDS=10
 FILTERED_REPLAY_CONTRACT='alchemy_finalized_filtered_from_slot_replay_with_target_status_census_and_linked_finalized_child'
@@ -73,6 +74,14 @@ class YellowstoneTransactionFrame(NativeFrame):
     replay_from_slot: int=0
     log_transactions: tuple=()
     candidate_statuses: tuple=()
+
+
+def candidate_commit_size(frame):
+    """The existing physical frame bound includes body-free log transactions."""
+    size=frame.source_bytes+sum(len(canonical(tx).encode()) for tx in frame.log_transactions)
+    if not 0<size<=CANDIDATE_COMMIT_BYTES:
+        raise EvidenceUnavailable('candidate_commit_batch_bound')
+    return size
 
 
 class CandidateTransactionJoin:
@@ -177,13 +186,36 @@ class CandidateTransactionJoin:
             raise EvidenceUnavailable('incomplete_finalized_logs')
         old=self.early_logs[key]
         previous_bytes=len(str(old[0]).encode());complete_bytes=len(str(logs).encode())
-        if len(self.early_logs)>32768 or self.early_log_bytes-previous_bytes+complete_bytes>MAX_PENDING_BYTES:
+        if len(self.early_logs)>32768:
             raise EvidenceUnavailable('candidate_log_buffer_pressure')
-        self.early_logs.pop(key);self.incomplete_logs.remove(key)
+        fits=self.early_log_bytes-previous_bytes+complete_bytes<=MAX_PENDING_BYTES
+        if not fits:
+            # Later logs cannot reserve the bytes needed to finish the oldest
+            # otherwise-complete slot. Transfer its authenticated complete
+            # field directly into the ordinary bounded frame, never into an
+            # overfull early_logs map. Nothing is retired until every normal
+            # census/content check and the whole-frame bound have passed.
+            pending=self.pending.get(slot)
+            if (complete_bytes>MAX_PENDING_BYTES or slot!=min(self.pending,default=None)
+                    or pending['missing_logs']!={sig}
+                    or not any(pending['signature_text'].get(index)==sig for index in pending['log_required'])):
+                raise EvidenceUnavailable('candidate_log_buffer_pressure')
+        plan=self._prepare_drain((key,(logs,None,seen)))
+        if not fits and plan is None:
+            raise EvidenceUnavailable('candidate_log_buffer_pressure')
+        prefix=digest([old[0],old[1]])
+        if plan is not None and plan[0]==slot:
+            return self._finish_drain(plan,repair=(key,prefix))
+        # An incomplete/future slot may still retain a fitting replacement.
+        # Its preparation above must not mutate another slot on a failed check.
+        self.early_logs[key]=(logs,None,seen)
+        self.early_log_bytes+=complete_bytes-previous_bytes
+        self.incomplete_logs.remove(key)
         self.deferred_complete_logs.pop(key,None)
-        self.early_log_bytes-=len(str(old[0]).encode())
-        self.recent_incomplete_logs[key]=digest([old[0],old[1]])
-        return self.feed_log(slot,sig,logs,None,seen)
+        self.recent_incomplete_logs[key]=prefix
+        pending=self.pending.get(slot)
+        if pending is not None:pending['missing_logs'].discard(sig)
+        return self._finish_drain(plan) if plan is not None else None
 
     def hold_complete_log(self,slot,sig,logs):
         """Coalesce a complete WS duplicate while its existing repair settles.
@@ -316,6 +348,16 @@ class CandidateTransactionJoin:
         return self.drain()
 
     def drain(self):
+        plan=self._prepare_drain()
+        return self._finish_drain(plan) if plan is not None else None
+
+    def _prepare_drain(self,replacement=None):
+        """Validate an ordinary oldest frame without changing retained state.
+
+        A complete, independently authenticated deferred field can replace one
+        log only in this read-only view. The shared validator grants no coverage
+        to another slot, missing field, prefix, body, header or native identity.
+        """
         if not self.pending:return None
         slot=min(self.pending);s=self.pending[slot];seen=s['last_seen'];meta=s['meta']
         if meta is None or s['finality'] is None:return None
@@ -330,12 +372,18 @@ class CandidateTransactionJoin:
         # Late logs and newer slots repeatedly revisit this oldest interval.
         # Track readiness incrementally: waiting is constant work, not a scan
         # and base58 conversion of the entire successful status census.
-        if s['missing_logs']:return None
+        if s['missing_logs']:
+            if (replacement is None or replacement[0][0]!=slot
+                    or s['missing_logs']!={replacement[0][1]}):return None
         if not set(s['bodies']).issubset(required):raise EvidenceUnavailable('yellowstone_unfiltered_transaction')
         if set(required)!=set(s['bodies']):return None
+        signature_text=dict(s['signature_text'])
+        def log_at(index):
+            key=(slot,signature_text[index])
+            return replacement[1] if replacement is not None and replacement[0]==key else self.early_logs.get(key)
         failed=[];seen_by_signature={};identities=set();log_transactions=[];candidate_statuses=[]
         for index,fact in log_required.items():
-            sig=s['signature_text'][index];log=self.early_logs.get((slot,sig))
+            sig=signature_text[index];log=log_at(index)
             if log is None:return None
             if log[1] is not None:raise EvidenceUnavailable('candidate_log_status_conflict')
             log_transactions.append(dict(slot=slot,blockTime=meta.block_time.timestamp,
@@ -346,10 +394,10 @@ class CandidateTransactionJoin:
             if sig in identities:raise EvidenceUnavailable('yellowstone_duplicate_signature')
             identities.add(sig)
             if not scopes:continue
-            text=s['signature_text'].get(index)
-            if text is None:text=signature(sig);s['signature_text'][index]=text
+            text=signature_text.get(index)
+            if text is None:text=signature(sig);signature_text[index]=text
             seen_by_signature[text]=s['body_seen'][index] if index in required else (
-                max(s['status_seen'][index],self.early_logs[(slot,text)][2]) if index in log_required else s['status_seen'][index])
+                max(s['status_seen'][index],log_at(index)[2]) if index in log_required else s['status_seen'][index])
             candidate_statuses.append((text,index,scopes,None if err is None else transaction_error(err),seen_by_signature[text]))
             if index in required:
                 tx=s['bodies'][index]
@@ -370,12 +418,27 @@ class CandidateTransactionJoin:
         block.block_time.CopyFrom(meta.block_time);block.executed_transaction_count=count
         block.transactions.extend(s['bodies'][i] for i in sorted(s['bodies']))
         result=YellowstoneTransactionFrame(out,s['bytes'],seen,tuple(failed),seen_by_signature,len(s['statuses']),s['continuity_bytes'],s['status_bytes'],s['content_bytes'],self.filtered_from_slot or 0,tuple(log_transactions),tuple(candidate_statuses))
+        candidate_commit_size(result)
+        consumed=[]
+        for index in log_required:
+            key=(slot,signature_text[index]);old=self.early_logs[key];complete=log_at(index)
+            consumed.append((key,digest([complete[0],complete[1]]),len(str(old[0]).encode())))
+        return slot,s,signature_text,result,consumed
+
+    def _finish_drain(self,plan,*,repair=None):
+        """Retire exactly one fully validated oldest frame, without awaiting."""
+        slot,s,signature_text,result,consumed=plan
+        if repair is not None:
+            key,prefix=repair
+            self.incomplete_logs.remove(key);self.deferred_complete_logs.pop(key,None)
+            self.recent_incomplete_logs[key]=prefix;s['missing_logs'].discard(key[1])
         consumed_logs=[]
-        for index,fact in log_required.items():
-            key=(slot,s['signature_text'][index]);old=self.early_logs.pop(key)
-            self.recent_logs[key]=digest([old[0],old[1]])
+        for key,checksum,size in consumed:
+            self.early_logs.pop(key)
+            self.recent_logs[key]=checksum
             consumed_logs.append(key)
-            self.early_log_bytes-=len(str(old[0]).encode())
+            self.early_log_bytes-=size
+        s['signature_text']=signature_text
         self.pending_bytes-=s['bytes'];del self.pending[slot];self.completed=slot
         if self.filtered_from_slot is not None:
             s['consumed_log_keys']=consumed_logs

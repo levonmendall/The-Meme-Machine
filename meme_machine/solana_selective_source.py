@@ -19,7 +19,10 @@ import grpc
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 from .solana_activity_routes import ActivityRoutes,shards
-from .solana_candidate_join import CandidateTransactionJoin,candidate_subscription,MAX_PENDING_BYTES
+from .solana_candidate_join import (
+    CandidateTransactionJoin,candidate_subscription,MAX_PENDING_BYTES,
+    CANDIDATE_COMMIT_BYTES,candidate_commit_size,
+)
 from .solana_stream_log_repair import (
     explicit_truncation,log_input_reason,rebase_log_join,authenticate_supplement,FATAL_REPAIR_REASONS,
 )
@@ -48,7 +51,6 @@ ARCHIVE_WORKERS=8
 SCOUT_COMMIT_BATCH=64
 CANDIDATE_COMMIT_BATCH=8
 DEVELOPMENT_BATCH=16 # Bounded owner work, not a candidate population limit.
-CANDIDATE_COMMIT_BYTES=32*1024*1024
 # Acquisition cannot prove funded-position latency before a position exists.
 # Enforce this guard at capital admission, never at read-only source startup.
 PRODUCTION_BLOCKERS=() # Retained import compatibility; readiness is live and regime-specific.
@@ -406,9 +408,7 @@ class CandidateCommitQueue:
     async def put(self,frame):
         # Native bodies are already included in source_bytes. Body-free WS
         # log content must also remain inside the physical retained-data bound.
-        size=frame.source_bytes+sum(len(canonical(tx).encode()) for tx in frame.log_transactions)
-        if not 0<size<=CANDIDATE_COMMIT_BYTES:
-            raise EvidenceUnavailable('candidate_commit_batch_bound')
+        size=candidate_commit_size(frame)
         # Native, WS and HTTP-repair callbacks share one ordered join. Its
         # frames must enter this queue in that same order, including while
         # waiting for the owner-held batch's count/byte reservation. Event
