@@ -1362,6 +1362,17 @@ class ArchiveFullLogContentTests(unittest.TestCase):
         source.work,source.measured_rpc=work,rpc
         return source,job,baseline,calls
 
+    def assert_archive_evidence_unchanged(self,baseline,job):
+        # Model B startup legitimately publishes its two program predecessors.
+        # An unavailable archive page must leave that complete baseline intact,
+        # while its own candidate interval remains missing across restart.
+        current=self.snapshot()
+        for table,rows in baseline.items():
+            if table not in ('acquisition_jobs','acquisition_observations'):
+                self.assertEqual(current[table],rows,table)
+        self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),
+            [(job['lo'],job['hi'])])
+
     def test_optional_truncated_provider_supplement_retains_job_gap_and_restart_without_false_coverage(self):
         original,fetched,_,_=truncated_transaction()
         fetched['meta']['logMessages'].append('Log truncated')
@@ -1386,13 +1397,13 @@ class ArchiveFullLogContentTests(unittest.TestCase):
             self.assertFalse(self.state.acquisition_inflight)
             self.assertIsNone(self.h.plan())
             self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
-            self.assert_unpublished()
+            self.assert_archive_evidence_unchanged(baseline,job)
             self.assertEqual((canonical(original),canonical(fetched)),inputs)
             self.state.writer.close();self.open_owner()
             self.assertEqual(self.snapshot(),after)
             self.assertIsNone(self.h.plan())
             self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
-            self.assert_unpublished()
+            self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
     def test_accepted_optional_truncation_failure_commits_once_after_waiter_cancellation(self):
@@ -1438,7 +1449,7 @@ class ArchiveFullLogContentTests(unittest.TestCase):
                 if table not in ('acquisition_jobs','acquisition_observations'):
                     self.assertEqual(after[table],baseline[table],table)
             self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
-            self.assert_unpublished()
+            self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
     def test_critical_truncated_provider_supplement_still_fails_closed(self):
@@ -1456,7 +1467,7 @@ class ArchiveFullLogContentTests(unittest.TestCase):
                     self.assertEqual(caught.exception.archive_log_failure_check,'fetched_log_truncation')
                     self.assertEqual(self.snapshot(),baseline)
                     self.assertFalse(self.state.acquisition_inflight)
-                    self.assert_unpublished()
+                    self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
     def test_inflight_protective_upgrade_cannot_borrow_optional_truncation_isolation(self):
@@ -1471,7 +1482,7 @@ class ArchiveFullLogContentTests(unittest.TestCase):
                 ('pending',1,self.now[0]+3,job['pages'],job['token'],job['lineage']))
             self.assertEqual(self.snapshot()['acquisition_observations'],baseline['acquisition_observations'])
             self.assertFalse(self.state.acquisition_inflight)
-            self.assert_unpublished()
+            self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
     def test_optional_archive_identity_corruption_still_aborts_instead_of_becoming_provider_incomplete(self):
@@ -1480,26 +1491,26 @@ class ArchiveFullLogContentTests(unittest.TestCase):
         # A truncation marker must not hide the earlier identity contradiction.
         fetched['meta']['logMessages'].append('Log truncated')
         async def exercise():
-            source,_,baseline,_=await self.incomplete_archive_source(original,fetched)
+            source,job,baseline,_=await self.incomplete_archive_source(original,fetched)
             with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
                 await source.acquire()
             self.assertEqual(caught.exception.archive_log_failure_check,'transaction_identity')
             self.assertEqual(self.snapshot(),baseline)
             self.assertFalse(self.state.acquisition_inflight)
-            self.assert_unpublished()
+            self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
     def test_optional_complete_supplement_with_conflicting_prefix_still_aborts(self):
         original,fetched,_,_=truncated_transaction()
         fetched['meta']['logMessages'][0]='different original prefix'
         async def exercise():
-            source,_,baseline,_=await self.incomplete_archive_source(original,fetched)
+            source,job,baseline,_=await self.incomplete_archive_source(original,fetched)
             with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
                 await source.acquire()
             self.assertEqual(caught.exception.archive_log_failure_check,'prefix')
             self.assertEqual(self.snapshot(),baseline)
             self.assertFalse(self.state.acquisition_inflight)
-            self.assert_unpublished()
+            self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
     def test_optional_truncation_with_hidden_log_contradictions_still_aborts(self):
@@ -1517,7 +1528,7 @@ class ArchiveFullLogContentTests(unittest.TestCase):
                     elif fault=='fetched_marker_count':fetched['meta']['logMessages'].append('Log truncated')
                     else:original['meta']['logMessages'].append('Program log: unproven retained suffix')
                     inputs=canonical(original),canonical(fetched)
-                    source,_,baseline,_=await self.incomplete_archive_source(original,fetched)
+                    source,job,baseline,_=await self.incomplete_archive_source(original,fetched)
                     with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
                         await source.acquire()
                     # Preserve the original authenticator's rejection order;
@@ -1526,7 +1537,7 @@ class ArchiveFullLogContentTests(unittest.TestCase):
                     self.assertEqual(self.snapshot(),baseline)
                     self.assertFalse(self.state.acquisition_inflight)
                     self.assertEqual((canonical(original),canonical(fetched)),inputs)
-                    self.assert_unpublished()
+                    self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
     def test_optional_truncation_with_all_retained_suffix_lines_remains_local(self):
@@ -1543,7 +1554,7 @@ class ArchiveFullLogContentTests(unittest.TestCase):
                 if table not in ('acquisition_jobs','acquisition_observations'):
                     self.assertEqual(after[table],baseline[table],table)
             self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
-            self.assert_unpublished()
+            self.assert_archive_evidence_unchanged(baseline,job)
         asyncio.run(exercise())
 
 
