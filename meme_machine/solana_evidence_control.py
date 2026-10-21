@@ -92,6 +92,7 @@ class PriorityOwner:
         self.active_operation=None;self.recent_slow_operations=deque(maxlen=OWNER_OPERATION_LIMIT)
         self.cv=threading.Condition(); self.queue=[]; self.sequence=0
         self._urgent_queued=0
+        self._continuation_claimed=False
         self.closed=False; self.ready=concurrent.futures.Future()
         self.admission_notify=None
         self._checkpoint_epoch=0; self._checkpoint_busy=False
@@ -194,6 +195,29 @@ class PriorityOwner:
             return self.submit(fn,priority=4,admit_before=ticket.permit_deadline,
                 _maintenance_ticket=ticket)
 
+    def try_continuation(self,fn):
+        """Claim one bounded stage after this ACK, without another admission.
+
+        The claim is a scheduling boundary: already queued urgent work and any
+        reserved maintenance boundary win. A later urgent admission may meet
+        this bounded stage just as it may meet an already selected callback.
+        The next consumer/ACK still reenters normal FIFO; this is not a loop.
+        Active/slow-operation records keep the whole physical ACK unit; the
+        service separately accounts its logical ACK and capture executions.
+        """
+        if threading.get_ident()!=self.thread.ident:
+            raise EvidenceUnavailable('evidence_continuation_owner_thread')
+        with self.cv:
+            active=self.active_operation
+            if (self.closed or not self._checkpoint_busy or self._continuation_claimed
+                    or active is None or active['priority']!=2
+                    or active['stage']!='candidate_delivery_ack' or self._urgent_queued
+                    or self._maintenance_ticket is not None or self._checkpoint_handoff is not None):
+                return False
+            self._continuation_claimed=True
+        fn(self.state)
+        return True
+
     def _next_work(self):
         """Older FIFO work, one reserved boundary, and unchanged urgent priority."""
         with self.cv:
@@ -265,6 +289,7 @@ class PriorityOwner:
                     # its worker and accumulating hot history (Run 381). Neither
                     # source nor maintenance may repeatedly overtake the other.
                     priority,sequence,expires,fn,future=item
+                    self._continuation_claimed=False
                     if priority<2:self._urgent_queued-=1
                     queued=self.clock()-self.enqueued.pop(sequence)
                     prefix='priority'+str(priority)
@@ -334,6 +359,7 @@ class PriorityOwner:
                                 execution_cpu_microseconds=int(max(0,owner_thread_time()-cpu_started)*1_000_000),
                                 outcome=outcome))
                         self.active_operation=None
+                        self._continuation_claimed=False
                         self._checkpoint_epoch+=1; self._checkpoint_busy=False
                         ticket=self._maintenance_ticket
                         if ticket is not None and ticket.command_future is future:

@@ -972,28 +972,47 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         # Owner completion updates and event-loop snapshots share its existing
         # lock. Other counter keys remain event-loop-owned and never await here.
         with owner.cv:return dict(counts)
-    async def work(fn,priority=1,*,label=None,component=None,accepted=None,admit_before=None,maintenance_ticket=None):
+    async def work(fn,priority=1,*,label=None,component=None,accepted=None,admit_before=None,maintenance_ticket=None,continuation=None):
         if label not in (None,'source_commit','candidate_development','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch','history_apply','candidate_delivery_capture','candidate_delivery_ack'):
             raise EvidenceUnavailable('owner_stage_identity')
         if component not in (None,'control','candidate','scout','history_publication','delivery_accounting'):
             raise EvidenceUnavailable('owner_component_identity')
+        if continuation is not None and (priority!=2 or label!='candidate_delivery_ack'
+                or component is not None or not callable(continuation)):
+            raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic()
         def timed(state):
             started=time.monotonic();cpu_started=owner_thread_time()
-            try:value=fn(state)
+            continued=None
+            try:
+                value=fn(state)
+                if continuation is not None and value is True:
+                    def capture_next(state):
+                        nonlocal continued
+                        begun=time.monotonic();cpu_begun=owner_thread_time()
+                        try:return continuation(state)
+                        finally:continued=(time.monotonic()-begun,owner_thread_time()-cpu_begun)
+                    owner.try_continuation(capture_next)
             finally:
                 finished=time.monotonic();cpu_finished=owner_thread_time()
                 # Accepted callbacks can outlive canceled asyncio waiters.
                 # Record exactly once at completion, including failed/yielded
                 # operations, before their future exposes the result.
                 with owner.cv:
-                    if label is not None:
-                        key='owner.stage.'+label
-                        keys=[key] if component is None else [key,key+'.component.'+component]
+                    capture_wall,capture_cpu=continued if continued is not None else (0,0)
+                    stages=[(label,component,started-submitted,finished-started-capture_wall,
+                        cpu_finished-cpu_started-capture_cpu)]
+                    if continued is not None:stages.append(('candidate_delivery_capture',None,0,capture_wall,capture_cpu))
+                    # The two logical stages have disjoint execution costs.
+                    # Immediate continuation has no second admission/queue wait;
+                    # the priority hold below still includes the entire unit.
+                    for name,part,queue,execution,cpu in stages:
+                        if name is None:continue
+                        key='owner.stage.'+name
+                        keys=[key] if part is None else [key,key+'.component.'+part]
                         for key in keys:
                             counts[key+'.calls']=counts.get(key+'.calls',0)+1
-                            for stage,duration in (('queue',started-submitted),('execution',finished-started),
-                                    ('execution_cpu',cpu_finished-cpu_started)):
+                            for stage,duration in (('queue',queue),('execution',execution),('execution_cpu',cpu)):
                                 metric=key+'.'+stage;micros=int(max(0,duration)*1_000_000)
                                 counts[metric+'_total_microseconds']=counts.get(metric+'_total_microseconds',0)+micros
                                 counts[metric+'_peak_microseconds']=max(counts.get(metric+'_peak_microseconds',0),micros)
@@ -1023,6 +1042,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
             raise
         return value
+    work.candidate_delivery_continuation=True
     stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
     clients=set()
     from .solana_owner_admission import OwnerAdmission,SourceState

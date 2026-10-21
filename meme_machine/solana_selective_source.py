@@ -570,6 +570,7 @@ def source_work(work,stop,observe=None):
                 # or changing its original work/deadline.
                 retries+=1
                 await asyncio.sleep(min(.2,.01*2**min(retries-1,5)))
+    resumable.candidate_delivery_continuation=getattr(work,'candidate_delivery_continuation',False) is True
     return resumable
 
 
@@ -1750,7 +1751,7 @@ class SelectiveSource:
                     job,reason,**diagnostic),2,label='history_apply')
                 await asyncio.sleep(.1)
 
-    async def _complete_history_delivery(self,snapshot,result):
+    async def _complete_history_delivery(self,snapshot,result,*,continuation=None):
         """ACK then publish this exact durable proof batch, in separate turns.
 
         The background proof cursor may have passed the batch while its
@@ -1760,8 +1761,12 @@ class SelectiveSource:
         """
         from .solana_history_delivery import acknowledge
         snapshot['proof_publication_changed']=False
+        options={}
+        if (continuation is not None and getattr(self.work,'candidate_delivery_continuation',False) is True
+                and len(snapshot['rows'])==64 and not snapshot.get('publication_ids',snapshot['proofs'])):
+            options['continuation']=continuation
         accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
-            label='candidate_delivery_ack')
+            label='candidate_delivery_ack',**options)
         identities=tuple(snapshot.get('publication_ids',[proof['identity'] for proof in snapshot['proofs']]))
         if accepted and identities:
             # Retain the same accounting-before-publication fence as the
@@ -1776,17 +1781,37 @@ class SelectiveSource:
     async def candidate_history_delivery(self):
         """Mandatory bounded consumer work, independent of optional history."""
         from .solana_history_delivery import capture,deliver,acknowledge
-        failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None
+        failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None;carried=None
         while not self.stop.is_set():
-            seen=await self.delivery_wakeup.wait(seen,self.stop,
-                delay=None if deadline is None else max(0,deadline-time.time()))
-            if time.monotonic()<not_before:
-                await self.delivery_urgent.wait(urgent_seen,self.stop,delay=not_before-time.monotonic())
-            seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
-            if self.stop.is_set():break
-            snapshot=await self.work(lambda state:capture(install(state).lifecycle,
-                revision=getattr(self,'delivery_revision',0),schedule=True),2,
-                label='candidate_delivery_capture')
+            if carried is None:
+                seen=await self.delivery_wakeup.wait(seen,self.stop,
+                    delay=None if deadline is None else max(0,deadline-time.time()))
+                if time.monotonic()<not_before:
+                    await self.delivery_urgent.wait(urgent_seen,self.stop,delay=not_before-time.monotonic())
+                seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
+                if self.stop.is_set():break
+                snapshot=await self.work(lambda state:capture(install(state).lifecycle,
+                    revision=getattr(self,'delivery_revision',0),schedule=True),2,
+                    label='candidate_delivery_capture')
+            else:
+                # Only a full prior batch can carry one capture. Keep the
+                # epochs from that capture boundary; later notifications must
+                # still wake a new ordinary turn, including after an empty cap.
+                following=carried;carried=None
+                seen=following['seen'];urgent_seen=following['urgent_seen']
+                if 'error' in following:
+                    error=following['error']
+                    if (not isinstance(error,EvidenceUnavailable)
+                            or str(error) not in ('evidence_background_yield','evidence_control_overloaded')):raise error
+                    # source_work retries these two outcomes, never a durable
+                    # ACK. Resume only capture, through an ordinary admission,
+                    # with its original first backoff and unchanged deadlines.
+                    await asyncio.sleep(.01)
+                    seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
+                    snapshot=await self.work(lambda state:capture(install(state).lifecycle,
+                        revision=getattr(self,'delivery_revision',0),schedule=True),2,
+                        label='candidate_delivery_capture')
+                else:snapshot=following['snapshot']
             if snapshot is None:
                 deadline=None;continue
             deadline=snapshot.get('proof_deadline')
@@ -1803,7 +1828,21 @@ class SelectiveSource:
                             label='candidate_delivery_ack')
                         raise
                 else:result=dict(acknowledgements=[],refreshed=[])
-                accepted=await self._complete_history_delivery(snapshot,result)
+                following={}
+                def capture_next(state):
+                    # Read only epoch integers here; Event mutation stays on
+                    # its event loop. Pending commit callbacks/revision changes
+                    # remain wakeups, not evidence or permission to skip pages.
+                    following['seen']=self.delivery_wakeup.epoch
+                    following['urgent_seen']=self.delivery_urgent.epoch
+                    try:
+                        following['snapshot']=capture(install(state).lifecycle,
+                            revision=getattr(self,'delivery_revision',0),schedule=True)
+                    except Exception as exc:
+                        # ACK has already FULL-committed. Expose a failure at
+                        # the next capture site; never retry or undo this ACK.
+                        following['error']=exc
+                accepted=await self._complete_history_delivery(snapshot,result,continuation=capture_next)
                 if snapshot.get('proof_publication_changed'):self.history_changed(publication=False)
                 if consumer_work:self.observe('history_delivery_timing',**result['metrics'])
                 # Noncritical short batches coalesce within the ORIGINAL 100-ms
@@ -1817,6 +1856,7 @@ class SelectiveSource:
                 if publication:self.history_wakeup.notify()
                 if consumer_work or more or not accepted:self.delivery_wakeup.notify()
                 if publication or more or not accepted:self.delivery_urgent.notify()
+                carried=following or None
                 failures=0
             except sqlite3.OperationalError as exc:
                 if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
