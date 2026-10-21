@@ -1,7 +1,7 @@
 """Prepared outer decoding preserves the existing lossless codec contract."""
 import copy
 import asyncio
-from concurrent.futures import Future
+from concurrent.futures import Future,CancelledError as FutureCancelledError
 import hashlib
 import json
 import sqlite3
@@ -284,6 +284,83 @@ class PreparationPoolTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.to_thread(closer.join,1)
                 self.assertTrue(finished.is_set());self.assertEqual(active.result(),'active')
                 self.assertEqual(executor.closed,dict(wait=True,cancel_futures=cancel))
+
+
+    async def test_cancel_shutdown_cancels_physical_pending_work_before_waiting_for_proxy(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class ShutdownCancelled:
+            def __init__(self):
+                self.physical=[];self.called=threading.Event();self.options=None
+                self.callbacks_done=threading.Event()
+            def submit(self,*args,**kwargs):
+                future=Future();self.physical.append(future);return future
+            def shutdown(self,**kwargs):
+                self.options=kwargs
+                def cancel():
+                    for future in self.physical:future.cancel()
+                    self.callbacks_done.set()
+                callbacks=threading.Thread(target=cancel,daemon=True);callbacks.start();self.called.set()
+                # A real executor's completion thread must acquire pool.lock
+                # while its caller is inside shutdown, not the caller's RLock.
+                if not self.callbacks_done.wait(1):
+                    raise RuntimeError('executor_callback_blocked_by_facade_lock')
+                callbacks.join(1)
+        executor=ShutdownCancelled();pool=PreparationPool(executor)
+        active=pool.submit(str,'pending-maintenance');native=pool.native.submit(str,'pending-native')
+        queued=pool.submit(str,'wrapper-queued');errors=[];returned=threading.Event()
+        def close():
+            try:pool.shutdown(wait=True,cancel_futures=True)
+            except BaseException as error:errors.append(error)
+            finally:returned.set()
+        closer=threading.Thread(target=close,daemon=True);closer.start()
+        try:
+            self.assertTrue(await asyncio.to_thread(executor.called.wait,1),
+                'executor shutdown must trigger cancellation before proxy drain')
+            await asyncio.to_thread(closer.join,1)
+            self.assertTrue(returned.is_set());self.assertFalse(closer.is_alive());self.assertEqual(errors,[])
+            self.assertEqual(executor.options,dict(wait=True,cancel_futures=True))
+            self.assertTrue(executor.callbacks_done.is_set())
+            self.assertEqual(len(executor.physical),2)
+            self.assertTrue(all(future.cancelled() for future in executor.physical))
+            self.assertTrue(queued.cancelled())
+            self.assertIsInstance(active.exception(),FutureCancelledError)
+            self.assertIsInstance(native.exception(),FutureCancelledError)
+            self.assertTrue(all(job is None for job in pool.active.values()))
+        finally:
+            # An ordering regression fails promptly, then releases its own
+            # daemon fixture instead of leaking an interpreter-blocking waiter.
+            for future in executor.physical:
+                if not future.done():future.cancel()
+            await asyncio.to_thread(closer.join,1)
+
+    async def test_cancel_shutdown_preserves_running_physical_slot_until_terminal(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class Recording(ControlledPreparationExecutor):
+            def __init__(self):super().__init__();self.called=threading.Event()
+            def shutdown(self,**kwargs):super().shutdown(**kwargs);self.called.set()
+        for wait in (True,False):
+            with self.subTest(wait=wait):
+                executor=Recording();pool=PreparationPool(executor)
+                active=pool.try_submit_optional(str,'still-running');returned=threading.Event();errors=[]
+                def close():
+                    try:pool.shutdown(wait=wait,cancel_futures=True)
+                    except BaseException as error:errors.append(error)
+                    finally:returned.set()
+                closer=threading.Thread(target=close,daemon=True);closer.start()
+                try:
+                    self.assertTrue(await asyncio.to_thread(executor.called.wait,1))
+                    if wait:self.assertFalse(returned.is_set())
+                    else:self.assertTrue(await asyncio.to_thread(returned.wait,1))
+                    self.assertFalse(active.done());self.assertFalse(executor.jobs[0][0].cancel())
+                    self.assertIsNotNone(pool.active['maintenance'])
+                    self.assertIsNone(pool.try_submit_optional(str,'closed-admission'))
+                    executor.finish(0);await asyncio.to_thread(closer.join,1)
+                    self.assertTrue(returned.is_set());self.assertFalse(closer.is_alive());self.assertEqual(errors,[])
+                    self.assertEqual(active.result(),'still-running')
+                    self.assertIsNone(pool.active['maintenance'])
+                finally:
+                    if not executor.jobs[0][0].done():executor.finish(0)
+                    await asyncio.to_thread(closer.join,1)
 
 
 class ArchivePreparationHandoffTests(unittest.IsolatedAsyncioTestCase):

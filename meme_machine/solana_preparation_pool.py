@@ -123,11 +123,17 @@ class PreparationPool:
                     for job in tuple(pending):job[0].cancel()
                     pending.clear()
             self._notify()
+        if cancel_futures:
+            # No queued facade work may now dispatch. Let the real executor
+            # cancel its still-pending physical futures before waiting on their
+            # proxies; those futures may become terminal only during shutdown.
+            self.executor.shutdown(wait=wait,cancel_futures=True)
+            if wait:wait_futures(futures)
+            return
         def finish():
-            # Waiting mandatory work must reach the real executor before its
-            # shutdown, unless the caller explicitly canceled pending futures.
+            # Without cancellation, accepted queued mandatory work must reach
+            # the real executor and finish before its submission boundary closes.
             wait_futures(futures)
-            self.executor.shutdown(wait=wait,cancel_futures=cancel_futures)
+            self.executor.shutdown(wait=wait,cancel_futures=False)
         if wait:finish()
-        elif cancel_futures:self.executor.shutdown(wait=False,cancel_futures=True)
         else:threading.Thread(target=finish,name='preparation-close',daemon=True).start()
