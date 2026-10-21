@@ -15,12 +15,13 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 BASE='83c3716aefc21d59780db64beb8681e772ac628c'
 BASE_TREE='8afdc31b017c36bcd23dc6f89bf5011270c47cf1'
-IMPLEMENTATION='2fa5a12017c6f03efa8bf8fcb19965ada4efd975'
-IMPLEMENTATION_TREE='556090ca87eb88e751a8fc14614e316084e7e0de'
+IMPLEMENTATION='df8db7ef6ee16e4495e53d1e8ee7e7857fd164e7'
+IMPLEMENTATION_TREE='fdaea9d5db6f8f9d6c36c146dee9bedd97361bf5'
 MANIFEST=ROOT/'tests/fixtures/managed_capacity_source_delta.json'
-MANIFEST_SHA256='cad322470595eccc6f681277cda6a8d65cdf7f1f0c2a89e913bb8458c506039d'
-MODIFIED=('meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pons/provider_topology.py', 'meme_machine/runtime/evidence_worker.py', 'meme_machine/shared_capital/adapter.py', 'meme_machine/solana_candidate_join.py', 'meme_machine/solana_candidate_lifecycle.py', 'meme_machine/solana_economic_preparation.py', 'meme_machine/solana_evidence_control.py', 'meme_machine/solana_evidence_service.py', 'meme_machine/solana_history_delivery.py', 'meme_machine/solana_selective_history.py', 'meme_machine/solana_selective_source.py')
+MANIFEST_SHA256='9d91feed18be8a2643117fe4dbd8fc0c3aaede3b266202f3c08493ccd77050c5'
+MODIFIED=('meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pons/provider_topology.py', 'meme_machine/runtime/evidence_worker.py', 'meme_machine/shared_capital/adapter.py', 'meme_machine/solana_candidate_join.py', 'meme_machine/solana_candidate_lifecycle.py', 'meme_machine/solana_economic_preparation.py', 'meme_machine/solana_evidence_control.py', 'meme_machine/solana_evidence_service.py', 'meme_machine/solana_history_delivery.py', 'meme_machine/solana_history_notifications.py', 'meme_machine/solana_selective_history.py', 'meme_machine/solana_selective_source.py')
 ADDED=('meme_machine/operational/managed_capacity_evidence.py', 'meme_machine/operational/managed_capacity_workload.py', 'meme_machine/operational/managed_native_pons.py', 'meme_machine/operational/managed_native_pump.py', 'meme_machine/operational/managed_pons_survivor.py', 'meme_machine/operational/managed_pump_qualification.py', 'meme_machine/operational/managed_qualification_replay.py', 'meme_machine/solana_preparation_pool.py', 'meme_machine/solana_stream_log_repair.py')
+TEST_CALLERS={'tests/test_solana_history_separation.py': {'before_bytes': 80082, 'before_sha256': 'e7f2a1552e50eef898b4bf8920b0d40a21a67af2849ed9a79aaca60874969608', 'after_bytes': 91749, 'after_sha256': '8fabed60a03b155d12b666e64bff9430c24089ea346dbaf96daa613393fad8c6', 'changed_nodes': ['CaptureActorTests.__layout__', 'CaptureActorTests.__statement_0', 'CaptureActorTests.__statement_1', 'CaptureActorTests.actor', 'CaptureActorTests.test_corrupt_receipt_and_new_generation_never_advance_actor_ack', 'CaptureActorTests.test_delayed_revision_reopens_behind_cursor_without_resetting_active_tail', 'CaptureActorTests.test_empty_refresh_feedback_cannot_clear_rearmed_request_and_own_ack_does_not_stale_eof', 'CaptureActorTests.test_reader_snapshot_is_coherent_and_closed_before_consumer_write_and_fresh_ack', 'CaptureActorTests.test_refresh_eof_rejection_finishes_bounded_horizon_then_revisits_behind_cursor', 'CaptureActorTests.test_replacement_during_read_fails_closed_and_does_not_pin_reader', '__statement_13', '__statement_14', '__statement_15', '__statement_16', '__statement_17', '__statement_18', '__statement_19', '__statement_20', '__statement_21']}}
 GUARD='tests/test_native_audit_source_guard.py'
 READ_GUARD='tests/test_robinhood_usd_valuation.py'
 PROOF_INPUTS=('engineering/diagnostics/build_managed_capacity_source_proof.py',
@@ -42,6 +43,7 @@ def manifest(test):
     test.assertEqual((row['base'],row['base_tree'],row['implementation'],row['implementation_tree']),
         (BASE,BASE_TREE,IMPLEMENTATION,IMPLEMENTATION_TREE))
     test.assertEqual(set(row['files']),set(MODIFIED+ADDED))
+    test.assertEqual(row['test_callers'],TEST_CALLERS)
     test.assertEqual(row['guard']['path'],GUARD)
     test.assertEqual(row['read_guard']['path'],READ_GUARD)
     test.assertEqual(set(row['proof_inputs']),set(PROOF_INPUTS))
@@ -54,6 +56,7 @@ def manifest(test):
 
 def capacity_predecessor(test,path,current):
     if path==READ_GUARD:return read_guard_predecessor(test,current)
+    if path in TEST_CALLERS:return caller_predecessor(test,path,current)
     if path not in MODIFIED:return current
     row=manifest(test)['files'][path]
     text=type(current) is str
@@ -69,6 +72,25 @@ def capacity_predecessor(test,path,current):
         left,right=nodes(before),nodes(raw)
         test.assertEqual(sorted(k for k in left.keys()|right.keys() if left.get(k)!=right.get(k)),
                          row['changed_nodes'],path+':explicit changed AST nodes')
+    return before.decode() if text else before
+
+
+def caller_predecessor(test,path,current,*,require_successor=False):
+    test.assertIn(path,TEST_CALLERS,'only the separately cataloged exact test caller')
+    row=manifest(test)['test_callers'][path]
+    text=type(current) is str
+    test.assertIn(type(current),(bytes,str))
+    raw=current.encode() if text else current
+    before=git('show',BASE+':'+path)
+    test.assertEqual((len(before),checksum(before)),(row['before_bytes'],row['before_sha256']))
+    if require_successor or raw!=before:
+        test.assertEqual((len(raw),checksum(raw)),(row['after_bytes'],row['after_sha256']),
+            path+':complete exact reviewed test caller')
+        test.assertEqual(raw,git('show',IMPLEMENTATION+':'+path))
+        from engineering.diagnostics.build_managed_capacity_source_proof import nodes
+        left,right=nodes(before),nodes(raw)
+        test.assertEqual(sorted(k for k in left.keys()|right.keys() if left.get(k)!=right.get(k)),
+                         row['changed_nodes'],path+':explicit test caller AST delta')
     return before.decode() if text else before
 
 
@@ -121,6 +143,8 @@ def active_runtime(test):
         test.assertEqual((len(body),checksum(body)),(facts['after_bytes'],facts['after_sha256']),path)
         test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))
         if path in MODIFIED:capacity_predecessor(test,path,body)
+    for path in TEST_CALLERS:
+        caller_predecessor(test,path,(ROOT/path).read_bytes(),require_successor=True)
     guard_predecessor(test,(ROOT/GUARD).read_bytes())
     read_guard_predecessor(test,(ROOT/READ_GUARD).read_bytes(),require_successor=True)
     return row
@@ -196,3 +220,27 @@ class ManagedCapacitySourceGuard(unittest.TestCase):
             with self.assertRaises(AssertionError):capacity_predecessor(self,READ_GUARD,bad)
         with self.assertRaises(AssertionError):
             read_guard_predecessor(self,before,require_successor=True)
+
+    def test_exact_external_test_caller_preserves_every_original_method_and_rejects_unknown_bytes(self):
+        from engineering.diagnostics.build_managed_capacity_source_proof import nodes
+        self.assertEqual(set(TEST_CALLERS),{'tests/test_solana_history_separation.py'})
+        for path in TEST_CALLERS:
+            before=git('show',BASE+':'+path);body=(ROOT/path).read_bytes()
+            self.assertEqual(caller_predecessor(self,path,body,require_successor=True),before)
+            self.assertEqual(capacity_predecessor(self,path,before),before)
+            self.assertEqual(capacity_predecessor(self,path,body.decode()),before.decode())
+            self.assertEqual(capacity_predecessor(self,path,before.decode()),before.decode())
+            left,right=nodes(before),nodes(body)
+            methods={name:value for name,value in left.items() if '.' in name
+                and not name.endswith('.__layout__') and '__statement_' not in name}
+            self.assertTrue(methods)
+            for name,value in methods.items():
+                self.assertEqual(right.get(name),value,path+':original method '+name)
+            for bad in (b'',body[:-1],body+b'\n# unknown caller bytes\n',
+                    body.replace(b'assertEqual',b'assertNotEqual',1),(ROOT/GUARD).read_bytes()):
+                with self.subTest(path=path),self.assertRaises(AssertionError):
+                    capacity_predecessor(self,path,bad)
+            with self.assertRaises(AssertionError):
+                caller_predecessor(self,path,before,require_successor=True)
+        with self.assertRaises(AssertionError):
+            caller_predecessor(self,'tests/unknown_external_caller.py',b'unknown')

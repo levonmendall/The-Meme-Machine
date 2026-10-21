@@ -2,7 +2,7 @@
 
 This engineering command never reads an original DB or imports terminal ACKs,
 coverage, health or financial state. An independently authenticated export
-manifest is required. All application writes go to six newly created stores.
+manifest is required. All application writes go to ten newly created stores.
 The measured boundary starts after wire decoding, at canonical economic intake.
 """
 import argparse
@@ -27,7 +27,7 @@ from unittest.mock import patch
 
 
 SCHEMA = 'ec2-sealed-market-replay-parcel-v1'
-RUNTIME_BASELINE = '2fa5a12017c6f03efa8bf8fcb19965ada4efd975'
+RUNTIME_BASELINE = 'df8db7ef6ee16e4495e53d1e8ee7e7857fd164e7'
 SOURCE = dict(request_id='ec2-39625860455-1',
     raw_manifest_sha256='7d42914089386ffbd09ab8604c5faf98b4563cec0c6635063a8ec0e8a452c137',
     application_commit='a02900db323f8527c829273b2b68ac68f4e94377',
@@ -477,20 +477,40 @@ def no_network():
         yield
 
 
-def publish(life, *, interrupt_before_ack=False):
+def publish(life, *, actor_state=None, interrupt_before_ack=False):
     from meme_machine.solana_history_delivery import capture, deliver, acknowledge
+    if actor_state is not None:
+        from meme_machine.solana_history_delivery import CaptureActor, capture_context, acknowledge_actor
+        from meme_machine.solana_history_notifications import delivery_hint
+        if 'actor' not in actor_state:
+            actor_state['actor'] = CaptureActor(capture_context(life))
+    def next_snapshot():
+        if actor_state is None:
+            return capture(life)
+        return actor_state['actor'].capture(delivery_hint(life.history),
+            previous=actor_state.pop('previous', None))
     batches = rows = 0
-    while snapshot := capture(life):
-        result = deliver(snapshot)
-        if interrupt_before_ack:
+    while snapshot := next_snapshot():
+        consumer_work = bool(snapshot['rows'] or snapshot['proofs'] or snapshot['refresh'])
+        result = deliver(snapshot) if consumer_work else dict(acknowledgements=[], refreshed=[])
+        if interrupt_before_ack and consumer_work:
             # deliver closed its external writer after the durable commit.
             # Drop the result, recapture the still-pending original outbox,
             # then use the actual idempotent consumer and owner ACK again.
-            repeated = capture(life)
+            if actor_state is not None:
+                actor_state.clear()
+                actor_state['actor'] = CaptureActor(capture_context(life))
+            repeated = next_snapshot()
             need(repeated['rows'] == snapshot['rows'], 'recovery_outbox_changed')
             result = deliver(repeated); snapshot = repeated
             interrupt_before_ack = False
-        need(acknowledge(life, snapshot, result), 'publication_ack_refused')
+        if actor_state is None:
+            accepted = acknowledge(life, snapshot, result)
+        else:
+            feedback = acknowledge_actor(life, snapshot, result)
+            accepted = feedback.accepted
+            actor_state['previous'] = snapshot, feedback
+        need(accepted, 'publication_ack_refused')
         batches += 1; rows += len(snapshot['rows'])
     return dict(batches=batches, outbox_rows=rows)
 
@@ -575,6 +595,7 @@ def run_one(parcel, directory, implementation, *, profile=False):
             return value
     Reader = ProfiledReader if profile else base
     reader = writer = None; acknowledgements = []; commands = []
+    actor_state = {} if implementation == 'optimized' else None
     def prepare(reader):
         need(reader._open(), 'reader_open')
         reader.plane.acknowledge = lambda *args: acknowledgements.append(args)
@@ -619,7 +640,7 @@ def run_one(parcel, directory, implementation, *, profile=False):
             wall, cpu = time.perf_counter_ns(), time.thread_time_ns()
             for start in range(0, len(parcel.measured), BATCH):
                 operation('canonical_admission', admit, parcel.measured[start:start+BATCH])
-                operation('publication', publish, life)
+                operation('publication', publish, life, actor_state=actor_state)
                 snapshot = operation('qualification', consume)
                 progress.append(dict(selected_admitted=min(start+BATCH, measured_count),
                     incoming=snapshot['incoming_native_events'],
@@ -663,6 +684,9 @@ def run_one(parcel, directory, implementation, *, profile=False):
                      {k: v for k, v in restarted.items() if k != 'processed_this_turn'} == original_snapshot and
                      _semantic(reader, expected) == semantic, 'restart_parity')
             return dict(implementation=implementation, timing=timings, initial=initial,
+                qualification_implementation='reference' if implementation == 'reference' else 'optimized',
+                publication_implementation='readonly_capture_actor' if actor_state is not None else 'owner_capture',
+                publication_thread_handoff_exercised=False,
                 final=original_snapshot, **semantic, history_semantic_sha256=history_hash,
                 history_state_sha256=history_state, original_comparison=original,
                 ack_intents_sha256=sha(canonical(acknowledgements)),
@@ -725,10 +749,17 @@ def benchmark(parcel, directory):
         results = []
         for index, implementation in enumerate(('reference', 'optimized', 'optimized', 'reference')):
             results.append(run_one(frozen, directory/(str(index)+'-'+implementation), implementation))
+        # Hold the qualification reader fixed for the new publication boundary.
+        # Both paths call the real operating selectors/consumer/fresh owner ACK.
+        # Deliberately serialize on the replay caller: CPU scope stays matched;
+        # concurrent owner waiting and thread handoff require the actual live run.
+        architecture = [run_one(frozen, directory/('capture-'+str(index)+'-'+implementation), implementation)
+            for index, implementation in enumerate(('owner_optimized', 'optimized', 'optimized', 'owner_optimized'))]
         compared = ('semantic_sha256', 'mapping_sha256', 'completed', 'stages', 'stages_by_cohort',
                     'durable_sequence', 'history_semantic_sha256', 'history_state_sha256',
                     'original_comparison', 'ack_intents_sha256', 'command_intents_sha256')
-        coherent = all(all(row[key] == results[0][key] for key in compared) for row in profiled+results)
+        coherent = all(all(row[key] == results[0][key] for key in compared)
+            for row in profiled+results+architecture)
         need(coherent, 'abba_semantic_mismatch')
         for record, checksum, _ in records.values():
             need(sha(canonical(record.body())) == checksum, 'normalized_input_mutated')
@@ -740,6 +771,8 @@ def benchmark(parcel, directory):
             original_selected_observation_membership_available=bool(getattr(parcel, 'original_qualifications', {})),
             input_events=len(parcel.inputs), selected_events=len(parcel.measured), initial_pending=len(parcel.warmup), initial_observed=0,
             coherent=coherent, lightweight=lightweight, runs=results, profiled_runs=profiled,
+            architecture_runs=architecture,
+            architecture_comparison_scope='same_optimized_qualification_reader_owner_capture_vs_readonly_actor_ABBA_serialized_caller',
             context_rows_preserved_as_lineage=dict(parcel.context), context_rows_imported_as_state=0,
             original_all_native_storage_encodings=parcel.original_encodings,
             native_context_preserved_not_admitted_by_scope=dict(getattr(parcel, 'native_context_by_scope', {})),
@@ -756,6 +789,8 @@ def benchmark(parcel, directory):
                 'quote_oracle_concentration', 'final_context_original_commit_visibility'],
             sql_timing_scope='API_and_fetch_wall_CPU_with_probe_overhead_not_statement_trace_duration',
             timed_pass_instrumentation='batch_stage_timers_only_no_SQL_or_primitive_or_per_event_probes',
+            publication_implementations=dict(reference='owner_capture', optimized='readonly_capture_actor'),
+            publication_actor_scope='actual_read_actor_selection_and_fresh_owner_ACK_serialized_on_replay_caller_no_live_owner_queue_or_thread_handoff',
             profile_order='independent_reference_optimized_cost_pair_before_timed_ABBA',
             native_acquisition_join_repair_exercised=False,
             profiled_observation_population='all5090_includes9_prelude_selected_timing_denominator5081',
@@ -794,8 +829,12 @@ def compare_reports(previous, candidate):
     need(all(key in previous and key in candidate and previous[key] == candidate[key]
              for key in COHORT_FIELDS), 'comparison_input_or_scope_mismatch')
     comparisons = []; equivalent = True
-    for collection, implementations in (('profiled_runs', ('reference', 'optimized')),
-            ('runs', ('reference', 'optimized', 'optimized', 'reference'))):
+    collections = [('profiled_runs', ('reference', 'optimized')),
+        ('runs', ('reference', 'optimized', 'optimized', 'reference'))]
+    architecture_available = 'architecture_runs' in previous and 'architecture_runs' in candidate
+    if architecture_available:
+        collections.append(('architecture_runs', ('owner_optimized', 'optimized', 'optimized', 'owner_optimized')))
+    for collection, implementations in collections:
         old, new = previous.get(collection), candidate.get(collection)
         need(type(old) is list and type(new) is list and len(old) == len(new) == len(implementations),
              'comparison_arm_population')
@@ -832,7 +871,11 @@ def compare_reports(previous, candidate):
     original = previous['runs'][0]['original_comparison']
     return dict(schema='original-pump-window-report-comparison-v1', same_authenticated_inputs=True,
         same_semantics=equivalent, arms=comparisons, timing_comparison_available=equivalent,
-        unprofiled_timing=timing, previous_runtime=previous.get('runtime_baseline_commit'),
+        unprofiled_timing=timing,
+        unprofiled_timing_scope='combined_qualification_and_publication_path_original_ABBA_arms',
+        architecture_comparison_available=architecture_available,
+        architecture_timing_scope='use_architecture_runs_same_optimized_reader_not_live_owner_queue_relief',
+        previous_runtime=previous.get('runtime_baseline_commit'),
         candidate_runtime=candidate.get('runtime_baseline_commit'),
         previous_consumer_sha256=previous.get('consumer_source_sha256'),
         candidate_consumer_sha256=candidate.get('consumer_source_sha256'),

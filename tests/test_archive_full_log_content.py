@@ -252,9 +252,71 @@ class StreamFullLogContentTests(unittest.TestCase):
             self.assertEqual(join.pending_bytes,bound)
             before=copy.deepcopy(join.__dict__)
             u=pb.SubscribeUpdate(filters=['b']);u.block_meta.slot=slot+2
-            with self.assertRaisesRegex(EvidenceUnavailable,'yellowstone_census_buffer_bound'):
+            with self.assertRaisesRegex(EvidenceUnavailable,'yellowstone_census_buffer_bound') as refused:
                 join.feed(u,u.ByteSize(),NOW+10)
+            self.assertIs(type(refused.exception),EvidenceUnavailable)
+            self.assertEqual(refused.exception.args,('yellowstone_census_buffer_bound',))
+            self.assertEqual(refused.exception.join_capacity_reason,
+                'yellowstone_census_reserved_native_bytes_bound')
             self.assertEqual(join.__dict__,before)
+
+    def test_census_capacity_dimensions_preserve_generic_exception_and_admission_order(self):
+        from meme_machine.runtime.evidence_worker import SAFE_CANDIDATE_REASONS,failure_diagnostic
+        address=PROGRAMS['pump'];scope='program:pump'
+        def packet(kind,*,slot=1,index=0):
+            u=pb.SubscribeUpdate(filters=[scope_labels({address:scope})[scope]
+                if kind=='status' else 't' if kind=='body' else 'b'])
+            if kind=='status':
+                item=u.transaction_status;item.slot=slot;item.index=index
+                item.signature=bytes([index+1])*64
+            elif kind=='body':
+                u.transaction.slot=slot;item=u.transaction.transaction
+                item.index=index;item.signature=bytes([index+1])*64
+            else:u.block_meta.slot=slot
+            return u
+        cases=(('pending_slots','meta','MAX_PENDING_SLOTS'),
+            ('pending_bytes','meta','MAX_PENDING_BYTES'),
+            ('slot_bytes','meta','MAX_SLOT_BYTES'),
+            ('relevant_transactions','status','MAX_RELEVANT_TRANSACTIONS'),
+            ('body_transactions','body','MAX_RELEVANT_TRANSACTIONS'))
+        for dimension,kind,constant in cases:
+            with self.subTest(dimension=dimension):
+                join=CandidateTransactionJoin({address:scope},set(),filtered_from_slot=1,
+                    clock=lambda:0)
+                first=packet(kind);self.assertIsNone(join.feed(first,first.ByteSize(),NOW))
+                next_slot=2 if dimension in ('pending_slots','pending_bytes') else 1
+                second=packet(kind,slot=next_slot,index=1)
+                limit=(join.pending_bytes+second.ByteSize()-1
+                    if dimension in ('pending_bytes','slot_bytes') else 1)
+                before=join.pending_bytes
+                with patch('meme_machine.solana_candidate_join.'+constant,limit):
+                    with self.assertRaisesRegex(EvidenceUnavailable,
+                            '^yellowstone_census_buffer_bound$') as refused:
+                        join.feed(second,second.ByteSize(),NOW+1)
+                error=refused.exception
+                self.assertIs(type(error),EvidenceUnavailable)
+                self.assertEqual(error.args,('yellowstone_census_buffer_bound',))
+                self.assertEqual(error.join_capacity_reason,'yellowstone_census_'+dimension+'_bound')
+                self.assertIn(error.join_capacity_reason,SAFE_CANDIDATE_REASONS)
+                self.assertEqual(failure_diagnostic(error),
+                    'evidence_worker_failed:EvidenceUnavailable:yellowstone_census_buffer_bound')
+                # These pre-existing guards run after charging the accepted
+                # packet. Attribution must not roll back or retire that state.
+                self.assertEqual(join.pending_bytes,before+second.ByteSize())
+                self.assertEqual(join.completed,-1)
+                if kind=='status':
+                    self.assertEqual(join.pending[1]['relevant_count'],2)
+                    self.assertNotIn(1,join.pending[1]['statuses'])
+                elif kind=='body':self.assertEqual(len(join.pending[1]['bodies']),2)
+
+    def test_census_slot_limit_keeps_precedence_over_simultaneous_native_byte_limit(self):
+        join,_,_,full,_=self.joined();u=pb.SubscribeUpdate(filters=['b'])
+        u.block_meta.slot=full['slot']+1
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_SLOTS',1), \
+                patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',join.pending_bytes):
+            with self.assertRaises(EvidenceUnavailable) as refused:join.feed(u,u.ByteSize(),NOW+1)
+        self.assertEqual(refused.exception.args,('yellowstone_census_buffer_bound',))
+        self.assertEqual(refused.exception.join_capacity_reason,'yellowstone_census_pending_slots_bound')
 
     def test_partial_head_never_retains_invalid_census_or_an_oversized_assembled_frame(self):
         for fault in ('duplicate','index','frame'):

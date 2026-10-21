@@ -218,6 +218,264 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
             "SELECT id FROM candidate_history_outbox WHERE address LIKE 'handoff:%' "
             'AND consumed IS NULL ORDER BY priority,created,rowid').fetchall())
 
+    async def enable_capture_actor(self):
+        from meme_machine.solana_history_delivery import capture_context
+        from meme_machine.solana_history_notifications import delivery_hint,install as notifications
+        loop=asyncio.get_running_loop()
+        self.work.candidate_delivery_capture_actor=True
+        self.source.work=source_work(self.work,self.source.stop)
+        def seed(state):
+            history=self.native['history']
+            notifications(history,loop,self.source.history_changed,capture_hints=True)
+            return capture_context(history.lifecycle),delivery_hint(history)
+        context,hint=await self.query(seed)
+        self.source.delivery_capture_context=context;self.source._history_delivery_hint(hint)
+
+    async def test_capture_actor_uses_consumer_thread_and_only_owner_acks_with_original_cadence(self):
+        from meme_machine import solana_history_delivery as delivery
+        from meme_machine.solana_history_notifications import WorkPulse
+        await self.scouts(129);await self.enable_capture_actor()
+        original=delivery.CaptureActor.capture;captures=[];threads=[]
+        loop=asyncio.get_running_loop();event_thread=threading.get_ident()
+        class ObservedPulse(WorkPulse):
+            def __init__(self):super().__init__();self.delays=[]
+            async def wait(self,seen,stop,*,delay=None):
+                self.delays.append(delay)
+                return await super().wait(seen,stop,delay=delay)
+        self.source.delivery_urgent=ObservedPulse()
+        def observed(actor,*args,**kwargs):
+            threads.append(threading.get_ident());snapshot=original(actor,*args,**kwargs)
+            captures.append(None if snapshot is None else len(snapshot['rows']))
+            if snapshot is None:loop.call_soon_threadsafe(self.source.stop.set)
+            return snapshot
+        pool=ThreadPoolExecutor(max_workers=1);self.source.delivery_executor=pool
+        try:
+            with patch.object(delivery.CaptureActor,'capture',observed):
+                await asyncio.wait_for(self.source.candidate_history_delivery(),3)
+        finally:await asyncio.to_thread(pool.shutdown,wait=True)
+        self.assertEqual(captures,[64,64,1,None])
+        self.assertEqual(len(set(threads)),1);self.assertNotEqual(threads[0],event_thread)
+        self.assertEqual([label for _,label,_ in self.work.calls],['candidate_delivery_ack']*3)
+        self.assertEqual(await self.pending_scouts(),[])
+        self.assertTrue(any(delay is not None and 0<delay<=.1 for delay in self.source.delivery_urgent.delays))
+        self.assertNotIn('owner.stage.candidate_delivery_capture.calls',self.work.counts)
+
+    async def test_capture_actor_canceled_accepted_delivery_full_commits_and_acks_without_proof_publication(self):
+        from meme_machine import solana_history_delivery as delivery
+        proof,_=await self.proof();await self.scouts(1);await self.enable_capture_actor()
+        original=delivery.deliver;original_ack=delivery.acknowledge_actor
+        entered,release=self.held();ack_entered,ack_release=self.held();acks=[];physical=[]
+        def held(snapshot):
+            result=original(snapshot);entered.set()
+            if not release.wait(3):raise RuntimeError('offline-actor-delivery-release')
+            return result
+        def held_ack(*args):
+            acks.append(True);ack_entered.set()
+            if not ack_release.wait(3):raise RuntimeError('offline-actor-ack-release')
+            return original_ack(*args)
+        pool=ThreadPoolExecutor(max_workers=1)
+        class TrackedExecutor:
+            def submit(_self,*args,**kwargs):
+                future=pool.submit(*args,**kwargs);physical.append(future);return future
+        self.source.delivery_executor=TrackedExecutor()
+        try:
+            with patch.object(delivery,'deliver',held),patch.object(delivery,'acknowledge_actor',held_ack):
+                task=self.start(self.source.candidate_history_delivery())
+                await self.wait_entered(entered);task.cancel('original-actor-delivery-cancel');await asyncio.sleep(0)
+                task.cancel('second-actor-delivery-cancel');await asyncio.sleep(0)
+                self.assertFalse(task.done(),'accepted physical consumer work was abandoned')
+                self.assertEqual(len(physical),2);self.assertFalse(physical[1].done())
+                self.assertFalse(physical[1].cancelled())
+                await self.query(lambda state:state.writer.db.execute(
+                    "INSERT INTO service_health VALUES('actor-cancel-progress','1')"))
+                release.set();await self.wait_entered(ack_entered)
+                self.assertTrue(physical[1].done())
+                task.cancel('actor-cancel-during-owner-ack');await asyncio.sleep(0)
+                self.assertFalse(task.done(),'repeated cancel cut the owned cleanup before its fresh ACK')
+                ack_release.set()
+                with self.assertRaises(asyncio.CancelledError) as caught:await task
+                self.assertEqual(caught.exception.args,('original-actor-delivery-cancel',))
+            self.assertEqual(await self.pending_scouts(),[])
+            await self.assert_published(proof,False)
+            self.assertEqual(acks,[True])
+            self.assertEqual([label for _,label,_ in self.work.calls],['candidate_delivery_ack'])
+        finally:
+            release.set();ack_release.set();await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_capture_actor_cancellation_joins_physical_read_and_preserves_pending_work(self):
+        from meme_machine import solana_history_delivery as delivery
+        await self.proof();await self.scouts(1);await self.enable_capture_actor()
+        original=delivery._CaptureReader.unconsumed;entered,release=self.held()
+        def held(reader,*args,**kwargs):
+            entered.set()
+            if not release.wait(3):raise RuntimeError('offline-actor-read-release')
+            return original(reader,*args,**kwargs)
+        pool=ThreadPoolExecutor(max_workers=1);self.source.delivery_executor=pool
+        try:
+            with patch.object(delivery._CaptureReader,'unconsumed',held):
+                task=self.start(self.source.candidate_history_delivery())
+                await self.wait_entered(entered);task.cancel('original-actor-read-cancel');await asyncio.sleep(0)
+                task.cancel('second-actor-read-cancel');await asyncio.sleep(0)
+                self.assertFalse(task.done(),'accepted read outlived its coroutine teardown')
+                await self.query(lambda state:state.writer.db.execute(
+                    "INSERT INTO service_health VALUES('actor-read-progress','1')"))
+                release.set()
+                with self.assertRaises(asyncio.CancelledError) as caught:await task
+                self.assertEqual(caught.exception.args,('original-actor-read-cancel',))
+            self.assertEqual(len(await self.pending_scouts()),1)
+            self.assertEqual(self.work.calls,[],'read cancellation admitted an unnecessary owner operation')
+            self.assertEqual(await self.query(lambda state:state.writer.db.execute(
+                'PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0]),0)
+        finally:
+            release.set();await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_capture_actor_repeated_cancel_preserves_original_cancel_after_terminal_read_failure(self):
+        from meme_machine import solana_history_delivery as delivery
+        await self.proof();await self.scouts(1);await self.enable_capture_actor()
+        entered,release=self.held();physical=[];failure=RuntimeError('offline-terminal-capture-error')
+        def failed_read(reader,*args,**kwargs):
+            entered.set()
+            if not release.wait(3):raise RuntimeError('offline-failed-read-release')
+            raise failure
+        pool=ThreadPoolExecutor(max_workers=1)
+        class TrackedExecutor:
+            def submit(_self,*args,**kwargs):
+                future=pool.submit(*args,**kwargs);physical.append(future);return future
+        self.source.delivery_executor=TrackedExecutor()
+        try:
+            with patch.object(delivery._CaptureReader,'unconsumed',failed_read):
+                task=self.start(self.source.candidate_history_delivery())
+                await self.wait_entered(entered);task.cancel('original-failing-read-cancel');await asyncio.sleep(0)
+                task.cancel('second-failing-read-cancel');await asyncio.sleep(0)
+                self.assertFalse(task.done());self.assertFalse(physical[0].done())
+                release.set()
+                with self.assertRaises(asyncio.CancelledError) as caught:await task
+                self.assertEqual(caught.exception.args,('original-failing-read-cancel',))
+            self.assertTrue(physical[0].done());self.assertIs(physical[0].exception(),failure)
+            self.assertEqual(len(await self.pending_scouts()),1)
+            self.assertEqual(self.work.calls,[])
+            self.assertEqual(await self.query(lambda state:state.writer.db.execute(
+                'PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0]),0)
+        finally:
+            release.set();await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_capture_actor_cancel_cleanup_ack_failure_stops_without_retry_or_publication(self):
+        from meme_machine import solana_history_delivery as delivery
+        proof,_=await self.proof();await self.scouts(1);await self.enable_capture_actor()
+        entered,release=self.held();ack_entered,ack_release=self.held()
+        original=delivery.deliver;failure=RuntimeError('offline-terminal-cancel-ack-error');acks=[]
+        def held(snapshot):
+            result=original(snapshot);entered.set()
+            if not release.wait(3):raise RuntimeError('offline-cancel-failed-ack-delivery-release')
+            return result
+        def failed_ack(*args):
+            acks.append(True);ack_entered.set()
+            if not ack_release.wait(3):raise RuntimeError('offline-cancel-failed-ack-release')
+            raise failure
+        pool=ThreadPoolExecutor(max_workers=1);self.source.delivery_executor=pool
+        try:
+            with patch.object(delivery,'deliver',held),patch.object(delivery,'acknowledge_actor',failed_ack):
+                task=self.start(self.source.candidate_history_delivery())
+                await self.wait_entered(entered);task.cancel();await asyncio.sleep(0)
+                release.set();await self.wait_entered(ack_entered)
+                task.cancel();await asyncio.sleep(0);self.assertFalse(task.done())
+                ack_release.set()
+                with self.assertRaises(RuntimeError) as caught:await task
+                self.assertIs(caught.exception,failure)
+            self.assertEqual(acks,[True]);self.assertEqual(len(await self.pending_scouts()),1)
+            self.assertEqual([label for _,label,_ in self.work.calls],['candidate_delivery_ack'])
+            await self.assert_published(proof,False)
+        finally:
+            release.set();ack_release.set();await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_capture_actor_empty_read_keeps_callback_arriving_before_thread_returns(self):
+        from meme_machine import solana_history_delivery as delivery
+        await self.enable_capture_actor()
+        original=delivery.CaptureActor.capture
+        entered,release=self.held();captures=[];loop=asyncio.get_running_loop()
+        def observed(actor,*args,**kwargs):
+            snapshot=original(actor,*args,**kwargs)
+            captures.append(None if snapshot is None else len(snapshot['rows']))
+            if snapshot is None and not entered.is_set():
+                entered.set()
+                if not release.wait(3):raise RuntimeError('offline-empty-actor-release')
+            elif snapshot is None:loop.call_soon_threadsafe(self.source.stop.set)
+            return snapshot
+        pool=ThreadPoolExecutor(max_workers=1);self.source.delivery_executor=pool
+        try:
+            with patch.object(delivery.CaptureActor,'capture',observed):
+                task=self.start(self.source.candidate_history_delivery())
+                await self.wait_entered(entered)
+                await self.scouts(1)
+                release.set();await asyncio.wait_for(task,3)
+            self.assertEqual(captures,[None,1,None])
+            self.assertEqual(await self.pending_scouts(),[])
+            self.assertTrue(all(label=='candidate_delivery_ack' for _,label,_ in self.work.calls))
+        finally:
+            release.set();self.source.stop.set();await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_capture_actor_read_busy_retains_capture_failure_site(self):
+        from meme_machine import solana_history_delivery as delivery
+        await self.enable_capture_actor()
+        error=sqlite3.OperationalError('offline-read-busy');error.sqlite_errorcode=sqlite3.SQLITE_BUSY
+        pool=ThreadPoolExecutor(max_workers=1);self.source.delivery_executor=pool
+        try:
+            with patch.object(delivery.CaptureActor,'capture',side_effect=error):
+                with self.assertRaises(sqlite3.OperationalError) as caught:
+                    await self.source.candidate_history_delivery()
+            self.assertIs(caught.exception,error)
+            self.assertEqual(self.work.calls,[],'capture failure became a consumer-write retry')
+        finally:await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_capture_actor_continuous_arrivals_finish_refresh_sweeps_without_starving_outbox(self):
+        from meme_machine import solana_history_delivery as delivery
+        from meme_machine.solana_history_notifications import WorkPulse
+        life=self.native['history'].lifecycle
+        def seed(state):
+            with state.writer.transaction():
+                for index in range(65):
+                    state.writer.db.execute('INSERT INTO candidate_lifecycle VALUES(?,?,?,?,?,?,?,?,?,?)',
+                        ('pump','actor-refresh:'+str(index),'queued',0,100,100,NOW,NOW,NOW+50,100))
+            life.refresh()
+        await self.query(seed);await self.enable_capture_actor()
+        original=self.source._complete_history_delivery;finished=[];sizes=[];arrivals=[]
+        class ObservedPulse(WorkPulse):
+            def __init__(self):super().__init__();self.delays=[]
+            async def wait(self,seen,stop,*,delay=None):
+                self.delays.append(delay)
+                return await super().wait(seen,stop,delay=delay)
+        self.source.delivery_urgent=ObservedPulse()
+        async def complete(snapshot,result,**options):
+            sizes.append(len(snapshot['refresh']))
+            if len(finished)<3:
+                number=len(arrivals)
+                identity=await self.query(lambda state:life.emit('pump','refresh-arrival:'+str(number),
+                    'scout',dict(fields={})))
+                arrivals.append(identity)
+            accepted=await original(snapshot,result,**options)
+            if snapshot['refresh_scan']['finished']:
+                finished.append(snapshot['capture_ack'].refresh_cleared)
+                if finished[-1]:self.source.stop.set()
+            return accepted
+        pool=ThreadPoolExecutor(max_workers=1);self.source.delivery_executor=pool
+        try:
+            with patch.object(self.source,'_complete_history_delivery',complete):
+                await asyncio.wait_for(self.source.candidate_history_delivery(),5)
+            # Consuming the last arrival on the next first page changes the
+            # conservative all-delivery revision too. One final quiet sweep
+            # must then clear; neither cursor reset nor unbounded rescan wins.
+            self.assertEqual(finished,[False,False,False,False,True])
+            self.assertEqual(sizes,[64,1]*5,'arrivals reset an active refresh cursor or extended its fixed horizon')
+            self.assertTrue(arrivals)
+            for identity in arrivals:
+                self.assertIsNotNone(await self.query(lambda state:state.writer.db.execute(
+                    'SELECT consumed FROM candidate_history_outbox WHERE id=?',(identity,)).fetchone()[0]))
+            self.assertTrue(any(delay is not None and delay>0 for delay in self.source.delivery_urgent.delays),
+                'conservative EOF rejection busy-spun instead of retaining the original cadence')
+            self.assertTrue(all(label=='candidate_delivery_ack' for _,label,_ in self.work.calls))
+        finally:
+            self.source.stop.set();await asyncio.to_thread(pool.shutdown,wait=True)
+
     async def test_full_batches_carry_one_capture_and_short_batch_keeps_original_coalescing(self):
         await self.scouts(129)
         captures = []

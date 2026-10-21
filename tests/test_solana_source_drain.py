@@ -188,7 +188,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body['queues']['scout'],dict(accepted=65,committed=65,pending=0))
 
     async def actual_live(self,*,transport_failure=False,cancel=False,commit_failure=False,repeated_cancel=False,cutoff=False,
-            truncated=False,repair_failure=False,cancel_repair=False,unsupported=False,complete_duplicate=False,repair_members=1,repair_admitted_members=None):
+            truncated=False,repair_failure=False,cancel_repair=False,unsupported=False,complete_duplicate=False,repair_members=1,repair_admitted_members=None,census_bound=False):
         import based58
         source=self.source;tx=copy.deepcopy(FIXTURE['pump'][0]);slot=tx['slot'];index=tx['transactionIndex']
         txs=[]
@@ -253,7 +253,9 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             for item in txs:
                 u=pb.SubscribeUpdate(filters=[scope_labels(addresses)[program_scope('pump')]])
                 s=u.transaction_status;s.slot=slot;s.index=item['transactionIndex'];s.signature=based58.b58decode(item['transaction']['signatures'][0].encode())
-                await handler(u,u.ByteSize(),NOW)
+                if census_bound:
+                    await source.handle_native(handler,u,u.ByteSize(),NOW,'census-bound-fixture','pump')
+                else:await handler(u,u.ByteSize(),NOW)
             u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=slot;m.parent_slot=slot-1
             m.blockhash=str(slot);m.parent_blockhash=str(slot-1);m.block_time.timestamp=tx['blockTime']
             m.executed_transaction_count=index+repair_members;await handler(u,u.ByteSize(),NOW)
@@ -283,6 +285,11 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()), \
                 patch('meme_machine.operational.position_continuation.position_only',side_effect=native_accepted.is_set) if cutoff else nullcontext():
             task=asyncio.create_task(source.rolling_programs(None) if cutoff else source.live(None,desired,local_stop))
+            if census_bound:
+                with self.assertRaisesRegex(EvidenceUnavailable,'^yellowstone_census_buffer_bound$') as refused:
+                    await asyncio.wait_for(task,2)
+                self.last_native_failure=refused.exception
+                return slot
             if unsupported:
                 with self.assertRaisesRegex(EvidenceUnavailable,'incomplete_finalized_logs'):
                     await asyncio.wait_for(task,2)
@@ -561,6 +568,45 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         reason_rows=[body for kind,body in self.source.pending_diagnostics if kind=='log_join_failure']
         self.assertEqual([body['reason'] for body in reason_rows],
             ['incomplete_finalized_logs','candidate_stream_logs_null_or_missing'])
+
+    async def test_actual_census_bound_attributes_guard_without_settling_failed_native_handler(self):
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_SLOTS',0):
+            slot=await self.actual_live(census_bound=True)
+        error=self.last_native_failure
+        self.assertIs(type(error),EvidenceUnavailable)
+        self.assertEqual(error.args,('yellowstone_census_buffer_bound',))
+        self.assertEqual(error.join_capacity_reason,'yellowstone_census_pending_slots_bound')
+        rows=self.history.db.execute("SELECT body FROM acquisition_observations WHERE kind='join_failure'").fetchall()
+        self.assertEqual(len(rows),1)
+        self.assertEqual(json.loads(rows[0][0])['reason'],'yellowstone_census_pending_slots_bound')
+        snapshot=self.source.drain_snapshot()
+        self.assertEqual(snapshot['pending_handlers'],1)
+        self.assertEqual(snapshot['handler_accounting']['recoverable'],1)
+        self.assertEqual(snapshot['handler_accounting']['returned'],snapshot['handler_accounting']['accepted']-1)
+        self.assertEqual(self.source.source_drain['closed_sessions'],1)
+        self.assertEqual(self.source.source_drain['preserved_partial_sessions'],1)
+        self.assertEqual(self.source.source_drain['unpreserved_sessions'],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE lo=? AND hi IS NULL',(slot,)).fetchone()[0],2)
+
+    async def test_untagged_census_failure_preserves_generic_reason_and_exception_identity(self):
+        from meme_machine.solana_candidate_join import CandidateTransactionJoin
+        original=CandidateTransactionJoin.feed;failures=[]
+        def untagged(join,*args):
+            try:return original(join,*args)
+            except EvidenceUnavailable as error:
+                del error.join_capacity_reason;failures.append(error);raise
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_SLOTS',0), \
+                patch.object(CandidateTransactionJoin,'feed',untagged):
+            await self.actual_live(census_bound=True)
+        self.assertEqual(len(failures),1)
+        self.assertIs(self.last_native_failure,failures[0])
+        self.assertEqual(self.last_native_failure.args,('yellowstone_census_buffer_bound',))
+        row=self.history.db.execute("SELECT body FROM acquisition_observations WHERE kind='join_failure'").fetchone()
+        self.assertEqual(json.loads(row[0])['reason'],'yellowstone_census_buffer_bound')
+        self.assertEqual(self.source.drain_snapshot()['handler_accounting']['recoverable'],1)
 
     async def test_startup_abort_preserves_accepted_early_log_below_scheduling_placeholder(self):
         source=self.source;source.work=self.work;source.batched=True

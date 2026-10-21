@@ -598,6 +598,7 @@ class CandidateLifecycle:
             # status/read/settlement runs in bounded slices off-owner.
             if not getattr(self,'_consumer_refresh_requested',False):
                 self._consumer_refresh_requested=True
+                self._consumer_refresh_token=getattr(self,'_consumer_refresh_token',0)+1
                 from .solana_history_notifications import changed
                 changed(self.history,publication=False,urgent_delivery=False)
             return
