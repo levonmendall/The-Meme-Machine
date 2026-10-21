@@ -150,6 +150,171 @@ class StreamFullLogContentTests(unittest.TestCase):
         self.assertLess(len(str(complete).encode()),bound)
         return join,original,full,complete,receipt,bound
 
+    def multi_pressured(self,count=2):
+        """Several full fields, one full early-log budget, unused native bytes."""
+        join,original,fetched,full,_=self.joined(extra_missing=count-1)
+        slot=full['slot'];repairs=[]
+        for n in range(count):
+            complete=copy.deepcopy(full)
+            if n:
+                complete['transaction']['signatures']=[signature(bytes([n+1])*64)]
+                complete['transactionIndex']+=n
+            sig=complete['transaction']['signatures'][0]
+            if n:join.defer_log(slot,sig,original['meta']['logMessages'],NOW)
+            witness=join.deferred_log_witness(slot,sig)
+            logs,receipt=authenticate_supplement(join,witness,complete,ENDPOINT)
+            repairs.append(((slot,sig),logs,receipt,NOW+n+2))
+        # Both original budgets remain ample for the bounded head as a whole;
+        # only the early-log budget is occupied by later authenticated fields.
+        needed=join.pending_bytes+sum(len(canonical(dict(slot=slot,
+            blockTime=full['blockTime'],transactionIndex=full['transactionIndex']+n,
+            transaction=dict(signatures=[key[1]]),meta=dict(err=None,logMessages=logs))).encode())
+            for n,(key,logs,_,_) in enumerate(repairs))
+        join.feed_log(slot+1,signature(bytes([9])*64),['x'*(needed+128)],None,NOW+1)
+        return join,repairs,join.early_log_bytes
+
+    def test_multiple_authenticated_head_fields_share_existing_native_budget_until_complete(self):
+        for count in (2,3):
+            with self.subTest(count=count):
+                join,repairs,bound=self.multi_pressured(count);reference=copy.deepcopy(join)
+                slot=repairs[0][0][0];native_bytes=join.pending_bytes
+                future={k:copy.deepcopy(v) for k,v in join.early_logs.items() if k[0]>slot}
+                prefixes=copy.deepcopy(join.early_logs)
+                expected=None
+                for (current,sig),logs,_,seen in repairs:
+                    expected=reference.complete_deferred_log(current,sig,logs,seen)
+                with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+                    for n,((current,sig),logs,_,seen) in enumerate(repairs):
+                        frame=join.complete_deferred_log(current,sig,logs,seen)
+                        self.assertLessEqual(join.pending_bytes,bound)
+                        self.assertLessEqual(join.early_log_bytes,bound)
+                        if n<count-1:
+                            self.assertIsNone(frame);self.assertIsNone(join.drain())
+                            self.assertEqual(join.completed,-1)
+                            self.assertEqual(join.early_logs,prefixes)
+                            retained=sum(value[1] for value in join.completed_log_fields.values())
+                            self.assertEqual(join.pending_bytes,native_bytes+retained)
+                            self.assertEqual(len(join.pending[slot]['missing_logs']),count-n-1)
+                    self.assertEqual(frame,expected)
+                self.assertEqual(join.pending_bytes,0);self.assertFalse(join.completed_log_fields)
+                self.assertFalse(join.incomplete_logs);self.assertFalse(join.deferred_complete_logs)
+                self.assertEqual(join.early_logs,future)
+                self.assertEqual(join.recent,reference.recent)
+                self.assertEqual(join.recent_logs,reference.recent_logs)
+                self.assertEqual(join.recent_incomplete_logs,reference.recent_incomplete_logs)
+                for (_,sig),logs,_,seen in repairs:
+                    self.assertEqual(frame.observed_at[sig],seen)
+                    self.assertIsNone(join.feed_log(slot,sig,logs,None,NOW+20))
+                    join.defer_log(slot,sig,prefixes[(slot,sig)][0],NOW+20)
+
+    def test_retained_head_duplicate_is_idempotent_and_conflicts_preserve_both_budgets(self):
+        join,repairs,bound=self.multi_pressured(3);(slot,sig),logs,_,seen=repairs[0]
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            self.assertIsNone(join.complete_deferred_log(slot,sig,logs,seen))
+            before=copy.deepcopy(join.__dict__)
+            self.assertIsNone(join.complete_deferred_log(slot,sig,list(logs),seen+50))
+            self.assertEqual(join.__dict__,before)
+            # The join owns the retained list rather than the caller's mutable
+            # provider response, and keeps the original authenticated seen.
+            changed=list(logs);changed[-1]+=' changed'
+            for function in (lambda:join.complete_deferred_log(slot,sig,changed,seen+1),
+                             lambda:join.hold_complete_log(slot,sig,changed)):
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_content_conflict'):function()
+                self.assertEqual(join.__dict__,before)
+            logs.append('caller changed after admission')
+            self.assertEqual(join.__dict__,before)
+
+    def test_partial_preparation_cannot_be_retired_or_exposed_as_a_frame(self):
+        join,repairs,_=self.multi_pressured();key,logs,_,seen=repairs[0]
+        before=copy.deepcopy(join.__dict__)
+        plan=join._prepare_drain((key,(logs,None,seen)),partial=True)
+        self.assertIsNone(plan[3]);self.assertEqual(join.__dict__,before)
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_required_content_missing'):
+            join._finish_drain(plan)
+        self.assertEqual(join.__dict__,before)
+
+    def test_retained_head_admission_and_native_arrival_enforce_one_combined_byte_budget(self):
+        join,repairs,bound=self.multi_pressured();(slot,sig),logs,_,seen=repairs[0]
+        s=join.pending[slot]
+        charge=len(canonical(dict(slot=slot,blockTime=s['meta'].block_time.timestamp,
+            transactionIndex=next(i for i in s['log_required'] if s['signature_text'][i]==sig),
+            transaction=dict(signatures=[sig]),meta=dict(err=None,logMessages=logs))).encode())
+        # This simulates other retained native packets occupying the same
+        # already-existing budget, without allocating another large fixture.
+        s['bytes']=join.pending_bytes=bound-charge+1
+        before=copy.deepcopy(join.__dict__)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+                join.complete_deferred_log(slot,sig,logs,seen)
+            self.assertEqual(join.__dict__,before)
+            s['bytes']-=1;join.pending_bytes-=1
+            self.assertIsNone(join.complete_deferred_log(slot,sig,logs,seen))
+            self.assertEqual(join.pending_bytes,bound)
+            before=copy.deepcopy(join.__dict__)
+            u=pb.SubscribeUpdate(filters=['b']);u.block_meta.slot=slot+2
+            with self.assertRaisesRegex(EvidenceUnavailable,'yellowstone_census_buffer_bound'):
+                join.feed(u,u.ByteSize(),NOW+10)
+            self.assertEqual(join.__dict__,before)
+
+    def test_partial_head_never_retains_invalid_census_or_an_oversized_assembled_frame(self):
+        for fault in ('duplicate','index','frame'):
+            with self.subTest(fault=fault):
+                join,repairs,bound=self.multi_pressured();(slot,sig),logs,_,seen=repairs[0]
+                s=join.pending[slot]
+                if fault=='duplicate':
+                    index=max(s['statuses'])+1;s['statuses'][index]=next(iter(s['statuses'].values()))
+                    s['status_seen'][index]=NOW;s['meta'].executed_transaction_count=index+1;s['max_index']=index
+                elif fault=='index':s['max_index']=s['meta'].executed_transaction_count
+                before=copy.deepcopy(join.__dict__)
+                reason={'duplicate':'yellowstone_duplicate_signature','index':'yellowstone_transaction_index_shape',
+                    'frame':'candidate_commit_batch_bound'}[fault]
+                with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound), \
+                        patch('meme_machine.solana_candidate_join.CANDIDATE_COMMIT_BYTES',1 if fault=='frame' else 32*1024*1024):
+                    with self.assertRaisesRegex(EvidenceUnavailable,reason):
+                        join.complete_deferred_log(slot,sig,logs,seen)
+                self.assertEqual(join.__dict__,before)
+
+    def test_last_completion_checks_whole_frame_before_retiring_any_retained_field(self):
+        join,repairs,bound=self.multi_pressured();reference=copy.deepcopy(join)
+        expected=None
+        for key,logs,_,seen in repairs:expected=reference.complete_deferred_log(*key,logs,seen)
+        first,second=repairs
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            self.assertIsNone(join.complete_deferred_log(*first[0],first[1],first[3]))
+            before=copy.deepcopy(join.__dict__)
+            with patch('meme_machine.solana_candidate_join.CANDIDATE_COMMIT_BYTES',candidate_commit_size(expected)-1):
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_commit_batch_bound'):
+                    join.complete_deferred_log(*second[0],second[1],second[3])
+            self.assertEqual(join.__dict__,before)
+            actual=join.complete_deferred_log(*second[0],second[1],second[3])
+            self.assertEqual(actual,expected)
+
+    def test_new_earlier_native_slot_keeps_retained_later_head_fields_and_fifo_order(self):
+        join,repairs,bound=self.multi_pressured();(slot,sig),logs,_,seen=repairs[0]
+        join.filtered_from_slot=slot-1;reference=copy.deepcopy(join)
+        def earlier(target):
+            u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=slot-1;m.parent_slot=slot-2
+            m.blockhash='earlier';m.parent_blockhash='earlier-parent';m.block_time.timestamp=int(NOW)
+            return target.feed(u,u.ByteSize(),NOW+5)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            self.assertIsNone(join.complete_deferred_log(slot,sig,logs,seen))
+            retained=copy.deepcopy(join.completed_log_fields);charge=join.pending_bytes
+            self.assertIsNone(earlier(join));self.assertIsNone(earlier(reference))
+            self.assertEqual(join.completed_log_fields,retained);self.assertGreater(join.pending_bytes,charge)
+            second=repairs[1];before=copy.deepcopy(join.__dict__)
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+                join.complete_deferred_log(*second[0],second[1],second[3])
+            self.assertEqual(join.__dict__,before)
+            u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=slot-1;u.slot.parent=slot-2;u.slot.status=pb.SLOT_FINALIZED
+            first=join.feed(u,u.ByteSize(),NOW+6);expected_first=reference.feed(u,u.ByteSize(),NOW+6)
+            self.assertEqual(first,expected_first);self.assertEqual(first.update.block.slot,slot-1)
+            self.assertEqual(join.completed_log_fields,retained)
+            self.assertIsNone(reference.complete_deferred_log(slot,sig,logs,seen))
+            actual=join.complete_deferred_log(*second[0],second[1],second[3])
+            expected=reference.complete_deferred_log(*second[0],second[1],second[3])
+            self.assertEqual(actual,expected);self.assertEqual(actual.update.block.slot,slot)
+            self.assertEqual(join.pending_bytes,0);self.assertFalse(join.completed_log_fields)
+
     def test_only_ready_oldest_supplement_transfers_without_transient_overadmission(self):
         join,original,full,complete,receipt,bound=self.pressured()
         slot=full['slot'];sig=full['transaction']['signatures'][0]
@@ -174,10 +339,10 @@ class StreamFullLogContentTests(unittest.TestCase):
         with self.assertRaisesRegex(EvidenceUnavailable,'candidate_late_log_content'):
             join.feed_log(slot,sig,altered,None,NOW+3)
 
-    def test_not_ready_future_or_multiple_missing_replacement_cannot_release_capacity(self):
-        for fault in ('future','multiple','meta','finality','body'):
+    def test_not_ready_or_future_replacement_cannot_release_capacity(self):
+        for fault in ('future','meta','finality','body'):
             with self.subTest(fault=fault):
-                join,_,full,complete,_,bound=self.pressured(extra_missing=int(fault=='multiple'))
+                join,_,full,complete,_,bound=self.pressured()
                 slot=full['slot'];sig=full['transaction']['signatures'][0];s=join.pending[slot]
                 if fault=='future':join.pending[slot-1]=dict(started=join.clock(),meta=None,last_seen=NOW)
                 elif fault=='meta':s['meta']=None
