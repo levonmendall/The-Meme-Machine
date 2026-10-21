@@ -201,10 +201,11 @@ class CandidateTransactionJoin:
                     or not any(pending['signature_text'].get(index)==sig for index in pending['log_required'])):
                 raise EvidenceUnavailable('candidate_log_buffer_pressure')
         plan=self._prepare_drain((key,(logs,None,seen)))
-        if not fits and plan is None:
+        transfers=plan is not None and any(consumed[0]==key for consumed in plan[4])
+        if not fits and not transfers:
             raise EvidenceUnavailable('candidate_log_buffer_pressure')
         prefix=digest([old[0],old[1]])
-        if plan is not None and plan[0]==slot:
+        if transfers:
             return self._finish_drain(plan,repair=(key,prefix))
         # An incomplete/future slot may still retain a fitting replacement.
         # Its preparation above must not mutate another slot on a failed check.

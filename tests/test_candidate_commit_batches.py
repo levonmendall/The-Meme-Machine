@@ -14,7 +14,7 @@ from unittest.mock import patch
 import based58
 
 from meme_machine.solana_candidate_join import YellowstoneTransactionFrame,CandidateTransactionJoin,scope_labels
-from meme_machine.solana_evidence_plane import EvidenceUnavailable,digest
+from meme_machine.solana_evidence_plane import EvidenceUnavailable,digest,IntervalProof
 from meme_machine.solana_rolling_history import program_scope
 from meme_machine.solana_selective_history import PROGRAMS
 from meme_machine.solana_selective_source import (

@@ -189,6 +189,42 @@ class StreamFullLogContentTests(unittest.TestCase):
                         join.complete_deferred_log(slot,sig,complete,NOW+2)
                 self.assertEqual(join.__dict__,before)
 
+    def test_fitting_nonrequired_deferred_key_retains_full_logs_when_its_slot_drains(self):
+        # A later slot can become ready behind the oldest pending slot, while
+        # retaining an unmatched prefix received before its native identities.
+        # The public join API must preserve that fitting content even though
+        # managed HTTP cannot obtain a deferred_log_witness for the stray key.
+        join,_,fetched,full,witness=self.joined();slot=full['slot'];future=slot+1
+        sig=full['transaction']['signatures'][0];stray=signature(bytes([8])*64)
+        prefix=['original prefix','Log truncated'];complete=['original prefix','complete suffix']
+        join.defer_log(future,stray,prefix,NOW)
+        join.hold_complete_log(future,stray,complete)
+        actual=signature(bytes([9])*64);actual_logs=['native required complete field']
+        join.feed_log(future,actual,actual_logs,None,NOW+1)
+        scope=next(iter(join.programs.values()))
+        u=pb.SubscribeUpdate(filters=[scope_labels(join.programs)[scope]])
+        u.transaction_status.slot=future;u.transaction_status.index=0;u.transaction_status.signature=bytes([9])*64
+        self.assertIsNone(join.feed(u,u.ByteSize(),NOW+1))
+        u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=future;m.parent_slot=slot
+        m.blockhash='future';m.parent_blockhash='native-hash';m.block_time.timestamp=full['blockTime']+1;m.executed_transaction_count=1
+        self.assertIsNone(join.feed(u,u.ByteSize(),NOW+1))
+        u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=future;u.slot.parent=slot;u.slot.status=pb.SLOT_FINALIZED
+        self.assertIsNone(join.feed(u,u.ByteSize(),NOW+1))
+        original_complete,_=authenticate_supplement(join,witness,fetched,ENDPOINT)
+        self.assertEqual(join.complete_deferred_log(slot,sig,original_complete,NOW+2).update.block.slot,slot)
+        self.assertFalse(join.pending[future]['missing_logs'])
+        self.assertIsNone(join.deferred_log_witness(future,stray))
+        frame=join.complete_deferred_log(future,stray,complete,NOW+3)
+        self.assertEqual(frame.update.block.slot,future)
+        self.assertEqual([tx['transaction']['signatures'][0] for tx in frame.log_transactions],[actual])
+        self.assertEqual(frame.log_transactions[0]['meta']['logMessages'],actual_logs)
+        self.assertEqual(frame.observed_at[actual],NOW+1)
+        self.assertEqual(join.early_logs,{(future,stray):(complete,None,NOW+3)})
+        self.assertEqual(join.early_log_bytes,len(str(complete).encode()))
+        self.assertNotIn((future,stray),join.incomplete_logs)
+        self.assertNotIn((future,stray),join.deferred_complete_logs)
+        self.assertEqual(join.recent_incomplete_logs[(future,stray)],digest([prefix,None]))
+
     def test_prepared_frame_checks_do_not_mutate_signature_cache_or_truncated_evidence(self):
         for pressured in (False,True):
             with self.subTest(pressured=pressured):
