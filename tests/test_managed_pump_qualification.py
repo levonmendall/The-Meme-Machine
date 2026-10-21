@@ -326,7 +326,8 @@ class FreshSizingTests(unittest.TestCase):
         self.assertEqual(adapter.directional_native_target(19)['requested_native_units'], 0)
         self.assertEqual(adapter.directional_native_target(20)['requested_native_units'], 1)
         for invalid in (True, -1, '20', Decimal('20')):
-            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                    adapter.CapitalError, '^verified_native_sizing_base_required$'):
                 adapter.directional_native_target(invalid)
         for rate in ('500', '2000'):
             ledger = dict(policy=dict(sizing_basis='effective_family_equivalence'))
