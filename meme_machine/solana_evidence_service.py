@@ -1048,6 +1048,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             raise
         return value
     work.candidate_delivery_continuation=True
+    work.candidate_delivery_capture_actor=True
     stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
     clients=set()
     from .solana_owner_admission import OwnerAdmission,SourceState
