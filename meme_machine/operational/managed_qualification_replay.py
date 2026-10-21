@@ -168,6 +168,7 @@ def compare_readers(config, *, until, as_of, decision_target=None):
             check()
             restarted = (_output(resumed) == output
                 and after_restart == state)
+            check()
         finally:
             resumed.close()
         results.append(dict(implementation=name, rows=output[0], output_sha256=output[1],
@@ -187,6 +188,7 @@ def compare_readers(config, *, until, as_of, decision_target=None):
     restarted = all(row['restart_verified'] for row in results)
     complete = incomplete == 0 and all(
         row['snapshot'].get('native_event_backlog') == 0 for row in results)
+    check()
     return dict(verified=coherent and restarted and complete and reference['rows'] > 0,
         coherent=coherent, complete=complete,
         reader_restart_verified=restarted, incomplete_outcomes=incomplete,
