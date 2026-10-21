@@ -1894,7 +1894,9 @@ class SelectiveSource:
         """
         from .solana_economic_preparation import prepare_archive_transaction
         stop=self.stop;lock=self.archive_preparation_lock;pulse=self.archive_preparation_wakeup
-        if stop is None or stop.is_set() or time.time()>=job['deadline']:return None
+        ticket=job.get('_archive_preparation_ticket')
+        def invalid():return ticket is not None and ticket.invalid.is_set()
+        if stop is None or stop.is_set() or invalid() or time.time()>=job['deadline']:return None
         owned=False
         try:
             if job['priority']<=2:
@@ -1903,32 +1905,36 @@ class SelectiveSource:
                 # work never awaits it: the pool atomically claims its slot.
             else:
                 acquire=asyncio.create_task(lock.acquire());end=asyncio.create_task(stop.wait())
+                wake=asyncio.create_task(ticket.changed.wait()) if ticket is not None else None
+                waits=(acquire,end,wake) if wake is not None else (acquire,end)
                 try:
-                    await asyncio.wait((acquire,end),timeout=max(0,job['deadline']-time.time()),
+                    await asyncio.wait(waits,timeout=max(0,job['deadline']-time.time()),
                         return_when=asyncio.FIRST_COMPLETED)
                 finally:
                     if not acquire.done():acquire.cancel()
                     else:owned=not acquire.cancelled() and acquire.exception() is None and acquire.result()
-                    end.cancel()
-                    await asyncio.gather(acquire,end,return_exceptions=True)
+                    for task in waits[1:]:task.cancel()
+                    await asyncio.gather(*waits,return_exceptions=True)
                 if not owned:return None
-            while not stop.is_set() and time.time()<job['deadline'] and not pool.closed:
+            while not stop.is_set() and not invalid() and time.time()<job['deadline'] and not pool.closed:
                 # Capture before admission: completion may race try_submit.
                 seen=pulse.epoch
                 future=pool.try_submit_optional(prepare_archive_transaction,context,job['family'],raw)
                 if future is not None:
                     if future.done():return future.result()
                     pending=asyncio.wrap_future(future);end=asyncio.create_task(stop.wait())
+                    wake=asyncio.create_task(ticket.changed.wait()) if ticket is not None else None
+                    waits=(pending,end,wake) if wake is not None else (pending,end)
                     try:
-                        await asyncio.wait((pending,end),timeout=max(0,job['deadline']-time.time()),
+                        await asyncio.wait(waits,timeout=max(0,job['deadline']-time.time()),
                             return_when=asyncio.FIRST_COMPLETED)
-                        if pending.done() and not stop.is_set() and time.time()<job['deadline']:
+                        if pending.done() and not stop.is_set() and not invalid() and time.time()<job['deadline']:
                             return pending.result()
                         return None
                     finally:
-                        if not pending.done():pending.cancel()
-                        end.cancel()
-                        await asyncio.gather(pending,end,return_exceptions=True)
+                        for task in waits:
+                            if not task.done():task.cancel()
+                        await asyncio.gather(*waits,return_exceptions=True)
                 if job['priority']<=2:return None
                 await pulse.wait(seen,stop,delay=max(0,job['deadline']-time.time()))
             return None
@@ -1945,12 +1951,14 @@ class SelectiveSource:
             rows=value['data']
             if type(rows) is not list or len(rows)>100:return ()
             context=archive_preparation_context(job,self.config.identity)
-            if context is None:return ()
+            ticket=job.get('_archive_preparation_ticket')
+            if context is None or ticket is not None and ticket.invalid.is_set():return ()
             by_original={item.original_json:item for item in supplements}
             products=[None]*len(rows);size=0
             from .solana_selective_history import complete_archive_transaction
             for index,original in enumerate(rows):
-                if self.stop is None or self.stop.is_set() or time.time()>=job['deadline']:break
+                if (self.stop is None or self.stop.is_set() or time.time()>=job['deadline']
+                        or ticket is not None and ticket.invalid.is_set()):break
                 raw=canonical(original);supplement=by_original.get(raw)
                 tx=(complete_archive_transaction(original,supplement,endpoint_identity=self.config.identity)
                     if supplement is not None else original)
@@ -1961,6 +1969,7 @@ class SelectiveSource:
                 size+=len(product.events_json.encode())
                 if size>MAX_FRAME_BYTES:break
                 products[index]=product
+            if ticket is not None and ticket.invalid.is_set():return ()
             return tuple(products) if any(p is not None for p in products) else ()
         except asyncio.CancelledError:raise
         except Exception:return () # Decode/shape/size failures run at the old owner point.
@@ -1970,6 +1979,8 @@ class SelectiveSource:
         from .runtime.evidence_worker import DeliveredRPCError,failure_diagnostic
         from .solana_selective_history import (missing_archive_log_transactions,
             join_archive_log_supplement,complete_archive_transaction)
+        from .solana_preparation_pool import ArchivePreparationTicket
+        preparation_loop=asyncio.get_running_loop()
         while not self.stop.is_set():
             def request_development(state):
                 from .lanes.pump.pump_acceleration_strategy import POLICY
@@ -2034,6 +2045,11 @@ class SelectiveSource:
                     if result:
                         state.acquisition_inflight.add(result[0]['id'])
                         result[0]['finalized_hint']=frontier
+                        ticket=ArchivePreparationTicket(result[0]['priority'],result[0]['deadline'],
+                            preparation_loop,self.archive_preparation_wakeup)
+                        if not hasattr(h,'_archive_preparation_tickets'):h._archive_preparation_tickets={}
+                        h._archive_preparation_tickets[result[0]['id']]=ticket
+                        result[0]['_archive_preparation_ticket']=ticket
                 return result
             # All archive workers use the same sole owner and pending queue.
             # After an empty plan, eight identical polls otherwise contend with
@@ -2159,7 +2175,12 @@ class SelectiveSource:
                             deadline=job['deadline'],funding_closed=True)),1)
                 else:raise
             finally:
-                await self.work(lambda state:state.acquisition_inflight.discard(job['id']),1)
+                def release(state):
+                    state.acquisition_inflight.discard(job['id'])
+                    tickets=getattr(install(state),'_archive_preparation_tickets',{})
+                    if tickets.get(job['id']) is job.get('_archive_preparation_ticket'):
+                        tickets.pop(job['id'],None)
+                await self.work(release,1)
 
     async def live_manager(self,channel):
         from .solana_stable_shards import StableShards

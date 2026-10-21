@@ -8,6 +8,26 @@ from concurrent.futures import Future,wait as wait_futures
 import threading
 
 
+class ArchivePreparationTicket:
+    """Advisory cancellation only, bounded by existing in-flight RPC jobs.
+
+    The owner sets a thread-safe flag immediately on urgency tightening. Only
+    its queued event-loop callback touches async wakeups. False invalidation,
+    including rolled-back work, merely restores the original owner decoder.
+    """
+    def __init__(self,priority,deadline,loop,wakeup):
+        import asyncio
+        self.claim=(priority,deadline);self.loop=loop;self.wakeup=wakeup
+        self.invalid=threading.Event();self.changed=asyncio.Event()
+    def tighten(self,priority,deadline):
+        if (priority>=self.claim[0] and deadline>=self.claim[1]) or self.invalid.is_set():return
+        self.invalid.set()
+        try:self.loop.call_soon_threadsafe(self._notify)
+        except Exception:pass # Advisory failure cannot replace the owner result.
+    def _notify(self):
+        self.changed.set();self.wakeup.notify()
+
+
 class _NativePreparation:
     def __init__(self,pool):self.pool=pool
     def submit(self,fn,*args,**kwargs):

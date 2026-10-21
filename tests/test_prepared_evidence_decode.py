@@ -418,6 +418,56 @@ class ArchivePreparationHandoffTests(unittest.IsolatedAsyncioTestCase):
                 self.executor.finish(index)
         self.source.stop.clear()
 
+    async def test_owner_urgency_tightening_interrupts_carrier_spare_and_accepted_waits(self):
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        for mode in ('carrier','spare','accepted'):
+            with self.subTest(mode=mode):
+                job=self.job();ticket=ArchivePreparationTicket(job['priority'],job['deadline'],
+                    asyncio.get_running_loop(),self.source.archive_preparation_wakeup)
+                job['_archive_preparation_ticket']=ticket
+                first=len(self.executor.jobs)
+                if mode=='carrier':await self.source.archive_preparation_lock.acquire()
+                elif mode=='spare':self.pool.try_submit_optional(str,'retained-physical')
+                task=self.task(self.source._archive_preparation_turn(job,self.pool,'context','must-fall-back'))
+                for _ in range(8):await asyncio.sleep(0)
+                if mode=='accepted':self.assertEqual(len(self.executor.jobs),first+1)
+                ticket.tighten(2,job['deadline']-1)
+                self.assertTrue(ticket.invalid.is_set())
+                self.assertIsNone(await asyncio.wait_for(task,.5))
+                if mode=='carrier':
+                    self.assertTrue(self.source.archive_preparation_lock.locked())
+                    self.source.archive_preparation_lock.release()
+                    self.assertEqual(len(self.executor.jobs),first)
+                else:
+                    self.assertFalse(self.source.archive_preparation_lock.locked())
+                    self.assertIsNone(self.pool.try_submit_optional(str,'cannot-reuse-physical-slot'))
+                    self.executor.finish(first)
+                    self.assertEqual(len(self.executor.jobs),first+1)
+
+    async def test_ticket_flag_is_immediate_but_async_events_are_only_notified_on_loop(self):
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        pulse=self.source.archive_preparation_wakeup
+        ticket=ArchivePreparationTicket(3,time.time()+30,asyncio.get_running_loop(),pulse)
+        epoch=pulse.epoch
+        thread=threading.Thread(target=ticket.tighten,args=(2,ticket.claim[1]-1))
+        thread.start();thread.join(timeout=1)
+        self.assertFalse(thread.is_alive());self.assertTrue(ticket.invalid.is_set())
+        self.assertFalse(ticket.changed.is_set());self.assertEqual(pulse.epoch,epoch)
+        await asyncio.sleep(0)
+        self.assertTrue(ticket.changed.is_set());self.assertEqual(pulse.epoch,epoch+1)
+        unneeded=ArchivePreparationTicket(2,ticket.claim[1],asyncio.get_running_loop(),pulse)
+        unneeded.tighten(3,ticket.claim[1]+1)
+        self.assertFalse(unneeded.invalid.is_set())
+        for priority,deadline in ((2,ticket.claim[1]+1),(3,ticket.claim[1]-1)):
+            tightened=ArchivePreparationTicket(3,ticket.claim[1],asyncio.get_running_loop(),pulse)
+            tightened.tighten(priority,deadline)
+            self.assertTrue(tightened.invalid.is_set())
+        class ClosedLoop:
+            def call_soon_threadsafe(self,*args):raise RuntimeError('offline-closed-loop')
+        closed=ArchivePreparationTicket(3,ticket.claim[1],ClosedLoop(),pulse)
+        closed.tighten(2,ticket.claim[1]-1)
+        self.assertTrue(closed.invalid.is_set()) # Failure cannot replace owner SQL outcome.
+
     async def test_notifier_failure_never_hides_terminal_result_or_slot_release(self):
         self.pool.notify=lambda:(_ for _ in ()).throw(RuntimeError('offline-notifier'))
         future=self.pool.try_submit_optional(str,'retained')

@@ -1590,6 +1590,100 @@ class ArchiveFullLogContentTests(unittest.TestCase):
         self.assertEqual(rows,economic_records('pump',self.address,current,endpoint_identity=ENDPOINT,
             seen=NOW,source='alchemy_finalized_repair'))
 
+    def test_real_inflight_request_upgrade_after_rpc_skips_optional_wait_and_retains_new_deadline(self):
+        from meme_machine.solana_preparation_pool import PreparationPool
+        class NoOptional:
+            def __init__(self):self.calls=0
+            def submit(self,*args,**kwargs):
+                self.calls+=1;raise AssertionError('upgraded job must skip optional decoding')
+        original,fetched,_,_=truncated_transaction()
+        async def exercise():
+            source,claimed,_,_=await self.incomplete_archive_source(original,fetched,upgrade=True)
+            executor=NoOptional();source.archive_preparation_executor=PreparationPool(executor)
+            rpc=source.measured_rpc
+            async def keep_running(method,*args):
+                result=await rpc(method,*args);source.stop.clear();return result
+            source.measured_rpc=keep_running;captured=[]
+            async def work(callback,*args,**metadata):
+                if metadata.get('label')=='source_commit':
+                    ticket=self.h._archive_preparation_tickets[claimed['id']]
+                    captured.append(ticket)
+                    self.assertTrue(ticket.invalid.is_set())
+                    self.assertEqual(ticket.claim,(claimed['priority'],claimed['deadline']))
+                    self.assertEqual(self.h.db.execute('SELECT priority,deadline FROM acquisition_jobs '
+                        'WHERE id=?',(claimed['id'],)).fetchone(),(1,NOW+3))
+                try:return callback(self.state)
+                finally:
+                    if metadata.get('label')=='source_commit':source.stop.set()
+            source.work=work
+            with patch('time.time',return_value=NOW):await source.acquire()
+            self.assertEqual(len(captured),1);self.assertEqual(executor.calls,0)
+            self.assertEqual(self.h.db.execute('SELECT status,priority,deadline,pages FROM acquisition_jobs '
+                'WHERE id=?',(claimed['id'],)).fetchone(),('complete',1,NOW+3,claimed['pages']+1))
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assertEqual(self.h._archive_preparation_tickets,{})
+            self.assertTrue(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+        asyncio.run(exercise())
+
+    def test_real_overlap_plan_upgrade_invalidates_only_volatile_preparation_and_survives_restart(self):
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        async def exercise():
+            scope=self.h.bind('pumpswap','pool')
+            leader=self.h.request('pumpswap','pool',100,120,priority=3,deadline=NOW+150)
+            claimed=self.h.plan()[0]
+            source=SelectiveSource(SimpleNamespace(identity=ENDPOINT),None,token='offline')
+            ticket=ArchivePreparationTicket(claimed['priority'],claimed['deadline'],
+                asyncio.get_running_loop(),source.archive_preparation_wakeup)
+            self.h._archive_preparation_tickets={leader:ticket}
+            original=self.h.db.execute('SELECT status,pages,token,lineage FROM acquisition_jobs '
+                'WHERE id=?',(leader,)).fetchone()
+            self.h.request('pumpswap','pool',110,130,priority=0,deadline=NOW+75)
+            self.assertFalse(ticket.invalid.is_set())
+            self.assertIsNone(self.h.plan(excluding=(leader,)))
+            self.assertTrue(ticket.invalid.is_set())
+            self.assertEqual(self.h.db.execute('SELECT priority,deadline FROM acquisition_jobs '
+                'WHERE id=?',(leader,)).fetchone(),(0,NOW+75))
+            self.assertEqual(self.h.db.execute('SELECT status,pages,token,lineage FROM acquisition_jobs '
+                'WHERE id=?',(leader,)).fetchone(),original)
+            self.assertEqual(self.h.rolling.missing('pumpswap',scope,100,130),[(100,130)])
+            self.assertFalse(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+            self.state.writer.close();self.open_owner()
+            self.assertFalse(hasattr(self.h,'_archive_preparation_tickets'))
+            self.assertEqual(self.h.db.execute('SELECT priority,deadline,status,pages,token,lineage '
+                'FROM acquisition_jobs WHERE id=?',(leader,)).fetchone(),(0,NOW+75,*original))
+            self.assertEqual(self.h.rolling.missing('pumpswap',scope,100,130),[(100,130)])
+        asyncio.run(exercise())
+
+    def test_real_alias_repair_upgrade_invalidates_existing_preparation_without_new_job_or_coverage(self):
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        async def exercise():
+            scope=self.h.bind('pumpswap','pool',aliases=('alias',))
+            leader=self.h.request('pumpswap','pool',100,120,priority=3,deadline=NOW+150)
+            claimed=self.h.plan()[0]
+            source=SelectiveSource(SimpleNamespace(identity=ENDPOINT),None,token='offline')
+            ticket=ArchivePreparationTicket(claimed['priority'],claimed['deadline'],
+                asyncio.get_running_loop(),source.archive_preparation_wakeup)
+            self.h._archive_preparation_tickets={leader:ticket}
+            before=self.h.db.execute('SELECT status,pages,token,lineage FROM acquisition_jobs '
+                'WHERE id=?',(leader,)).fetchone()
+            desired=[dict(family='pumpswap',address='alias',scope=scope,
+                priority=1,deadline=NOW+5,lower_slot=100)]
+            self.assertEqual(self.h.lifecycle.repair(desired,120),[leader])
+            self.assertTrue(ticket.invalid.is_set())
+            self.assertEqual(self.h.db.execute('SELECT priority,deadline,status,pages,token,lineage '
+                'FROM acquisition_jobs WHERE id=?',(leader,)).fetchone(),(1,NOW+5,*before))
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],1)
+            self.assertEqual(self.h.rolling.missing('pumpswap',scope,100,120),[(100,120)])
+            self.assertFalse(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+            # A failed advisory callback cannot replace the original owner SQL
+            # result or grant durable evidence/priority authority.
+            def broken(*args):raise RuntimeError('offline-advisory-failure')
+            self.h._archive_preparation_tickets[leader]=SimpleNamespace(tighten=broken)
+            self.h.request('pumpswap','pool',100,120,priority=0,deadline=NOW+3)
+            self.assertEqual(self.h.db.execute('SELECT priority,deadline,status,pages,token,lineage '
+                'FROM acquisition_jobs WHERE id=?',(leader,)).fetchone(),(0,NOW+3,*before))
+        asyncio.run(exercise())
+
     def test_spawn_pool_archive_product_roundtrip_preserves_real_economic_rows(self):
         from concurrent.futures import ProcessPoolExecutor
         import multiprocessing

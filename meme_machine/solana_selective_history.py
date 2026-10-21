@@ -444,6 +444,14 @@ class SelectiveHistory:
         row=self.db.execute('SELECT coverage_scope FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
         return coverage_scope(family,address) if row is None else row[0]
 
+    def _archive_preparation_tightened(self,identity,priority,deadline):
+        # This bounded volatile map is installed only for actual in-flight RPC
+        # claims. It grants no durable state, lease or readiness authority.
+        ticket=getattr(self,'_archive_preparation_tickets',{}).get(identity)
+        if ticket is not None:
+            try:ticket.tighten(priority,deadline)
+            except Exception:pass
+
     def request(self,family,address,lo,hi,*,priority,deadline):
         if family not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         if type(lo) is not int or type(hi) is not int or not 0<=lo<=hi or not 0<=priority<=6:
@@ -461,6 +469,7 @@ class SelectiveHistory:
             # Reasserting an interval may increase urgency, never reset its cursor.
             self.db.execute('UPDATE acquisition_jobs SET priority=MIN(priority,?),deadline=MIN(deadline,?) WHERE id=?',
                 (priority,deadline,identity))
+            self._archive_preparation_tightened(identity,priority,deadline)
             depth=self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone()[0]
             if depth>8:self._observation(identity,'capacity_pressure',dict(queue_depth=depth,economic_rejection=False))
         return identity
@@ -558,6 +567,7 @@ class SelectiveHistory:
                     for identity in overlapping:
                         self.db.execute('UPDATE acquisition_jobs SET priority=MIN(priority,?),deadline=MIN(deadline,?) WHERE id=?',
                             (job['priority'],job['deadline'],identity))
+                        self._archive_preparation_tightened(identity,job['priority'],job['deadline'])
                     skipped.add(job['id']);continue
                 scopes=self.rolling.scopes(job['family'],scope)
                 marks=','.join('?' for _ in scopes)
