@@ -1502,6 +1502,50 @@ class ArchiveFullLogContentTests(unittest.TestCase):
             self.assert_unpublished()
         asyncio.run(exercise())
 
+    def test_optional_truncation_with_hidden_log_contradictions_still_aborts(self):
+        async def exercise():
+            for fault in ('prefix','malformed_after_marker','original_marker_count',
+                          'fetched_marker_count','unproven_retained_suffix'):
+                with self.subTest(fault=fault):
+                    self.state.writer.close()
+                    self.path=Path(self.tmp.name)/(fault+'.sqlite');self.open_owner()
+                    original,fetched,_,_=truncated_transaction()
+                    fetched['meta']['logMessages'].append('Log truncated')
+                    if fault=='prefix':fetched['meta']['logMessages'][0]='conflicting original prefix'
+                    elif fault=='malformed_after_marker':fetched['meta']['logMessages'].append(17)
+                    elif fault=='original_marker_count':original['meta']['logMessages'].append('Log truncated')
+                    elif fault=='fetched_marker_count':fetched['meta']['logMessages'].append('Log truncated')
+                    else:original['meta']['logMessages'].append('Program log: unproven retained suffix')
+                    inputs=canonical(original),canonical(fetched)
+                    source,_,baseline,_=await self.incomplete_archive_source(original,fetched)
+                    with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
+                        await source.acquire()
+                    # Preserve the original authenticator's rejection order;
+                    # containment must independently reject these mixed faults.
+                    self.assertEqual(caught.exception.archive_log_failure_check,'fetched_log_truncation')
+                    self.assertEqual(self.snapshot(),baseline)
+                    self.assertFalse(self.state.acquisition_inflight)
+                    self.assertEqual((canonical(original),canonical(fetched)),inputs)
+                    self.assert_unpublished()
+        asyncio.run(exercise())
+
+    def test_optional_truncation_with_all_retained_suffix_lines_remains_local(self):
+        original,fetched,_,_,_=retained_suffix_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            source,job,baseline,_=await self.incomplete_archive_source(original,fetched)
+            await source.acquire()
+            self.assertEqual(self.h.db.execute('SELECT status,deadline,pages,token FROM acquisition_jobs '
+                'WHERE id=?',(job['id'],)).fetchone(),
+                ('failed',job['deadline'],job['pages'],job['token']))
+            after=self.snapshot()
+            for table in baseline:
+                if table not in ('acquisition_jobs','acquisition_observations'):
+                    self.assertEqual(after[table],baseline[table],table)
+            self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
+            self.assert_unpublished()
+        asyncio.run(exercise())
+
 
 class ArchiveFailureDiscriminatorTests(unittest.TestCase):
     """Fixed attribution leaves every existing rejection and raw input intact."""

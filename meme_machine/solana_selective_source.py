@@ -63,6 +63,27 @@ CONTROL_OVERLAP=256
 CONTROL_CURRENT_SECONDS=15 # Same market-time bound as normal Pump readiness.
 WARM_OVERLAP=32
 
+def consistent_incomplete_archive_logs(original,fetched):
+    """Classify optional unavailability only; this never authenticates a page.
+
+    The ordinary authenticator rejects a fetched truncation marker before its
+    later shape/prefix/suffix checks. Containment requires every known field to
+    remain consistent, including suffixes a partial response may not contain.
+    Missing or ambiguous consistency retains the original source failure.
+    """
+    try:
+        old=original['meta']['logMessages'];new=fetched['meta']['logMessages']
+    except (KeyError,TypeError):return False
+    if not explicit_truncation(old) or not explicit_truncation(new):return False
+    marker=old.index('Log truncated')
+    if new.index('Log truncated')<marker or new[:marker]!=old[:marker]:return False
+    position=marker
+    for line in old[marker+1:]:
+        while position<len(new) and (new[position]=='Log truncated' or new[position]!=line):position+=1
+        if position==len(new):return False
+        position+=1
+    return True
+
 def native_commit_priority(desired):
     # Unfunded intake shares the existing bounded FIFO with required
     # maintenance. Continuous priority-one intake starved that work even when
@@ -1919,6 +1940,7 @@ class SelectiveSource:
                 result=h.commit_page(job,value,finalized_through=finalized,supplements=supplements)
                 h.lifecycle.publish()
                 return result
+            supplement_inputs=None
             try:
                 value=await self.measured_rpc('getTransactionsForAddress',[job['address'],config],job['family'],job['priority'])
                 # The immutable upper bound is already finalized when the linked
@@ -1933,7 +1955,9 @@ class SelectiveSource:
                     fetched=await self.measured_rpc('getTransaction',[original['transaction']['signatures'][0],
                         dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],
                         job['family'],job['priority'])
+                    supplement_inputs=(original,fetched)
                     supplement=join_archive_log_supplement(original,fetched,endpoint_identity=self.config.identity)
+                    supplement_inputs=None
                     supplement_bytes+=len(supplement.fetched_json.encode())
                     if supplement_bytes>MAX_FRAME_BYTES:raise EvidenceUnavailable('archive_log_supplement_bound')
                     acquired.append(supplement)
@@ -1976,7 +2000,9 @@ class SelectiveSource:
             except EvidenceUnavailable as exc:
                 if (type(exc) is EvidenceUnavailable
                         and exc.args==('archive_log_supplement_identity_unverified',)
-                        and getattr(exc,'archive_log_failure_check',None)=='fetched_log_truncation'):
+                        and getattr(exc,'archive_log_failure_check',None)=='fetched_log_truncation'
+                        and supplement_inputs is not None
+                        and consistent_incomplete_archive_logs(*supplement_inputs)):
                     # This provider response still lacks complete logs. Reject
                     # the page, retain its missing interval and original lease,
                     # and avoid retrying an unchanged optional archive request.
