@@ -89,8 +89,8 @@
       "status": "M"
     },
     "meme_machine/solana_candidate_join.py": {
-      "after_bytes": 31511,
-      "after_sha256": "9ea5f48c69433866dae0064f4f100dfcb27d15c5e201ee99664203bdb1831c2b",
+      "after_bytes": 35034,
+      "after_sha256": "d6dec933e22cf0fc15b9a6fedaaa404d55e68f76a7647b4151b1777eae14db1e",
       "before_bytes": 22910,
       "before_sha256": "cd570e5ed58519bf61ccfc553910d1a5093952e7754a9cab80d517f3e7269699",
       "changed_nodes": [
@@ -111,6 +111,8 @@
         "__statement_18",
         "__statement_19",
         "__statement_4",
+        "_candidate_commit_bytes",
+        "_log_transaction",
         "candidate_commit_size"
       ],
       "status": "M"
@@ -149,14 +151,15 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 167638,
-      "after_sha256": "e0340bf503e957bc211e8d29c88db99049eb7d82829a8c69fba39f2c8f1c4bf0",
+      "after_bytes": 169956,
+      "after_sha256": "af1d606142f8c042153a4e0359a731f45b2c1355df876f9c59892067c9336db8",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
         "CandidateCommitQueue.__init__",
         "CandidateCommitQueue.put",
         "SelectiveSource.__layout__",
+        "SelectiveSource.acquire",
         "SelectiveSource.live",
         "SelectiveSource.measured_log_batch",
         "SelectiveSource.measured_rpc",
@@ -186,6 +189,9 @@
         "__statement_36",
         "__statement_37",
         "__statement_38",
+        "__statement_49",
+        "__statement_50",
+        "consistent_incomplete_archive_logs",
         "wait_candidate_log_space"
       ],
       "status": "M"
@@ -227,8 +233,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "668b50dae2ec72d447628fbd658fe0cc5d089b6d",
-  "implementation_tree": "d50819207f542b0993a577509de04d6ea0bf27ab",
+  "implementation": "533ec284549bb1ce1907808a17a077ee6b641a8c",
+  "implementation_tree": "2af08f590ff58f6070d144c33e352e69d78d578e",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,
