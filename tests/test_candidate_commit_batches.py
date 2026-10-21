@@ -486,6 +486,82 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.h.db.execute('SELECT identity,hash,first_seen FROM rolling_economic_events ORDER BY identity').fetchall(),identities)
         finally:other.writer.close()
 
+    async def test_partial_head_journal_gap_and_completed_frame_survive_restart_cancel_and_owner_rollback(self):
+        from tests.test_archive_full_log_content import StreamFullLogContentTests,ENDPOINT
+        from meme_machine.solana_stream_log_repair import authenticate_supplement
+        case=StreamFullLogContentTests();join,repairs,bound=case.multi_pressured()
+        pristine=copy.deepcopy(join);first,second=repairs;slot,sig=first[0]
+        addresses=join.programs;scope=next(iter(addresses.values()))
+        # Match the real source ordering: the complete authenticated response
+        # FULL-commits to the existing journal before transient admission.
+        self.h._observation(None,'native_stream_log_supplement',first[2])
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            self.assertIsNone(join.complete_deferred_log(slot,sig,first[1],first[3]))
+        self.assertEqual(len(join.completed_log_fields),1)
+        self.assertFalse(self.h.db.execute('SELECT identity FROM rolling_economic_events').fetchall())
+        body=dict(plane='rolling',session='partial-head',**join.diagnostic(),
+            accepted_pending=0,accepted_pending_bytes=0,drained=False,
+            replay_from_slot=join.filtered_from_slot,complete_history_claim=False)
+        lower=subscription_disconnect_lower(self.h,dict(scope=scope,family='pump',rolling=True),
+            join.filtered_from_slot,'partial-head',fresh_rolling=True)
+        lower=min(lower,body['oldest_slot'],body['early_log_min_slot'])
+        body['recovery_obligations']=[dict(scope=scope,lower_slot=lower,upper_slot=None)]
+        with self.state.writer.transaction():
+            self.h.gap(scope,lower,None,'candidate_live_disconnect_or_filter_rebuild')
+            self.h._observation(None,'source_session_drain',body)
+        path=self.state.writer.path;self.state.writer.close();self.state,self.h=state_at(path)
+        self.addCleanup(self.state.writer.close)
+        receipt=json.loads(self.h.db.execute("SELECT body FROM acquisition_observations WHERE kind='native_stream_log_supplement'").fetchone()[0])
+        retained=json.loads(self.h.db.execute("SELECT body FROM acquisition_observations WHERE kind='source_session_drain'").fetchone()[0])
+        self.assertEqual(receipt,first[2]);self.assertEqual(retained,body)
+        self.assertEqual(retained['oldest_missing_logs'],1)
+        self.assertGreater(retained['pending_bytes'],pristine.pending_bytes)
+        self.assertLessEqual(retained['recovery_obligations'][0]['lower_slot'],slot)
+        self.assertIsNone(self.h.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(scope,)).fetchone())
+        # Re-delivered native witnesses and the exact retained authenticated
+        # provider input remain sufficient. This fixture does not claim that
+        # production automatically restores a transient cache or its old clock.
+        replay=pristine;witness=replay.deferred_log_witness(slot,sig)
+        logs,_=authenticate_supplement(replay,witness,receipt['response'],ENDPOINT)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            self.assertIsNone(replay.complete_deferred_log(slot,sig,logs,first[3]))
+            self.h._observation(None,'native_stream_log_supplement',second[2])
+            repaired=replay.complete_deferred_log(*second[0],second[1],second[3])
+        self.assertIsNotNone(repaired);self.assertFalse(replay.completed_log_fields)
+        self.assertEqual(replay.pending_bytes,0)
+        self.assertEqual(len(repaired.log_transactions),2)
+        queue=CandidateCommitQueue()
+        for current in range(100,100+CANDIDATE_COMMIT_BATCH):await queue.put(frame(current,logs=False))
+        held=await queue.batch();before=(queue.count,queue.bytes)
+        waiting=asyncio.create_task(queue.put(repaired));await asyncio.sleep(0)
+        self.assertFalse(waiting.done());waiting.cancel()
+        with self.assertRaises(asyncio.CancelledError):await waiting
+        self.assertEqual((queue.count,queue.bytes),before)
+        self.assertLessEqual(lower,repaired.update.block.slot)
+        queue.done(held);await queue.put(repaired)
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        source.stop=asyncio.Event();source.batched=True
+        async def owner(fn,priority,**options):return fn(self.state)
+        source.work=owner;before=self.snapshot(self.h);original=self.h.ingest
+        failure=RuntimeError('offline-multiple-head-owner-failure')
+        def fail(records,**options):
+            original(records,**options);raise failure
+        with patch.object(self.h,'ingest',side_effect=fail):
+            with self.assertRaises(RuntimeError) as caught:
+                await source.candidate_commits(queue,addresses,'recovered-partial-head')
+        self.assertIs(caught.exception,failure);self.assertEqual(self.snapshot(self.h),before)
+        self.assertEqual(queue.count,1)
+        self.state.writer.close();self.state,self.h=state_at(path)
+        self.addCleanup(self.state.writer.close)
+        self.assertEqual(self.snapshot(self.h),before)
+        recovered=CandidateCommitQueue();await recovered.put(repaired)
+        done=asyncio.Event();done.set()
+        await source.candidate_commits(recovered,addresses,'recovered-partial-head',producer_done=done)
+        identities=self.h.db.execute('SELECT identity,hash,first_seen FROM rolling_economic_events ORDER BY identity').fetchall()
+        self.assertTrue(identities);self.assertEqual((recovered.count,recovered.bytes),(0,0))
+        commit_candidate_batch(self.state,[repaired],addresses,'recovered-partial-head',publish=False)
+        self.assertEqual(self.h.db.execute('SELECT identity,hash,first_seen FROM rolling_economic_events ORDER BY identity').fetchall(),identities)
+
     async def test_transferred_oldest_cancelled_queue_wait_reserves_no_extra_capacity(self):
         transferred,replay,join=oldest_transfer();changes=[]
         queue=CandidateCommitQueue(lambda a,c:changes.append((a,c)))

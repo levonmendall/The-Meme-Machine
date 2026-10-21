@@ -27,7 +27,7 @@ from unittest.mock import patch
 
 
 SCHEMA = 'ec2-sealed-market-replay-parcel-v1'
-RUNTIME_BASELINE = '668b50dae2ec72d447628fbd658fe0cc5d089b6d'
+RUNTIME_BASELINE = '533ec284549bb1ce1907808a17a077ee6b641a8c'
 SOURCE = dict(request_id='ec2-39625860455-1',
     raw_manifest_sha256='7d42914089386ffbd09ab8604c5faf98b4563cec0c6635063a8ec0e8a452c137',
     application_commit='a02900db323f8527c829273b2b68ac68f4e94377',

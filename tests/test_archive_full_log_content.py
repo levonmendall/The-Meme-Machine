@@ -150,6 +150,171 @@ class StreamFullLogContentTests(unittest.TestCase):
         self.assertLess(len(str(complete).encode()),bound)
         return join,original,full,complete,receipt,bound
 
+    def multi_pressured(self,count=2):
+        """Several full fields, one full early-log budget, unused native bytes."""
+        join,original,fetched,full,_=self.joined(extra_missing=count-1)
+        slot=full['slot'];repairs=[]
+        for n in range(count):
+            complete=copy.deepcopy(full)
+            if n:
+                complete['transaction']['signatures']=[signature(bytes([n+1])*64)]
+                complete['transactionIndex']+=n
+            sig=complete['transaction']['signatures'][0]
+            if n:join.defer_log(slot,sig,original['meta']['logMessages'],NOW)
+            witness=join.deferred_log_witness(slot,sig)
+            logs,receipt=authenticate_supplement(join,witness,complete,ENDPOINT)
+            repairs.append(((slot,sig),logs,receipt,NOW+n+2))
+        # Both original budgets remain ample for the bounded head as a whole;
+        # only the early-log budget is occupied by later authenticated fields.
+        needed=join.pending_bytes+sum(len(canonical(dict(slot=slot,
+            blockTime=full['blockTime'],transactionIndex=full['transactionIndex']+n,
+            transaction=dict(signatures=[key[1]]),meta=dict(err=None,logMessages=logs))).encode())
+            for n,(key,logs,_,_) in enumerate(repairs))
+        join.feed_log(slot+1,signature(bytes([9])*64),['x'*(needed+128)],None,NOW+1)
+        return join,repairs,join.early_log_bytes
+
+    def test_multiple_authenticated_head_fields_share_existing_native_budget_until_complete(self):
+        for count in (2,3):
+            with self.subTest(count=count):
+                join,repairs,bound=self.multi_pressured(count);reference=copy.deepcopy(join)
+                slot=repairs[0][0][0];native_bytes=join.pending_bytes
+                future={k:copy.deepcopy(v) for k,v in join.early_logs.items() if k[0]>slot}
+                prefixes=copy.deepcopy(join.early_logs)
+                expected=None
+                for (current,sig),logs,_,seen in repairs:
+                    expected=reference.complete_deferred_log(current,sig,logs,seen)
+                with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+                    for n,((current,sig),logs,_,seen) in enumerate(repairs):
+                        frame=join.complete_deferred_log(current,sig,logs,seen)
+                        self.assertLessEqual(join.pending_bytes,bound)
+                        self.assertLessEqual(join.early_log_bytes,bound)
+                        if n<count-1:
+                            self.assertIsNone(frame);self.assertIsNone(join.drain())
+                            self.assertEqual(join.completed,-1)
+                            self.assertEqual(join.early_logs,prefixes)
+                            retained=sum(value[1] for value in join.completed_log_fields.values())
+                            self.assertEqual(join.pending_bytes,native_bytes+retained)
+                            self.assertEqual(len(join.pending[slot]['missing_logs']),count-n-1)
+                    self.assertEqual(frame,expected)
+                self.assertEqual(join.pending_bytes,0);self.assertFalse(join.completed_log_fields)
+                self.assertFalse(join.incomplete_logs);self.assertFalse(join.deferred_complete_logs)
+                self.assertEqual(join.early_logs,future)
+                self.assertEqual(join.recent,reference.recent)
+                self.assertEqual(join.recent_logs,reference.recent_logs)
+                self.assertEqual(join.recent_incomplete_logs,reference.recent_incomplete_logs)
+                for (_,sig),logs,_,seen in repairs:
+                    self.assertEqual(frame.observed_at[sig],seen)
+                    self.assertIsNone(join.feed_log(slot,sig,logs,None,NOW+20))
+                    join.defer_log(slot,sig,prefixes[(slot,sig)][0],NOW+20)
+
+    def test_retained_head_duplicate_is_idempotent_and_conflicts_preserve_both_budgets(self):
+        join,repairs,bound=self.multi_pressured(3);(slot,sig),logs,_,seen=repairs[0]
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            self.assertIsNone(join.complete_deferred_log(slot,sig,logs,seen))
+            before=copy.deepcopy(join.__dict__)
+            self.assertIsNone(join.complete_deferred_log(slot,sig,list(logs),seen+50))
+            self.assertEqual(join.__dict__,before)
+            # The join owns the retained list rather than the caller's mutable
+            # provider response, and keeps the original authenticated seen.
+            changed=list(logs);changed[-1]+=' changed'
+            for function in (lambda:join.complete_deferred_log(slot,sig,changed,seen+1),
+                             lambda:join.hold_complete_log(slot,sig,changed)):
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_content_conflict'):function()
+                self.assertEqual(join.__dict__,before)
+            logs.append('caller changed after admission')
+            self.assertEqual(join.__dict__,before)
+
+    def test_partial_preparation_cannot_be_retired_or_exposed_as_a_frame(self):
+        join,repairs,_=self.multi_pressured();key,logs,_,seen=repairs[0]
+        before=copy.deepcopy(join.__dict__)
+        plan=join._prepare_drain((key,(logs,None,seen)),partial=True)
+        self.assertIsNone(plan[3]);self.assertEqual(join.__dict__,before)
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_required_content_missing'):
+            join._finish_drain(plan)
+        self.assertEqual(join.__dict__,before)
+
+    def test_retained_head_admission_and_native_arrival_enforce_one_combined_byte_budget(self):
+        join,repairs,bound=self.multi_pressured();(slot,sig),logs,_,seen=repairs[0]
+        s=join.pending[slot]
+        charge=len(canonical(dict(slot=slot,blockTime=s['meta'].block_time.timestamp,
+            transactionIndex=next(i for i in s['log_required'] if s['signature_text'][i]==sig),
+            transaction=dict(signatures=[sig]),meta=dict(err=None,logMessages=logs))).encode())
+        # This simulates other retained native packets occupying the same
+        # already-existing budget, without allocating another large fixture.
+        s['bytes']=join.pending_bytes=bound-charge+1
+        before=copy.deepcopy(join.__dict__)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+                join.complete_deferred_log(slot,sig,logs,seen)
+            self.assertEqual(join.__dict__,before)
+            s['bytes']-=1;join.pending_bytes-=1
+            self.assertIsNone(join.complete_deferred_log(slot,sig,logs,seen))
+            self.assertEqual(join.pending_bytes,bound)
+            before=copy.deepcopy(join.__dict__)
+            u=pb.SubscribeUpdate(filters=['b']);u.block_meta.slot=slot+2
+            with self.assertRaisesRegex(EvidenceUnavailable,'yellowstone_census_buffer_bound'):
+                join.feed(u,u.ByteSize(),NOW+10)
+            self.assertEqual(join.__dict__,before)
+
+    def test_partial_head_never_retains_invalid_census_or_an_oversized_assembled_frame(self):
+        for fault in ('duplicate','index','frame'):
+            with self.subTest(fault=fault):
+                join,repairs,bound=self.multi_pressured();(slot,sig),logs,_,seen=repairs[0]
+                s=join.pending[slot]
+                if fault=='duplicate':
+                    index=max(s['statuses'])+1;s['statuses'][index]=next(iter(s['statuses'].values()))
+                    s['status_seen'][index]=NOW;s['meta'].executed_transaction_count=index+1;s['max_index']=index
+                elif fault=='index':s['max_index']=s['meta'].executed_transaction_count
+                before=copy.deepcopy(join.__dict__)
+                reason={'duplicate':'yellowstone_duplicate_signature','index':'yellowstone_transaction_index_shape',
+                    'frame':'candidate_commit_batch_bound'}[fault]
+                with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound), \
+                        patch('meme_machine.solana_candidate_join.CANDIDATE_COMMIT_BYTES',1 if fault=='frame' else 32*1024*1024):
+                    with self.assertRaisesRegex(EvidenceUnavailable,reason):
+                        join.complete_deferred_log(slot,sig,logs,seen)
+                self.assertEqual(join.__dict__,before)
+
+    def test_last_completion_checks_whole_frame_before_retiring_any_retained_field(self):
+        join,repairs,bound=self.multi_pressured();reference=copy.deepcopy(join)
+        expected=None
+        for key,logs,_,seen in repairs:expected=reference.complete_deferred_log(*key,logs,seen)
+        first,second=repairs
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            self.assertIsNone(join.complete_deferred_log(*first[0],first[1],first[3]))
+            before=copy.deepcopy(join.__dict__)
+            with patch('meme_machine.solana_candidate_join.CANDIDATE_COMMIT_BYTES',candidate_commit_size(expected)-1):
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_commit_batch_bound'):
+                    join.complete_deferred_log(*second[0],second[1],second[3])
+            self.assertEqual(join.__dict__,before)
+            actual=join.complete_deferred_log(*second[0],second[1],second[3])
+            self.assertEqual(actual,expected)
+
+    def test_new_earlier_native_slot_keeps_retained_later_head_fields_and_fifo_order(self):
+        join,repairs,bound=self.multi_pressured();(slot,sig),logs,_,seen=repairs[0]
+        join.filtered_from_slot=slot-1;reference=copy.deepcopy(join)
+        def earlier(target):
+            u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=slot-1;m.parent_slot=slot-2
+            m.blockhash='earlier';m.parent_blockhash='earlier-parent';m.block_time.timestamp=int(NOW)
+            return target.feed(u,u.ByteSize(),NOW+5)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            self.assertIsNone(join.complete_deferred_log(slot,sig,logs,seen))
+            retained=copy.deepcopy(join.completed_log_fields);charge=join.pending_bytes
+            self.assertIsNone(earlier(join));self.assertIsNone(earlier(reference))
+            self.assertEqual(join.completed_log_fields,retained);self.assertGreater(join.pending_bytes,charge)
+            second=repairs[1];before=copy.deepcopy(join.__dict__)
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+                join.complete_deferred_log(*second[0],second[1],second[3])
+            self.assertEqual(join.__dict__,before)
+            u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=slot-1;u.slot.parent=slot-2;u.slot.status=pb.SLOT_FINALIZED
+            first=join.feed(u,u.ByteSize(),NOW+6);expected_first=reference.feed(u,u.ByteSize(),NOW+6)
+            self.assertEqual(first,expected_first);self.assertEqual(first.update.block.slot,slot-1)
+            self.assertEqual(join.completed_log_fields,retained)
+            self.assertIsNone(reference.complete_deferred_log(slot,sig,logs,seen))
+            actual=join.complete_deferred_log(*second[0],second[1],second[3])
+            expected=reference.complete_deferred_log(*second[0],second[1],second[3])
+            self.assertEqual(actual,expected);self.assertEqual(actual.update.block.slot,slot)
+            self.assertEqual(join.pending_bytes,0);self.assertFalse(join.completed_log_fields)
+
     def test_only_ready_oldest_supplement_transfers_without_transient_overadmission(self):
         join,original,full,complete,receipt,bound=self.pressured()
         slot=full['slot'];sig=full['transaction']['signatures'][0]
@@ -174,10 +339,10 @@ class StreamFullLogContentTests(unittest.TestCase):
         with self.assertRaisesRegex(EvidenceUnavailable,'candidate_late_log_content'):
             join.feed_log(slot,sig,altered,None,NOW+3)
 
-    def test_not_ready_future_or_multiple_missing_replacement_cannot_release_capacity(self):
-        for fault in ('future','multiple','meta','finality','body'):
+    def test_not_ready_or_future_replacement_cannot_release_capacity(self):
+        for fault in ('future','meta','finality','body'):
             with self.subTest(fault=fault):
-                join,_,full,complete,_,bound=self.pressured(extra_missing=int(fault=='multiple'))
+                join,_,full,complete,_,bound=self.pressured()
                 slot=full['slot'];sig=full['transaction']['signatures'][0];s=join.pending[slot]
                 if fault=='future':join.pending[slot-1]=dict(started=join.clock(),meta=None,last_seen=NOW)
                 elif fault=='meta':s['meta']=None
@@ -1162,6 +1327,235 @@ class ArchiveFullLogContentTests(unittest.TestCase):
 
         asyncio.run(exercise())
         self.assertEqual(len(attempts), 3)
+
+    async def incomplete_archive_source(self,original,fetched,*,priority=3,upgrade=False):
+        """Real supplement authentication after an already committed page."""
+        from tests.test_solana_prewarm_startup import quiet_model_b
+        self.request(original)
+        self.h.gap(self.scope,original['slot'],original['slot'],'offline_archive_incomplete')
+        async def work(callback,*args,**metadata):return callback(self.state)
+        self.h.lifecycle.delivery_separated=False
+        done=asyncio.Event();done.set()
+        try:await quiet_model_b(work,done)
+        finally:self.h.lifecycle.delivery_separated=True
+        job,_=self.h.plan()
+        self.h.commit_page(job,dict(data=[],paginationToken='retained-archive-token'),
+            finalized_through=job['hi'])
+        if priority<=2:
+            self.h.request('pump',self.address,job['lo'],job['hi'],priority=priority,
+                deadline=job['deadline'])
+        job,_=self.h.plan()
+        baseline=self.snapshot()
+        source=SelectiveSource(SimpleNamespace(credential='offline',identity=ENDPOINT),None)
+        source.stop=asyncio.Event();source.batched=True
+        calls=[]
+        async def rpc(method,params,family,priority=4):
+            calls.append(method)
+            if method=='getTransactionsForAddress':return dict(data=[original],paginationToken=None)
+            if method=='getSlot':return original['slot']
+            self.assertEqual(method,'getTransaction')
+            if upgrade:
+                self.h.request('pump',self.address,job['lo'],job['hi'],priority=1,
+                    deadline=self.now[0]+3)
+            source.stop.set()
+            return fetched
+        source.work,source.measured_rpc=work,rpc
+        return source,job,baseline,calls
+
+    def assert_archive_evidence_unchanged(self,baseline,job):
+        # Model B startup legitimately publishes its two program predecessors.
+        # An unavailable archive page must leave that complete baseline intact,
+        # while its own candidate interval remains missing across restart.
+        current=self.snapshot()
+        for table,rows in baseline.items():
+            if table not in ('acquisition_jobs','acquisition_observations'):
+                self.assertEqual(current[table],rows,table)
+        self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),
+            [(job['lo'],job['hi'])])
+
+    def test_optional_truncated_provider_supplement_retains_job_gap_and_restart_without_false_coverage(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        inputs=canonical(original),canonical(fetched)
+        async def exercise():
+            source,job,baseline,calls=await self.incomplete_archive_source(original,fetched)
+            await source.acquire()
+            after=self.snapshot()
+            for table in baseline:
+                if table not in ('acquisition_jobs','acquisition_observations'):
+                    self.assertEqual(after[table],baseline[table],table)
+            row=self.h.db.execute('SELECT status,deadline,pages,token,lineage,error FROM acquisition_jobs '
+                'WHERE id=?',(job['id'],)).fetchone()
+            self.assertEqual(row[:5],('failed',job['deadline'],job['pages'],job['token'],job['lineage']))
+            error=json.loads(row[5])
+            self.assertEqual(error['kind'],'archive_provider_failure')
+            self.assertIn(':archive_log_check=fetched_log_truncation',error['diagnostic'])
+            for key in ('complete','economic_rejection','deadline_reset'):self.assertIs(error[key],False)
+            self.assertIs(error['candidate_retained'],True)
+            self.assertEqual(error['deadline'],job['deadline'])
+            self.assertEqual(calls,['getTransactionsForAddress','getSlot','getTransaction'])
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assertIsNone(self.h.plan())
+            self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
+            self.assert_archive_evidence_unchanged(baseline,job)
+            self.assertEqual((canonical(original),canonical(fetched)),inputs)
+            self.state.writer.close();self.open_owner()
+            self.assertEqual(self.snapshot(),after)
+            self.assertIsNone(self.h.plan())
+            self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
+            self.assert_archive_evidence_unchanged(baseline,job)
+        asyncio.run(exercise())
+
+    def test_accepted_optional_truncation_failure_commits_once_after_waiter_cancellation(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            source,job,baseline,calls=await self.incomplete_archive_source(original,fetched)
+            queued=asyncio.Event();accepted=[]
+            async def queued_work(callback,*args,**metadata):
+                # Accept the first owner command after the physical supplement
+                # response, but run it only after its async waiter has exited.
+                if calls and calls[-1]=='getTransaction' and not accepted:
+                    accepted.append(callback);queued.set()
+                    await asyncio.Future()
+                return callback(self.state)
+            source.work=queued_work
+            task=asyncio.create_task(source.acquire())
+            try:
+                await asyncio.wait_for(queued.wait(),1)
+                self.assertEqual(self.h.db.execute('SELECT status FROM acquisition_jobs WHERE id=?',
+                    (job['id'],)).fetchone(),('pending',))
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):await task
+            finally:
+                if not task.done():task.cancel()
+                await asyncio.gather(task,return_exceptions=True)
+            self.assertEqual(len(accepted),1)
+            self.assertFalse(self.state.acquisition_inflight)
+            accepted[0](self.state)
+            row=self.h.db.execute('SELECT status,deadline,pages,token,lineage,error FROM acquisition_jobs '
+                'WHERE id=?',(job['id'],)).fetchone()
+            self.assertEqual(row[:5],('failed',job['deadline'],job['pages'],job['token'],job['lineage']))
+            failure=json.loads(row[5])
+            self.assertIn(':archive_log_check=fetched_log_truncation',failure['diagnostic'])
+            for key in ('complete','economic_rejection','deadline_reset'):self.assertIs(failure[key],False)
+            self.assertIs(failure['candidate_retained'],True)
+            self.assertEqual(len(self.snapshot()['acquisition_observations']),
+                len(baseline['acquisition_observations'])+1)
+            after=self.snapshot()
+            accepted[0](self.state)
+            self.assertEqual(self.snapshot(),after)
+            for table in baseline:
+                if table not in ('acquisition_jobs','acquisition_observations'):
+                    self.assertEqual(after[table],baseline[table],table)
+            self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
+            self.assert_archive_evidence_unchanged(baseline,job)
+        asyncio.run(exercise())
+
+    def test_critical_truncated_provider_supplement_still_fails_closed(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            for priority in (2,1,0):
+                with self.subTest(priority=priority):
+                    self.state.writer.close()
+                    self.path=Path(self.tmp.name)/('critical-'+str(priority)+'.sqlite')
+                    self.open_owner()
+                    source,job,baseline,_=await self.incomplete_archive_source(original,fetched,priority=priority)
+                    with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
+                        await source.acquire()
+                    self.assertEqual(caught.exception.archive_log_failure_check,'fetched_log_truncation')
+                    self.assertEqual(self.snapshot(),baseline)
+                    self.assertFalse(self.state.acquisition_inflight)
+                    self.assert_archive_evidence_unchanged(baseline,job)
+        asyncio.run(exercise())
+
+    def test_inflight_protective_upgrade_cannot_borrow_optional_truncation_isolation(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            source,job,baseline,_=await self.incomplete_archive_source(original,fetched,upgrade=True)
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_protective_acquisition_failed'):
+                await source.acquire()
+            self.assertEqual(self.h.db.execute('SELECT status,priority,deadline,pages,token,lineage FROM '
+                'acquisition_jobs WHERE id=?',(job['id'],)).fetchone(),
+                ('pending',1,self.now[0]+3,job['pages'],job['token'],job['lineage']))
+            self.assertEqual(self.snapshot()['acquisition_observations'],baseline['acquisition_observations'])
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assert_archive_evidence_unchanged(baseline,job)
+        asyncio.run(exercise())
+
+    def test_optional_archive_identity_corruption_still_aborts_instead_of_becoming_provider_incomplete(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['transaction']['signatures'][0]='wrong-native-identity'
+        # A truncation marker must not hide the earlier identity contradiction.
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            source,job,baseline,_=await self.incomplete_archive_source(original,fetched)
+            with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
+                await source.acquire()
+            self.assertEqual(caught.exception.archive_log_failure_check,'transaction_identity')
+            self.assertEqual(self.snapshot(),baseline)
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assert_archive_evidence_unchanged(baseline,job)
+        asyncio.run(exercise())
+
+    def test_optional_complete_supplement_with_conflicting_prefix_still_aborts(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'][0]='different original prefix'
+        async def exercise():
+            source,job,baseline,_=await self.incomplete_archive_source(original,fetched)
+            with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
+                await source.acquire()
+            self.assertEqual(caught.exception.archive_log_failure_check,'prefix')
+            self.assertEqual(self.snapshot(),baseline)
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assert_archive_evidence_unchanged(baseline,job)
+        asyncio.run(exercise())
+
+    def test_optional_truncation_with_hidden_log_contradictions_still_aborts(self):
+        async def exercise():
+            for fault in ('prefix','malformed_after_marker','original_marker_count',
+                          'fetched_marker_count','unproven_retained_suffix'):
+                with self.subTest(fault=fault):
+                    self.state.writer.close()
+                    self.path=Path(self.tmp.name)/(fault+'.sqlite');self.open_owner()
+                    original,fetched,_,_=truncated_transaction()
+                    fetched['meta']['logMessages'].append('Log truncated')
+                    if fault=='prefix':fetched['meta']['logMessages'][0]='conflicting original prefix'
+                    elif fault=='malformed_after_marker':fetched['meta']['logMessages'].append(17)
+                    elif fault=='original_marker_count':original['meta']['logMessages'].append('Log truncated')
+                    elif fault=='fetched_marker_count':fetched['meta']['logMessages'].append('Log truncated')
+                    else:original['meta']['logMessages'].append('Program log: unproven retained suffix')
+                    inputs=canonical(original),canonical(fetched)
+                    source,job,baseline,_=await self.incomplete_archive_source(original,fetched)
+                    with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
+                        await source.acquire()
+                    # Preserve the original authenticator's rejection order;
+                    # containment must independently reject these mixed faults.
+                    self.assertEqual(caught.exception.archive_log_failure_check,'fetched_log_truncation')
+                    self.assertEqual(self.snapshot(),baseline)
+                    self.assertFalse(self.state.acquisition_inflight)
+                    self.assertEqual((canonical(original),canonical(fetched)),inputs)
+                    self.assert_archive_evidence_unchanged(baseline,job)
+        asyncio.run(exercise())
+
+    def test_optional_truncation_with_all_retained_suffix_lines_remains_local(self):
+        original,fetched,_,_,_=retained_suffix_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            source,job,baseline,_=await self.incomplete_archive_source(original,fetched)
+            await source.acquire()
+            self.assertEqual(self.h.db.execute('SELECT status,deadline,pages,token FROM acquisition_jobs '
+                'WHERE id=?',(job['id'],)).fetchone(),
+                ('failed',job['deadline'],job['pages'],job['token']))
+            after=self.snapshot()
+            for table in baseline:
+                if table not in ('acquisition_jobs','acquisition_observations'):
+                    self.assertEqual(after[table],baseline[table],table)
+            self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
+            self.assert_archive_evidence_unchanged(baseline,job)
+        asyncio.run(exercise())
 
 
 class ArchiveFailureDiscriminatorTests(unittest.TestCase):
