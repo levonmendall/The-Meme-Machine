@@ -325,3 +325,75 @@ with ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context('
                     self.assertIn('writer_failed', native)
                 if isinstance(error, sqlite3.Error):
                     self.assertIn('SQLITE_BUSY', native)
+
+
+class ImmutableCapacityProposalTests(unittest.TestCase):
+    """Pure producer tests; candidate code and providers are never executed."""
+    def setUp(self):
+        import importlib.util
+        path=Path(__file__).resolve().parents[1]/'engineering/ec2_capacity/authorization_producer.py'
+        spec=importlib.util.spec_from_file_location('offline_capacity_authorizer',path)
+        self.module=importlib.util.module_from_spec(spec);spec.loader.exec_module(self.module)
+        self.template=json.loads((path.parent/'release-template.json').read_bytes())
+        self.commit='a'*40;self.tree='b'*40;self.previous='c'*40
+        self.files={'meme_machine/operational/managed_capacity_workload.py':'d'*64}
+        self.release=dict(self.template,application_commit=self.commit,application_tree=self.tree,
+                          application_files=self.files)
+        self.release_sha=self.module.sha(self.module.canonical(self.release))
+        self.rows=[dict(id=101+index,run_attempt=1,workflow_id=wid,path=path,
+            head_sha=self.commit,status='completed',conclusion='success',event='pull_request',
+            repository={'full_name':self.module.REPO},head_repository={'full_name':self.module.REPO})
+            for index,(wid,path) in enumerate(self.module.CI.items())]
+
+    def build(self,**changes):
+        args=dict(commit=self.commit,tree=self.tree,files=self.files,previous_commit=self.previous,
+            previous_release='e'*64,expected_release=self.release_sha,review='f'*64,
+            ci_rows=self.rows,producer_run=501,producer_attempt=1)
+        args.update(changes)
+        return self.module.release_manifest(self.template,**args)
+
+    def test_manifest_reconstructs_exact_frozen_release_and_binds_previous_and_review(self):
+        value=self.build()
+        self.assertEqual(value['release'],self.release)
+        self.assertEqual(value['release_sha256'],self.release_sha)
+        self.assertEqual(value['previous_release_sha256'],'e'*64)
+        self.assertEqual(value['review_evidence_sha256'],'f'*64)
+        self.assertEqual(value['ci_runs'],[{'run_id':101,'attempt':1},{'run_id':102,'attempt':1}])
+        self.assertNotIn('approval',value) # The producer cannot approve itself.
+        title=self.module.producer_title(self.commit,'e'*64,self.release_sha,'f'*64)
+        self.assertEqual(title,'EC2AUTH '+self.commit+' '+'e'*64+' '+self.release_sha+' '+'f'*64)
+        self.assertLess(len(title),256)
+
+    def test_wrong_source_or_release_digests_fail_before_publication(self):
+        for changes in ({'expected_release':'0'*64},{'tree':'0'*40},
+                        {'files':dict(self.files,unexpected='0'*64)},
+                        {'commit':'main'},{'review':'not-an-approval'}):
+            with self.subTest(changes=changes),self.assertRaises(ValueError):self.build(**changes)
+
+    def test_ci_requires_exact_completed_source_repository_workflow_and_distinct_runs(self):
+        import copy
+        for changes in ({'head_sha':'0'*40},{'conclusion':'failure'}, {'status':'in_progress'},
+                        {'event':'workflow_dispatch'},{'path':'.github/workflows/fake.yml'},
+                        {'head_repository':{'full_name':'attacker/fork'}}):
+            rows=copy.deepcopy(self.rows);rows[0].update(changes)
+            with self.subTest(changes=changes),self.assertRaises(ValueError):self.build(ci_rows=rows)
+        with self.assertRaises(ValueError):self.build(ci_rows=[self.rows[0],self.rows[0]])
+
+    def test_real_committed_blob_census_never_executes_candidate_and_rejects_symlink(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);source=root/'meme_machine/operational';source.mkdir(parents=True)
+            candidate=source/'managed_capacity_workload.py'
+            candidate.write_text("raise RuntimeError('candidate must never execute')\n")
+            def git(*args):
+                return subprocess.check_output(['/usr/bin/git','-c','user.name=Offline',
+                    '-c','user.email=offline@example.invalid','-C',str(root),*args],
+                    stderr=subprocess.DEVNULL).decode().strip()
+            git('init','-q');git('add','.');git('commit','-qm','offline source')
+            commit=git('rev-parse','HEAD');tree,files=self.module.source_census(root,commit)
+            self.assertEqual(tree,git('rev-parse','HEAD^{tree}'))
+            self.assertEqual(files['meme_machine/operational/managed_capacity_workload.py'],
+                             self.module.sha(candidate.read_bytes()))
+            with self.assertRaises(ValueError):self.module.source_census(root,'0'*40)
+            (root/'untrusted-link').symlink_to('/etc/passwd');git('add','.');git('commit','-qm','symlink')
+            with self.assertRaisesRegex(ValueError,'regular_files_only'):
+                self.module.source_census(root,git('rev-parse','HEAD'))

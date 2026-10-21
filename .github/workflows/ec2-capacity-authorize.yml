@@ -1,0 +1,88 @@
+name: Propose immutable isolated EC2 release
+run-name: EC2AUTH ${{ inputs.application_commit }} ${{ inputs.previous_release_sha256 }} ${{ inputs.release_sha256 }} ${{ inputs.review_evidence_sha256 }}
+on:
+  workflow_dispatch:
+    inputs:
+      application_commit:
+        type: string
+        required: true
+      previous_application_commit:
+        type: string
+        required: true
+      previous_release_sha256:
+        type: string
+        required: true
+      release_sha256:
+        type: string
+        required: true
+      native_ci_run:
+        type: string
+        required: true
+      adjacent_ci_run:
+        type: string
+        required: true
+      review_evidence_sha256:
+        type: string
+        required: true
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+concurrency:
+  group: isolated-capacity-release-proposals
+  cancel-in-progress: false
+jobs:
+  propose:
+    if: >-
+      github.repository == 'levonmendall/The-Meme-Machine' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.actor == 'levonmendall' &&
+      github.event.sender.id == 307779841
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Propose checked bytes only; no EC2 installation or approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CAPACITY_APPLICATION: ${{ inputs.application_commit }}
+          CAPACITY_PREVIOUS_APPLICATION: ${{ inputs.previous_application_commit }}
+          CAPACITY_PREVIOUS_RELEASE: ${{ inputs.previous_release_sha256 }}
+          CAPACITY_RELEASE: ${{ inputs.release_sha256 }}
+          CAPACITY_NATIVE_CI_RUN: ${{ inputs.native_ci_run }}
+          CAPACITY_ADJACENT_CI_RUN: ${{ inputs.adjacent_ci_run }}
+          CAPACITY_REVIEW: ${{ inputs.review_evidence_sha256 }}
+          CAPACITY_SOURCE: ${{ runner.temp }}/capacity-source.git
+          GIT_CONFIG_NOSYSTEM: '1'
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          set -euo pipefail
+          python3 -I -B - <<'PY'
+          import os,re
+          for name,size in (('CAPACITY_APPLICATION',40),('CAPACITY_PREVIOUS_APPLICATION',40),
+              ('CAPACITY_PREVIOUS_RELEASE',64),('CAPACITY_RELEASE',64),('CAPACITY_REVIEW',64)):
+              if not re.fullmatch('[0-9a-f]{%d}'%size,os.environ[name]):
+                  raise SystemExit('exact_release_inputs_required')
+          for name in ('CAPACITY_NATIVE_CI_RUN','CAPACITY_ADJACENT_CI_RUN'):
+              if not re.fullmatch('[1-9][0-9]{0,19}',os.environ[name]):
+                  raise SystemExit('exact_ci_run_required')
+          PY
+          git -c core.hooksPath=/dev/null init --bare -q "$CAPACITY_SOURCE"
+          git -C "$CAPACITY_SOURCE" -c core.hooksPath=/dev/null fetch -q --no-tags --depth=1 https://github.com/levonmendall/The-Meme-Machine.git "$CAPACITY_APPLICATION"
+          git -C "$CAPACITY_SOURCE" -c core.hooksPath=/dev/null update-ref HEAD FETCH_HEAD
+          python3 -I -B - <<'PY'
+          import hashlib,pathlib
+          path=pathlib.Path('engineering/ec2_capacity/authorization_producer.py').resolve(strict=True)
+          body=path.read_bytes()
+          if hashlib.sha256(body).hexdigest()!='7cf2c03d9aa00bce0bc0717560d8e0f11ec932a33ecf207d0e77add7deabfdee':
+              raise SystemExit('pinned_producer_required')
+          template=path.parent/'release-template.json'
+          if hashlib.sha256(template.read_bytes()).hexdigest()!='7165a18029168fbfb7b199293234ac016e20cac53cba3a33dbb5c37e1f1823ae':
+              raise SystemExit('pinned_template_required')
+          exec(compile(body,str(path),'exec'),dict(__file__=str(path),__name__='__main__'))
+          PY
