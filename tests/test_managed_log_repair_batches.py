@@ -271,10 +271,15 @@ class RepairLogOccupancyTests(unittest.IsolatedAsyncioTestCase):
                 self.assertLessEqual(join.early_log_bytes,bound)
                 self.assertGreater(join.early_log_bytes,bound//2)
                 self.assertNotIn((slot,wrong),join.early_logs)
+                self.assertLessEqual(join.early_log_bytes+len(str(['future']).encode()),bound)
             finally:
                 stop.set();progress.set()
                 results=await asyncio.gather(required,unrelated,return_exceptions=True)
-            self.assertIsInstance(results[1],asyncio.CancelledError)
+            # The unrelated signature has no native exception while intake is
+            # open. Once intake closes, its already accepted packet may use
+            # the remaining hard headroom; waiting itself mutates no content.
+            self.assertIsNone(results[1])
+            self.assertNotIn((slot,wrong),join.early_logs)
 
     async def test_authenticated_http_completion_frees_existing_join_and_wakes_future_packet(self):
         from meme_machine.solana_selective_source import wait_candidate_log_space
@@ -327,6 +332,11 @@ class RepairLogOccupancyTests(unittest.IsolatedAsyncioTestCase):
             ticks=iter((0,121));join.clock=lambda:next(ticks)
             with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
                 await wait_candidate_log_space(join,progress,stop,stop,slot,'future',['held'])
+        # Closing a merely soft-limited packet can now finish in hard
+        # headroom. This cancellation case must exhaust that original hard
+        # bound, not demand abandonment of an otherwise admissible packet.
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',join.early_log_bytes), \
+                patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',join.early_log_bytes):
             join.clock=lambda:0
             waiting=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,slot,'future',['held']))
             await asyncio.sleep(.01);self.assertFalse(waiting.done());stop.set();progress.set()
