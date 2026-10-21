@@ -1163,6 +1163,134 @@ class ArchiveFullLogContentTests(unittest.TestCase):
         asyncio.run(exercise())
         self.assertEqual(len(attempts), 3)
 
+    async def incomplete_archive_source(self,original,fetched,*,priority=3,upgrade=False):
+        """Real supplement authentication after an already committed page."""
+        from tests.test_solana_prewarm_startup import quiet_model_b
+        self.request(original)
+        self.h.gap(self.scope,original['slot'],original['slot'],'offline_archive_incomplete')
+        async def work(callback,*args,**metadata):return callback(self.state)
+        self.h.lifecycle.delivery_separated=False
+        done=asyncio.Event();done.set()
+        try:await quiet_model_b(work,done)
+        finally:self.h.lifecycle.delivery_separated=True
+        job,_=self.h.plan()
+        self.h.commit_page(job,dict(data=[],paginationToken='retained-archive-token'),
+            finalized_through=job['hi'])
+        if priority<=2:
+            self.h.request('pump',self.address,job['lo'],job['hi'],priority=priority,
+                deadline=job['deadline'])
+        job,_=self.h.plan()
+        baseline=self.snapshot()
+        source=SelectiveSource(SimpleNamespace(credential='offline',identity=ENDPOINT),None)
+        source.stop=asyncio.Event();source.batched=True
+        calls=[]
+        async def rpc(method,params,family,priority=4):
+            calls.append(method)
+            if method=='getTransactionsForAddress':return dict(data=[original],paginationToken=None)
+            if method=='getSlot':return original['slot']
+            self.assertEqual(method,'getTransaction')
+            if upgrade:
+                self.h.request('pump',self.address,job['lo'],job['hi'],priority=1,
+                    deadline=self.now[0]+3)
+            source.stop.set()
+            return fetched
+        source.work,source.measured_rpc=work,rpc
+        return source,job,baseline,calls
+
+    def test_optional_truncated_provider_supplement_retains_job_gap_and_restart_without_false_coverage(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        inputs=canonical(original),canonical(fetched)
+        async def exercise():
+            source,job,baseline,calls=await self.incomplete_archive_source(original,fetched)
+            await source.acquire()
+            after=self.snapshot()
+            for table in baseline:
+                if table not in ('acquisition_jobs','acquisition_observations'):
+                    self.assertEqual(after[table],baseline[table],table)
+            row=self.h.db.execute('SELECT status,deadline,pages,token,lineage,error FROM acquisition_jobs '
+                'WHERE id=?',(job['id'],)).fetchone()
+            self.assertEqual(row[:5],('failed',job['deadline'],job['pages'],job['token'],job['lineage']))
+            error=json.loads(row[5])
+            self.assertEqual(error['kind'],'archive_provider_failure')
+            self.assertIn(':archive_log_check=fetched_log_truncation',error['diagnostic'])
+            for key in ('complete','economic_rejection','deadline_reset'):self.assertIs(error[key],False)
+            self.assertIs(error['candidate_retained'],True)
+            self.assertEqual(error['deadline'],job['deadline'])
+            self.assertEqual(calls,['getTransactionsForAddress','getSlot','getTransaction'])
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assertIsNone(self.h.plan())
+            self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
+            self.assert_unpublished()
+            self.assertEqual((canonical(original),canonical(fetched)),inputs)
+            self.state.writer.close();self.open_owner()
+            self.assertEqual(self.snapshot(),after)
+            self.assertIsNone(self.h.plan())
+            self.assertEqual(self.h.lifecycle.missing(self.scope,job['lo'],job['hi']),[(job['lo'],job['hi'])])
+            self.assert_unpublished()
+        asyncio.run(exercise())
+
+    def test_critical_truncated_provider_supplement_still_fails_closed(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            for priority in (2,1,0):
+                with self.subTest(priority=priority):
+                    self.state.writer.close()
+                    self.path=Path(self.tmp.name)/('critical-'+str(priority)+'.sqlite')
+                    self.open_owner()
+                    source,job,baseline,_=await self.incomplete_archive_source(original,fetched,priority=priority)
+                    with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
+                        await source.acquire()
+                    self.assertEqual(caught.exception.archive_log_failure_check,'fetched_log_truncation')
+                    self.assertEqual(self.snapshot(),baseline)
+                    self.assertFalse(self.state.acquisition_inflight)
+                    self.assert_unpublished()
+        asyncio.run(exercise())
+
+    def test_inflight_protective_upgrade_cannot_borrow_optional_truncation_isolation(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            source,job,baseline,_=await self.incomplete_archive_source(original,fetched,upgrade=True)
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_protective_acquisition_failed'):
+                await source.acquire()
+            self.assertEqual(self.h.db.execute('SELECT status,priority,deadline,pages,token,lineage FROM '
+                'acquisition_jobs WHERE id=?',(job['id'],)).fetchone(),
+                ('pending',1,self.now[0]+3,job['pages'],job['token'],job['lineage']))
+            self.assertEqual(self.snapshot()['acquisition_observations'],baseline['acquisition_observations'])
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assert_unpublished()
+        asyncio.run(exercise())
+
+    def test_optional_archive_identity_corruption_still_aborts_instead_of_becoming_provider_incomplete(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['transaction']['signatures'][0]='wrong-native-identity'
+        # A truncation marker must not hide the earlier identity contradiction.
+        fetched['meta']['logMessages'].append('Log truncated')
+        async def exercise():
+            source,_,baseline,_=await self.incomplete_archive_source(original,fetched)
+            with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
+                await source.acquire()
+            self.assertEqual(caught.exception.archive_log_failure_check,'transaction_identity')
+            self.assertEqual(self.snapshot(),baseline)
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assert_unpublished()
+        asyncio.run(exercise())
+
+    def test_optional_complete_supplement_with_conflicting_prefix_still_aborts(self):
+        original,fetched,_,_=truncated_transaction()
+        fetched['meta']['logMessages'][0]='different original prefix'
+        async def exercise():
+            source,_,baseline,_=await self.incomplete_archive_source(original,fetched)
+            with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:
+                await source.acquire()
+            self.assertEqual(caught.exception.archive_log_failure_check,'prefix')
+            self.assertEqual(self.snapshot(),baseline)
+            self.assertFalse(self.state.acquisition_inflight)
+            self.assert_unpublished()
+        asyncio.run(exercise())
+
 
 class ArchiveFailureDiscriminatorTests(unittest.TestCase):
     """Fixed attribution leaves every existing rejection and raw input intact."""

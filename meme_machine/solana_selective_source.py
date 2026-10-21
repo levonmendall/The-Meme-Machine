@@ -1974,10 +1974,22 @@ class SelectiveSource:
                 await self.work(lambda state:install(state).defer_provider_failure(job,
                     retryable=exc.retryable,diagnostic=failure_diagnostic(exc)),job['priority'])
             except EvidenceUnavailable as exc:
-                if str(exc)!='bootstrap_optional_work_closed':raise
-                await self.work(lambda state:install(state)._observation(job['id'],
-                    'bootstrap_optional_work_closed',dict(candidate_retained=True,complete=False,
-                        deadline=job['deadline'],funding_closed=True)),1)
+                if (type(exc) is EvidenceUnavailable
+                        and exc.args==('archive_log_supplement_identity_unverified',)
+                        and getattr(exc,'archive_log_failure_check',None)=='fetched_log_truncation'):
+                    # This provider response still lacks complete logs. Reject
+                    # the page, retain its missing interval and original lease,
+                    # and avoid retrying an unchanged optional archive request.
+                    # The owner rechecks priority in case protection upgraded it
+                    # while the RPC was in flight. Other identity failures escape.
+                    if job['priority']<=2:raise
+                    await self.work(lambda state:install(state).defer_provider_failure(job,
+                        retryable=False,diagnostic=failure_diagnostic(exc)),job['priority'])
+                elif str(exc)=='bootstrap_optional_work_closed':
+                    await self.work(lambda state:install(state)._observation(job['id'],
+                        'bootstrap_optional_work_closed',dict(candidate_retained=True,complete=False,
+                            deadline=job['deadline'],funding_closed=True)),1)
+                else:raise
             finally:
                 await self.work(lambda state:state.acquisition_inflight.discard(job['id']),1)
 
