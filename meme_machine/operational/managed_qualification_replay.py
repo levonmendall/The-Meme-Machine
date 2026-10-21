@@ -83,6 +83,7 @@ def compare_readers(config, *, until, as_of, decision_target=None):
         path = directory / (name + '.sqlite')
         costs = {phase: dict(calls=0, wall_nanoseconds=0, cpu_nanoseconds=0)
                  for phase in ('native_reference', 'creation_history')}
+        by_stage = {}
         def measured(phase, operation, *args, **kwargs):
             wall, cpu = time.perf_counter_ns(), time.thread_time_ns()
             try:
@@ -98,10 +99,29 @@ def compare_readers(config, *, until, as_of, decision_target=None):
                 return path
 
             def _history_event(self, *args, **kwargs):
+                self._input_selects = dict(counts)
+                self._input_read = dict(costs['native_reference'])
                 return measured('native_reference', super()._history_event, *args, **kwargs)
 
             def _creation_events(self, *args, **kwargs):
                 return measured('creation_history', super()._creation_events, *args, **kwargs)
+
+            def _evaluate(self, *args):
+                wall, cpu = time.perf_counter_ns(), time.thread_time_ns()
+                result = super()._evaluate(*args)
+                stage = by_stage.setdefault(result[0]['stage'], dict(events=0,
+                    qualification_wall_nanoseconds=0, qualification_cpu_nanoseconds=0,
+                    reference_wall_nanoseconds=0, reference_cpu_nanoseconds=0,
+                    history_selects=0, canonical_selects=0, source_selects=0))
+                stage['events'] += 1
+                stage['qualification_wall_nanoseconds'] += time.perf_counter_ns()-wall
+                stage['qualification_cpu_nanoseconds'] += time.thread_time_ns()-cpu
+                for kind in ('wall', 'cpu'):
+                    key = kind+'_nanoseconds'
+                    stage['reference_'+key] += costs['native_reference'][key]-self._input_read[key]
+                for key in counts:
+                    stage[key] += counts[key]-self._input_selects[key]
+                return result
         provider = NoNetworkProvider()
         reader = Reader(config, clock=lambda: as_of, provider=provider,
                         decision_target=decision_target)
@@ -153,6 +173,7 @@ def compare_readers(config, *, until, as_of, decision_target=None):
             reader.close()
         elapsed, cpu_seconds = time.monotonic()-begun, time.thread_time()-cpu
         read_costs = {key: dict(value) for key, value in costs.items()}
+        stage_costs = {key: dict(value) for key, value in by_stage.items()}
         # Reopen the exact private observation store through the normal reader
         # identity/rebuild path, rather than treating file existence as recovery.
         resumed = Reader(config, clock=lambda: as_of, provider=NoNetworkProvider(),
@@ -176,6 +197,7 @@ def compare_readers(config, *, until, as_of, decision_target=None):
             missing_provider_inputs=provider.missing, **counts,
             source_selects_complete=source_complete,
             read_costs=read_costs,
+            stage_costs=stage_costs,
             elapsed_seconds=elapsed, cpu_seconds=cpu_seconds))
     reference, optimized = results
     coherent = all(reference[key] == optimized[key] for key in
