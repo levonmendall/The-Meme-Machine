@@ -304,6 +304,90 @@ class QualificationReader:
                 _owned_path(directory, directory=True)
                 _owned_path(path)
 
+    def _checked_reference(self, raw):
+        """Guard a selected locator before the unchanged native authenticator.
+
+        A selected reference belongs to this one read only. Nothing is cached
+        across source/history commits or used to advance the native cursor.
+        """
+        ref = json.loads(raw)
+        if ref['path'] != str(self.config.evidence):
+            raise ValueError('managed_pump_foreign_qualification_reference')
+        archive = self.plane.reader.db.execute(
+            'SELECT archive FROM canonical_evidence WHERE identity=?',
+            (ref['canonical_identity'],)).fetchone()
+        if archive and archive[0]:
+            manifest = self.plane.reader.db.execute(
+                'SELECT path FROM scoped_cold_manifests WHERE id=?',
+                (archive[0],)).fetchone()
+            if manifest is None:
+                raise ValueError('managed_pump_missing_qualification_archive')
+            path = Path(manifest[0])
+            from .managed_native_pump import _owned_path
+            directory = self.config.evidence.with_suffix('.scoped-cold')
+            if (path.parent != directory or len(path.name) != 69
+                    or not path.name.endswith('.zlib')
+                    or any(c not in '0123456789abcdef' for c in path.name[:-5])):
+                raise ValueError('managed_pump_foreign_qualification_archive')
+            _owned_path(directory, directory=True)
+            _owned_path(path)
+        return ref
+
+    def _history_event(self, mint, identity):
+        """Select a compact reference once, retaining legacy-event precedence."""
+        from meme_machine.runtime.journal import digest
+        reference = self.history.db.execute(
+            'SELECT kind,body,hash FROM canonical_event_refs WHERE lane=? AND candidate=? AND identity=?',
+            ('pump', mint, identity)).fetchone()
+        ref = None if reference is None else self._checked_reference(reference[1])
+        legacy = self.history.db.execute(
+            'SELECT body,hash FROM events WHERE lane=? AND candidate=? AND identity=?',
+            ('pump', mint, identity)).fetchone()
+        if legacy is not None:
+            body = json.loads(legacy[0])
+            if digest(body) != legacy[1]:
+                raise ValueError('candidate_history_corruption')
+            return body
+        if reference is None:
+            return None
+        if digest(ref) != reference[2]:
+            raise ValueError('candidate_history_corruption')
+        return self.history._reference_body('pump', mint, identity, reference[0], ref)
+
+    def _creation_events(self, mint):
+        """Read/guard creation references once, with native ordering/cancellation."""
+        from meme_machine.runtime.journal import digest
+        references = self.history.db.execute(
+            'SELECT identity,kind,body,hash FROM canonical_event_refs WHERE lane=? AND candidate=? AND kind=?',
+            ('pump', mint, 'pump_create')).fetchall()
+        guarded = [(identity, kind, self._checked_reference(raw), checksum)
+                   for identity, kind, raw, checksum in references]
+        result = []
+        with self.history._startup_read(self.cancelled.is_set) as check:
+            # Preserve the original legacy query and both populations. A
+            # reference does not suppress an independently retained legacy row.
+            sql = '''SELECT body,hash FROM events WHERE lane=? AND candidate=? AND kind=?
+                ORDER BY slot,(COALESCE(json_extract(body,'$.payload._economic_order'),transaction_index) IS NULL),COALESCE(json_extract(body,'$.payload._economic_order'),transaction_index),event_index,identity'''
+            for raw, checksum in self.history.db.execute(sql, ('pump', mint, 'pump_create')):
+                check()
+                body = json.loads(raw)
+                if digest(body) != checksum:
+                    raise ValueError('candidate_history_corruption')
+                result.append(body)
+            archives = {}
+            try:
+                for identity, kind, ref, checksum in guarded:
+                    check()
+                    if digest(ref) != checksum:
+                        raise ValueError('candidate_history_corruption')
+                    result.append(self.history._reference_body('pump', mint, identity, kind, ref,
+                        _archive_cache=archives, _check=check))
+                result.sort(key=lambda r:(r['slot'],r['payload'].get('_economic_order',r['transaction_index']) is None,
+                    r['payload'].get('_economic_order',r['transaction_index']) or 0,r['event_index'],r['identity']))
+            finally:
+                archives.clear()
+        return result
+
     def _evaluate(self, row, record):
         from meme_machine.lanes.pump.runner import _late_stream_signal, _late_stream_prospect
         from meme_machine.lanes.pump.pump_acceleration_strategy import POLICY, qualify
@@ -323,9 +407,7 @@ class QualificationReader:
             return dict(observed, stage='postgraduation_unproven'), None
         if kind != 'trade':
             return dict(observed, stage='native_observation_only'), None
-        self._reference_scope(mint, kind='pump_create')
-        creations = self.history.events('pump', mint, kind='pump_create',
-                                        cancelled=self.cancelled.is_set)
+        creations = self._creation_events(mint)
         if not creations:
             return dict(observed, stage='creation_unavailable'), None
         creation = creations[0]['payload']
@@ -420,8 +502,7 @@ class QualificationReader:
                 canonical = decode_body(row[1], reader.db)
                 mint, identity = canonical['payload']['event']['mint'], canonical['identity']
                 history_identity = 'pump-source:' + identity
-                self._reference_scope(mint, history_identity)
-                record = self.history.event('pump', mint, history_identity)
+                record = self._history_event(mint, history_identity)
                 if record is None:
                     # Canonical delivery precedes CandidateHistory publication.
                     # Keep this exact native cursor pending until publication.

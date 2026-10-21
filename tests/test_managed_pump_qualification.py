@@ -8,12 +8,277 @@ from pathlib import Path
 import sqlite3
 import struct
 import unittest
+import zlib
 from unittest.mock import Mock, patch
 
 from meme_machine.operational import managed_native_pump as managed
 from meme_machine.operational import managed_pump_qualification as qualification
 from meme_machine.runtime.candidate_history import CandidateHistory
 from tests import test_managed_native_pump as fixtures
+
+
+class _BaselineQualificationReader(qualification.QualificationReader):
+    """Exactly the predecessor read pairs, with the same strategy/cursor code."""
+    def _history_event(self, mint, identity):
+        self._reference_scope(mint, identity)
+        return self.history.event('pump', mint, identity)
+
+    def _creation_events(self, mint):
+        self._reference_scope(mint, kind='pump_create')
+        return self.history.events('pump', mint, kind='pump_create',
+                                   cancelled=self.cancelled.is_set)
+
+
+class ReaderSQLTests(unittest.TestCase):
+    def setUp(self):
+        from tests.test_managed_pump_discovery_publication import GlobalPumpPublicationTests
+        self.fixture = GlobalPumpPublicationTests()
+        self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+        self.config = self.fixture.config
+        self.row = self.fixture.trade()
+        self.mint = self.row.payload['event']['mint']
+        self.identity = 'pump-source:' + self.row.identity
+        self.fixture.history.ingest([self.row])
+
+    def worker(self, baseline=False, name=None):
+        parent = _BaselineQualificationReader if baseline else qualification.QualificationReader
+        config = self.config
+        name = name or ('baseline' if baseline else 'optimized')
+        class Reader(parent):
+            @property
+            def path(self):
+                return Path(config.root) / (name + '-qualification.sqlite')
+        worker = Reader(config, clock=lambda: self.row.observed_at + 1)
+        self.addCleanup(worker.close)
+        self.assertTrue(worker._open())
+        return worker
+
+    def publish(self):
+        from meme_machine.solana_history_delivery import capture, deliver, acknowledge
+        snapshot = capture(self.fixture.life)
+        self.assertTrue(acknowledge(self.fixture.life, snapshot, deliver(snapshot)))
+
+    def publish_creation(self):
+        from meme_machine.solana_selective_history import PROGRAMS, economic_records
+        from tests.test_solana_selective_evidence import FIXTURE
+        creation = next(row for tx in FIXTURE['pump'] for row in economic_records(
+            'pump', PROGRAMS['pump'], deepcopy(tx),
+            endpoint_identity=self.fixture.history.endpoint_identity,
+            seen=self.row.observed_at, source='alchemy_finalized_stream')
+            if row.payload['event']['event_type'] == 'create'
+            and row.payload['event']['mint'] == self.mint)
+        self.fixture.history.ingest([creation])
+        self.publish()
+        return creation
+
+    def traced(self, worker, fn):
+        statements = []
+        connections = [worker.history.db, worker.plane.reader.db,
+                       *getattr(worker.history, '_source_readers', {}).values()]
+        for db in connections:
+            db.set_trace_callback(statements.append)
+        try:
+            value = fn()
+        finally:
+            for db in connections:
+                db.set_trace_callback(None)
+        selects = [sql for sql in statements if sql.lstrip().upper().startswith('SELECT')]
+        return value, selects
+
+    def observations(self, worker):
+        return worker.db.execute('SELECT * FROM observations ORDER BY sequence').fetchall()
+
+    def test_real_compact_reference_reuses_selection_and_keeps_fresh_source_authentication(self):
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        for worker in (old, new):
+            worker._history_event(self.mint, self.identity)  # Open each native reference reader.
+        before, old_sql = self.traced(old, lambda:old._history_event(self.mint, self.identity))
+        after, new_sql = self.traced(new, lambda:new._history_event(self.mint, self.identity))
+        self.assertEqual(before, after)
+        self.assertEqual((len(old_sql), len(new_sql)), (5, 4))
+        for statements in (old_sql, new_sql):
+            self.assertEqual(sum('SELECT archive FROM canonical_evidence' in sql for sql in statements), 1)
+            self.assertEqual(sum('SELECT body,hash,archive FROM canonical_evidence' in sql for sql in statements), 1)
+        self.assertEqual(sum('FROM canonical_event_refs' in sql for sql in new_sql), 1)
+
+    def test_missing_creation_reuses_selection_without_caching_absence(self):
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        before, old_sql = self.traced(old, lambda:old._creation_events(self.mint))
+        after, new_sql = self.traced(new, lambda:new._creation_events(self.mint))
+        self.assertEqual(before, after)
+        self.assertEqual(after, [])
+        self.assertEqual((len(old_sql), len(new_sql)), (3, 2))
+        # A later history commit must be visible to both existing readers.
+        history = CandidateHistory(self.config.history)
+        try:
+            history.append_event('pump', self.mint, identity='legacy-creation',
+                slot=1, transaction_index=0, event_index=0, market_time=1,
+                kind='pump_create', payload=dict(event_type='create', mint=self.mint))
+        finally:
+            history.close()
+        self.assertEqual(old._creation_events(self.mint), new._creation_events(self.mint))
+        self.assertEqual(len(new._creation_events(self.mint)), 1)
+
+    def test_native_creation_keeps_authentication_order_and_both_legacy_reference_populations(self):
+        self.publish_creation()
+        history = CandidateHistory(self.config.history)
+        try:
+            history.append_event('pump', self.mint, identity='legacy-creation',
+                slot=1, transaction_index=None, event_index=1, market_time=1,
+                kind='pump_create', payload=dict(event_type='create', mint=self.mint))
+        finally:
+            history.close()
+        old, new = self.worker(True), self.worker()
+        for worker in (old, new):
+            worker._creation_events(self.mint)
+        before, old_sql = self.traced(old, lambda:old._creation_events(self.mint))
+        after, new_sql = self.traced(new, lambda:new._creation_events(self.mint))
+        self.assertEqual(before, after)
+        self.assertEqual(len(after), 2)
+        self.assertEqual(after[0]['identity'], 'legacy-creation')
+        self.assertEqual((len(old_sql), len(new_sql)), (5, 4))
+        for worker in (old, new):
+            worker.cancelled.set()
+            from meme_machine.runtime.stop import Shutdown
+            with self.assertRaises(Shutdown):
+                worker._creation_events(self.mint)
+            worker.cancelled.clear()
+            self.assertEqual(worker._creation_events(self.mint), before)
+
+    def test_legacy_point_precedence_does_not_start_authenticating_an_unused_reference(self):
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        legacy = old._history_event(self.mint, self.identity)
+        legacy['payload']['legacy_precedence'] = True
+        raw = qualification._canonical(legacy)
+        with sqlite3.connect(self.config.history) as db:
+            db.execute('INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?)',
+                ('pump', self.mint, self.identity, legacy['slot'], legacy['transaction_index'],
+                 legacy['event_index'], legacy['market_time'], legacy['kind'], raw,
+                 hashlib.sha256(raw.encode()).hexdigest()))
+            db.execute('UPDATE canonical_event_refs SET hash=? WHERE identity=?',
+                       ('f'*64, self.identity))
+        self.assertEqual(old._history_event(self.mint, self.identity), legacy)
+        self.assertEqual(new._history_event(self.mint, self.identity), legacy)
+        # Locator safety still precedes legacy selection as in the predecessor.
+        with sqlite3.connect(self.config.history) as db:
+            ref = json.loads(db.execute('SELECT body FROM canonical_event_refs WHERE identity=?',
+                                        (self.identity,)).fetchone()[0])
+            ref['path'] = '/original/financial/source.sqlite'
+            db.execute('UPDATE canonical_event_refs SET body=? WHERE identity=?',
+                       (qualification._canonical(ref), self.identity))
+        for worker in (old, new):
+            with self.assertRaisesRegex(ValueError, 'foreign_qualification_reference'):
+                worker._history_event(self.mint, self.identity)
+
+    def test_real_native_decision_cursor_and_resume_match_predecessor_with_less_sql(self):
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        for worker in (old, new):
+            worker._history_event(self.mint, self.identity)
+        before, old_sql = self.traced(old, old.step)
+        after, new_sql = self.traced(new, new.step)
+        self.assertEqual(before, after)
+        self.assertEqual(self.observations(old), self.observations(new))
+        self.assertEqual(before['stages'], {'creation_unavailable':1})
+        self.assertEqual(len(old_sql)-len(new_sql), 2)
+        self.assertEqual(old.step(), new.step())
+        expected = self.observations(new)
+        old.close();new.close()
+        # Existing handles are closed explicitly; suppress their second cleanup.
+        old.history = old.plane = old.db = None
+        new.history = new.plane = new.db = None
+        resumed_old, resumed_new = self.worker(True), self.worker()
+        self.assertEqual(resumed_old.step(), resumed_new.step())
+        self.assertEqual(expected, self.observations(resumed_new))
+
+    def test_unpublished_native_input_keeps_both_cursors_pending_until_real_publication(self):
+        old, new = self.worker(True), self.worker()
+        self.assertEqual(old.step(), new.step())
+        self.assertEqual(self.observations(new), [])
+        self.publish()
+        self.assertEqual(old.step(), new.step())
+        self.assertEqual(self.observations(old), self.observations(new))
+
+    def test_compact_reference_corruption_foreign_locator_and_source_hash_fail_identically(self):
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        with sqlite3.connect(self.config.history) as db:
+            original = db.execute('SELECT body,hash FROM canonical_event_refs WHERE identity=?',
+                                  (self.identity,)).fetchone()
+        with sqlite3.connect(self.config.evidence) as db:
+            source_hash = db.execute('SELECT hash FROM rolling_economic_events WHERE identity=?',
+                                     (self.row.identity,)).fetchone()[0]
+        for case in ('reference_hash', 'foreign_locator', 'source_hash'):
+            with self.subTest(case=case):
+                with sqlite3.connect(self.config.history) as db:
+                    ref = json.loads(original[0])
+                    if case == 'foreign_locator':
+                        ref['path'] = '/original/financial/source.sqlite'
+                    raw = qualification._canonical(ref)
+                    checksum = 'f'*64 if case == 'reference_hash' else hashlib.sha256(raw.encode()).hexdigest()
+                    db.execute('UPDATE canonical_event_refs SET body=?,hash=? WHERE identity=?',
+                               (raw, checksum, self.identity))
+                with sqlite3.connect(self.config.evidence) as db:
+                    db.execute('UPDATE rolling_economic_events SET hash=? WHERE identity=?',
+                               ('e'*64 if case == 'source_hash' else source_hash, self.row.identity))
+                outcomes = []
+                for worker in (old, new):
+                    try:
+                        worker.step()
+                    except Exception as error:
+                        outcomes.append((type(error), str(error)))
+                    else:
+                        self.fail('native identity corruption must not advance the cursor')
+                    self.assertEqual(self.observations(worker), [])
+                self.assertEqual(outcomes[0], outcomes[1])
+
+    def test_cold_reference_uses_the_same_locator_manifest_payload_and_hash_guards(self):
+        from meme_machine.solana_evidence_plane import decode_body
+        from meme_machine.solana_scoped_retirement import ScopedRetirement
+        self.publish()
+        old, new = self.worker(True), self.worker()
+        expected = old._history_event(self.mint, self.identity)
+        ScopedRetirement(self.fixture.history)
+        raw = self.fixture.history.db.execute(
+            'SELECT body FROM canonical_evidence WHERE identity=?',
+            (self.row.identity,)).fetchone()[0]
+        record = decode_body(raw, self.fixture.history.db)
+        directory = self.config.evidence.with_suffix('.scoped-cold')
+        directory.mkdir(mode=0o700)
+        path = directory / ('a'*64 + '.zlib')
+        packed = zlib.compress(qualification._canonical([dict(record=record,
+            available=self.row.observed_at)]).encode())
+        path.write_bytes(packed);path.chmod(0o600)
+        checksum = hashlib.sha256(packed).hexdigest()
+        with sqlite3.connect(self.config.evidence) as db:
+            db.execute('INSERT INTO scoped_cold_manifests VALUES(?,?,?,?,?,?,?)',
+                ('cold', str(path), checksum, 1, len(raw), len(packed), self.row.observed_at))
+            db.execute('UPDATE rolling_economic_events SET body=NULL,archive=? WHERE identity=?',
+                       ('cold', self.row.identity))
+        self.assertEqual(old._history_event(self.mint, self.identity), expected)
+        self.assertEqual(new._history_event(self.mint, self.identity), expected)
+        for case in ('payload_hash', 'foreign_archive', 'missing_manifest'):
+            with self.subTest(case=case):
+                with sqlite3.connect(self.config.evidence) as db:
+                    if case == 'missing_manifest':
+                        db.execute('DELETE FROM scoped_cold_manifests WHERE id=?', ('cold',))
+                    else:
+                        db.execute('UPDATE scoped_cold_manifests SET path=?,hash=? WHERE id=?',
+                            ('/original/financial/archive.zlib' if case == 'foreign_archive' else str(path),
+                             'f'*64 if case == 'payload_hash' else checksum, 'cold'))
+                outcomes = []
+                for worker in (old, new):
+                    try:
+                        worker._history_event(self.mint, self.identity)
+                    except Exception as error:
+                        outcomes.append((type(error), str(error)))
+                    else:
+                        self.fail('cold reference guard must fail closed')
+                self.assertEqual(outcomes[0], outcomes[1])
 
 
 class QualificationTests(unittest.TestCase):
