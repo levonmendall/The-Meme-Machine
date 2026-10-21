@@ -272,6 +272,34 @@ class WakeupTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(captured[-1][1]['preparation']['mode'],'existing_process_pool')
         finally:await asyncio.to_thread(pool.shutdown,wait=True)
 
+    async def test_cancelled_native_preparation_keeps_lock_until_physical_failure_and_preserves_cancel(self):
+        from tests.test_prepared_evidence_decode import ControlledPreparationExecutor
+        from meme_machine.solana_preparation_pool import PreparationPool
+        executor=ControlledPreparationExecutor();pool=PreparationPool(executor)
+        self.source.history_separated=True;self.source.batched=True;self.source.stop.set()
+        self.source.preparation_executor=pool.native
+        f=frame(FIXTURE['pump'][0],'pump');q=CandidateCommitQueue();await q.put(f)
+        addresses={PROGRAMS['pump']:program_scope('pump')}
+        task=asyncio.create_task(self.source.candidate_commits(q,addresses,'cancelled-preparation',priority=0))
+        try:
+            for _ in range(100):
+                if executor.jobs:break
+                await asyncio.sleep(0)
+            self.assertEqual(len(executor.jobs),1)
+            task.cancel();await asyncio.sleep(0)
+            self.assertFalse(task.done());self.assertTrue(self.source.preparation_lock.locked())
+            executor.finish(0,error=RuntimeError('offline-accepted-worker-failure'))
+            with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task,1)
+            self.assertFalse(self.source.preparation_lock.locked());self.assertEqual(q.count,1)
+            self.assertFalse(self.h.db.execute("SELECT 1 FROM acquisition_observations WHERE kind="
+                "'candidate_economic_preparation_failed'").fetchone())
+            self.assertFalse(self.h.db.execute('SELECT 1 FROM rolling_economic_events').fetchone())
+        finally:
+            if not task.done():task.cancel()
+            for index,job in enumerate(executor.jobs):
+                if not job[0].done():executor.finish(index,error=RuntimeError('offline-cleanup'))
+            await asyncio.gather(task,return_exceptions=True)
+
     async def test_phase_completion_survives_canceled_actual_owner_waiter(self):
         from meme_machine.solana_evidence_control import PriorityOwner
         from meme_machine.solana_candidate_phases import runnable_snapshot

@@ -316,7 +316,8 @@ def archive_page_evidence(job,value,*,endpoint_identity,supplements=(),supplemen
             supplemented=bool(receipts) or supplemented_before,page_count=job['pages']+1),
         supplement_receipts=receipts,supplement_observations=observations)
 
-def economic_records(family,address,tx,*,endpoint_identity,seen,source):
+def economic_records(family,address,tx,*,endpoint_identity,seen,source,
+                     prepared=None,preparation_context=None,prepared_raw=None):
     scope=FAMILIES[family];index=tx['transactionIndex'];slot=tx['slot']
     signature=tx['transaction']['signatures'][0]
     if type(index) is not int or index<0 or type(slot) is not int or slot<0:
@@ -334,7 +335,11 @@ def economic_records(family,address,tx,*,endpoint_identity,seen,source):
     logs=meta['logMessages']
     if not isinstance(logs,list) or any('truncat' in line.lower() for line in logs):
         raise EvidenceUnavailable('incomplete_finalized_logs')
-    events=(pump_events if family=='pump' else pumpswap_trade_events)(tx)
+    events=None
+    if prepared is not None:
+        from .solana_economic_preparation import archive_prepared_events
+        events=archive_prepared_events(prepared,preparation_context,family,tx,raw=prepared_raw)
+    if events is None:events=(pump_events if family=='pump' else pumpswap_trade_events)(tx)
     rows=[]
     for event in events:
         # A transaction can mention multiple candidates. Acquire it once, but
@@ -580,7 +585,7 @@ class SelectiveHistory:
         return self.db.execute('''SELECT 1 FROM acquisition_page_receipts WHERE job=?
             AND json_array_length(result,'$.archive_log_supplements')>0 LIMIT 1''',(job_id,)).fetchone() is not None
 
-    def commit_page(self,job,value,*,finalized_through,seen=None,supplements=()):
+    def commit_page(self,job,value,*,finalized_through,seen=None,supplements=(),prepared=()):
         if job['family'] not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         """No page-count discard; every physical page remains bounded to 100."""
         seen=self.clock() if seen is None else seen
@@ -592,24 +597,31 @@ class SelectiveHistory:
             raise EvidenceUnavailable('repair_pagination_stalled')
         evidence=archive_page_evidence(job,value,endpoint_identity=self.endpoint_identity,supplements=supplements,
             supplemented_before=self.has_archive_log_supplements(job['id']))
+        from .solana_economic_preparation import archive_preparation_context,prepare_serialized_economics
+        context=archive_preparation_context(job,self.endpoint_identity) if prepared else None
+        products=prepared if type(prepared) is tuple and len(prepared)==len(value['data']) else ()
         supplement_by_original={item.original_json:item for item in supplements}
         rows=[];last=None if job['last_slot'] is None else (job['last_slot'],job['last_index'])
-        for tx in value['data']:
+        for index,tx in enumerate(value['data']):
             pair=(tx.get('slot'),tx.get('transactionIndex'))
             if any(type(n) is not int for n in pair) or not job['lo']<=pair[0]<=job['hi'] or pair[1]<0:
                 raise EvidenceUnavailable('repair_order_or_bounds')
             if last is not None and pair<=last:raise EvidenceUnavailable('repair_order_or_bounds')
             last=pair
-            supplement=supplement_by_original.get(canonical(tx))
+            raw=canonical(tx);supplement=supplement_by_original.get(raw)
             complete=(complete_archive_transaction(tx,supplement,endpoint_identity=self.endpoint_identity)
                 if supplement is not None else tx)
+            product=products[index] if products else None
+            if supplement is not None and product is not None:raw=canonical(complete)
             rows.extend(economic_records(job['family'],job['address'],complete,
-                endpoint_identity=self.endpoint_identity,seen=seen,source='alchemy_finalized_repair'))
+                endpoint_identity=self.endpoint_identity,seen=seen,source='alchemy_finalized_repair',
+                prepared=product,preparation_context=context,prepared_raw=raw))
         scoped=self.scope_for(job['family'],job['address']);lineage=evidence['lineage_hash']
         proof=None
         if token is None:
             proof=IntervalProof(scoped,job['lo'],job['hi'],'alchemy_finalized_repair',self.endpoint_identity,
                 dict(evidence['witness'],scope=scoped),seen)
+        serialized=prepare_serialized_economics(rows)
         with self.writer.transaction():
             input_hash=evidence['input_hash']
             receipt=self.db.execute('SELECT input_hash,result FROM acquisition_page_receipts WHERE job=? AND page=?',
@@ -625,7 +637,11 @@ class SelectiveHistory:
                 observation=self.db.execute('INSERT INTO acquisition_observations(job,kind,at,body) VALUES(?,?,?,?)',
                     (job['id'],'archive_log_supplement',seen,canonical(body)))
                 retained_supplements.append(dict(receipt,observation_id=observation.lastrowid))
-            self.ingest(rows)
+            # This private product is valid only for these newly built records
+            # in this synchronous owner turn, with no await or shared payload.
+            self._page_serialization=serialized
+            try:self.ingest(rows)
+            finally:self._page_serialization=None
             if proof is not None:
                 actual=self.scope_for(job['family'],job['address'])
                 if proof.scope!=actual:
@@ -646,7 +662,7 @@ class SelectiveHistory:
         return result
 
     @measured('owner.economic_ingest')
-    def ingest(self,rows,*,restored=None,timing=None):
+    def ingest(self,rows,*,restored=None,timing=None,prepared_serialization=None):
         """One identity; a bounded shared cache permits late scoped backfill.
 
         The global hot-retention floor remains monotonic. It cannot prevent an
@@ -656,23 +672,30 @@ class SelectiveHistory:
         """
         with candidate_phase(timing,'ingest_setup'):
             rows=tuple(rows);restored=restored or {}
-            from .solana_economic_preparation import PreparedEconomicRecord
+            from .solana_economic_preparation import PreparedEconomicRecord,SerializedEconomicBatch
+            if prepared_serialization is None:
+                prepared_serialization=getattr(self,'_page_serialization',None)
             prepared_rows=rows
             rows=tuple(r.record if isinstance(r,PreparedEconomicRecord) else r for r in rows)
             from .runtime.operating_families import require_scope
             for row in rows:require_scope(row.scope)
             if len(rows)>2048:
                 raise EvidenceUnavailable('ingestion_batch_bound')
+            reusable=(type(prepared_serialization) is SerializedEconomicBatch
+                and prepared_serialization is getattr(self,'_page_serialization',None)
+                and len(prepared_serialization.records)==len(rows)==len(prepared_serialization.products)
+                and all(before is current for before,current in zip(prepared_serialization.records,rows)))
             # Validate/serialize once on this owner command. The same exact bytes
             # establish its physical bound and immutable rolling-store hash. This
             # is never a cache across calls, replay, blocks or mutable payloads.
             serialized=[];retained_bytes=0
-            for row,product in zip(rows,prepared_rows):
+            for index,(row,product) in enumerate(zip(rows,prepared_rows)):
                 if isinstance(product,PreparedEconomicRecord):
                     if not hasattr(self,'rolling'):raise EvidenceUnavailable('prepared_economic_store_required')
                     prepared=product;retained_bytes+=product.original_bytes
                 else:
-                    prepared=row.serialized_body();retained_bytes+=len(prepared[1].encode())
+                    prepared=(prepared_serialization.products[index] if reusable else row.serialized_body())
+                    retained_bytes+=len(prepared[1].encode())
                 if retained_bytes>16*1024*1024:raise EvidenceUnavailable('ingestion_batch_bound')
                 serialized.append(prepared)
             from .solana_evidence_plane import require_storage

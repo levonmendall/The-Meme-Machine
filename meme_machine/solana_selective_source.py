@@ -593,9 +593,10 @@ class SelectiveSource:
         self.control_bootstrap_tip=None;self.control_committed_slot=None
         self.control_committed_market_time=None
         self.acquisition_plan_lock=asyncio.Lock();self.acquisition_idle_until=0
-        self.preparation_lock=asyncio.Lock()
+        self.preparation_lock=asyncio.Lock();self.archive_preparation_lock=asyncio.Lock()
         from .solana_history_notifications import WorkPulse
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
+        self.archive_preparation_wakeup=WorkPulse()
         self.delivery_urgent=WorkPulse();self.delivery_revision=0
         self.source_drain=dict(state='RUNNING',terminal=False,source_pid=os.getpid(),run_identity=uuid.uuid4().hex,
             started_at_monotonic=time.monotonic(),terminal_at_monotonic=None,accepted_handlers=0,
@@ -974,8 +975,20 @@ class SelectiveSource:
                     try:
                         from .solana_evidence_service import STREAM_PROCESS_DECODE_MIN_BYTES
                         if priority==0 or sum(r[1] for r in rows)>=STREAM_PROCESS_DECODE_MIN_BYTES:
-                            prepared,preparation=await asyncio.wrap_future(self.preparation_executor.submit(
+                            pending=asyncio.wrap_future(self.preparation_executor.submit(
                                 prepare_candidate_frames,frames,addresses,session,self.config.identity))
+                            try:prepared,preparation=await asyncio.shield(pending)
+                            except asyncio.CancelledError:
+                                # The physical worker still owns this accepted
+                                # batch. Keep the single-native admission lock
+                                # until it finishes, preserving the cancellation
+                                # even if the worker subsequently fails.
+                                while not pending.done():
+                                    try:await asyncio.shield(pending)
+                                    except asyncio.CancelledError:continue
+                                    except BaseException:break
+                                if not pending.cancelled():pending.exception()
+                                raise
                             preparation['mode']='existing_process_pool'
                         else:
                             # Reuse the already validated source-decode boundary.
@@ -1872,6 +1885,86 @@ class SelectiveSource:
                 await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
                 self.delivery_wakeup.notify()
 
+    async def _archive_preparation_turn(self,job,pool,context,raw):
+        """One bounded transaction per FIFO turn across the eight RPC carriers.
+
+        Urgent jobs never wait for this optimization. A canceled/timed-out
+        carrier releases its turn, while the pool retains any physical slot
+        until its future is terminal. Neither path grants a renewed deadline.
+        """
+        from .solana_economic_preparation import prepare_archive_transaction
+        stop=self.stop;lock=self.archive_preparation_lock;pulse=self.archive_preparation_wakeup
+        if stop is None or stop.is_set() or time.time()>=job['deadline']:return None
+        owned=False
+        try:
+            if job['priority']<=2:
+                if lock.locked():return None
+                # A released Lock may still have a woken FIFO waiter. Urgent
+                # work never awaits it: the pool atomically claims its slot.
+            else:
+                acquire=asyncio.create_task(lock.acquire());end=asyncio.create_task(stop.wait())
+                try:
+                    await asyncio.wait((acquire,end),timeout=max(0,job['deadline']-time.time()),
+                        return_when=asyncio.FIRST_COMPLETED)
+                finally:
+                    if not acquire.done():acquire.cancel()
+                    else:owned=not acquire.cancelled() and acquire.exception() is None and acquire.result()
+                    end.cancel()
+                    await asyncio.gather(acquire,end,return_exceptions=True)
+                if not owned:return None
+            while not stop.is_set() and time.time()<job['deadline'] and not pool.closed:
+                # Capture before admission: completion may race try_submit.
+                seen=pulse.epoch
+                future=pool.try_submit_optional(prepare_archive_transaction,context,job['family'],raw)
+                if future is not None:
+                    if future.done():return future.result()
+                    pending=asyncio.wrap_future(future);end=asyncio.create_task(stop.wait())
+                    try:
+                        await asyncio.wait((pending,end),timeout=max(0,job['deadline']-time.time()),
+                            return_when=asyncio.FIRST_COMPLETED)
+                        if pending.done() and not stop.is_set() and time.time()<job['deadline']:
+                            return pending.result()
+                        return None
+                    finally:
+                        if not pending.done():pending.cancel()
+                        end.cancel()
+                        await asyncio.gather(pending,end,return_exceptions=True)
+                if job['priority']<=2:return None
+                await pulse.wait(seen,stop,delay=max(0,job['deadline']-time.time()))
+            return None
+        finally:
+            if owned:lock.release()
+
+    async def prepare_archive_page(self,job,value,supplements):
+        """Opportunistic small decodes; original owner failures stay original."""
+        from .solana_economic_preparation import (archive_preparation_context,
+            PreparedArchiveTransaction,ARCHIVE_TRANSACTION_BYTES)
+        pool=getattr(self,'archive_preparation_executor',None)
+        if pool is None or job['family'] not in ('pump','pumpswap'):return ()
+        try:
+            rows=value['data']
+            if type(rows) is not list or len(rows)>100:return ()
+            context=archive_preparation_context(job,self.config.identity)
+            if context is None:return ()
+            by_original={item.original_json:item for item in supplements}
+            products=[None]*len(rows);size=0
+            from .solana_selective_history import complete_archive_transaction
+            for index,original in enumerate(rows):
+                if self.stop is None or self.stop.is_set() or time.time()>=job['deadline']:break
+                raw=canonical(original);supplement=by_original.get(raw)
+                tx=(complete_archive_transaction(original,supplement,endpoint_identity=self.config.identity)
+                    if supplement is not None else original)
+                if supplement is not None:raw=canonical(tx)
+                if len(raw.encode())>ARCHIVE_TRANSACTION_BYTES:continue
+                product=await self._archive_preparation_turn(job,pool,context,raw)
+                if type(product) is not PreparedArchiveTransaction:break
+                size+=len(product.events_json.encode())
+                if size>MAX_FRAME_BYTES:break
+                products[index]=product
+            return tuple(products) if any(p is not None for p in products) else ()
+        except asyncio.CancelledError:raise
+        except Exception:return () # Decode/shape/size failures run at the old owner point.
+
     async def acquire(self):
         from .operational.position_continuation import position_only
         from .runtime.evidence_worker import DeliveredRPCError,failure_diagnostic
@@ -1958,11 +2051,17 @@ class SelectiveSource:
                 h=install(state)
                 if job['family']=='pump':
                     from .solana_program_decoders import pump_events
-                    for tx in value['data']:
-                        supplement=supplement_by_original.get(canonical(tx))
+                    from .solana_economic_preparation import archive_prepared_events,archive_preparation_context
+                    context=archive_preparation_context(job,self.config.identity) if archive_products else None
+                    for index,tx in enumerate(value['data']):
+                        product=(archive_products[index] if type(archive_products) is tuple
+                            and index<len(archive_products) else None)
+                        raw=canonical(tx);supplement=supplement_by_original.get(raw)
                         if supplement is not None:
                             tx=complete_archive_transaction(tx,supplement,endpoint_identity=self.config.identity)
-                        for event in pump_events(tx):
+                            if product is not None:raw=canonical(tx)
+                        events=archive_prepared_events(product,context,job['family'],tx,raw=raw) if product is not None else None
+                        for event in pump_events(tx) if events is None else events:
                             if event['event_type']=='create' and job['address'] in (event.get('mint'),event.get('bonding_curve')):
                                 # Initial curve identity is upgraded, not rejected,
                                 # when its canonical creation reveals the mint.
@@ -1977,10 +2076,10 @@ class SelectiveSource:
                             if event['event_type']=='migration':
                                 h.observe('pumpswap',event['pool'],slot=event['slot'],signature=tx['transaction']['signatures'][0],fields=dict(mint=event['mint'],graduation=event['market_time']))
                                 h.bind('pumpswap',event['pool'])
-                result=h.commit_page(job,value,finalized_through=finalized,supplements=supplements)
+                result=h.commit_page(job,value,finalized_through=finalized,supplements=supplements,prepared=archive_products)
                 h.lifecycle.publish()
                 return result
-            supplement_inputs=None
+            supplement_inputs=None;archive_products=()
             try:
                 value=await self.measured_rpc('getTransactionsForAddress',[job['address'],config],job['family'],job['priority'])
                 # The immutable upper bound is already finalized when the linked
@@ -2003,6 +2102,7 @@ class SelectiveSource:
                     acquired.append(supplement)
                 supplements=tuple(acquired)
                 supplement_by_original={item.original_json:item for item in supplements}
+                archive_products=await self.prepare_archive_page(job,value,supplements)
                 # A fetched page publishes required canonical evidence. Priority
                 # four is the owner's interruptible maintenance class: using it
                 # here repeatedly rolled a 100-row Meteora page back whenever

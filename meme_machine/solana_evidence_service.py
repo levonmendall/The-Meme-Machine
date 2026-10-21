@@ -959,13 +959,18 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))
     await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
                            for _ in range(STREAM_DECODE_WORKERS)))
+    from .solana_preparation_pool import PreparationPool
+    preparation_loop=asyncio.get_running_loop()
+    decoder_pool=PreparationPool(decoder_pool,notify=lambda:preparation_loop.call_soon_threadsafe(
+        source_driver.archive_preparation_wakeup.notify))
     from .solana_history_work import HistoryExecutor,enabled as separated_history
     historical_executor=HistoryExecutor() if separated_history() else None
     delivery_executor=ThreadPoolExecutor(max_workers=1,thread_name_prefix='candidate-history') if historical_executor is not None else None
     if historical_executor is not None:
         source_driver.historical_executor=historical_executor
         source_driver.delivery_executor=delivery_executor
-        source_driver.preparation_executor=decoder_pool
+        source_driver.preparation_executor=decoder_pool.native
+        source_driver.archive_preparation_executor=decoder_pool
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     counts={}
     def counter_snapshot():

@@ -6,12 +6,91 @@ publication obligations. No database or provider is accessed here.
 """
 from dataclasses import dataclass,replace
 import hashlib
+import json
 import time
 from .solana_evidence_plane import PreparedRecord,EvidenceUnavailable,canonical,digest
 from .solana_native_evidence import economic_transaction,signature
 from .solana_selective_history import economic_records,SelectiveHistory
 
 MAX_BYTES=32*1024*1024
+ARCHIVE_TRANSACTION_BYTES=1024*1024
+
+
+def archive_preparation_context(job,endpoint):
+    """A reuse key only; mutable lease/coverage remain owner decisions."""
+    try:
+        coordinates=tuple(job[key] for key in ('id','family','address','lo','hi','priority',
+            'deadline','token','pages','last_slot','last_index','lineage'))
+        return digest([coordinates,endpoint])
+    except Exception:return None
+
+
+@dataclass(frozen=True)
+class PreparedArchiveTransaction:
+    context: str
+    family: str
+    input_hash: str
+    events_json: str
+    product_hash: str
+
+
+def prepare_archive_transaction(context,family,raw):
+    """One small immutable decode; no clock, SQL or provider access."""
+    from .solana_program_decoders import pump_events,pumpswap_trade_events
+    if (family not in ('pump','pumpswap') or type(raw) is not str
+            or len(raw.encode())>ARCHIVE_TRANSACTION_BYTES):
+        raise EvidenceUnavailable('archive_preparation_bound')
+    events=(pump_events if family=='pump' else pumpswap_trade_events)(json.loads(raw))
+    encoded=canonical(events)
+    if len(events)>2048 or len(encoded.encode())>ARCHIVE_TRANSACTION_BYTES:
+        raise EvidenceUnavailable('archive_preparation_bound')
+    input_hash=hashlib.sha256(raw.encode()).hexdigest()
+    return PreparedArchiveTransaction(context,family,input_hash,encoded,
+        digest([context,family,input_hash,encoded]))
+
+
+def archive_prepared_events(product,context,family,tx,*,raw=None):
+    """Mismatches take the unchanged decoder, never trust caller evidence.
+
+    ``raw`` is only the same local canonical transaction string already made
+    for supplement lookup, after authentication if a supplement changed it.
+    These products come from the private pinned decoder, not an untrusted IPC.
+    Their unkeyed digest detects mismatch; it grants no evidence authority.
+    """
+    try:
+        if (type(product) is not PreparedArchiveTransaction or context is None
+                or product.context!=context or product.family!=family
+                or type(product.events_json) is not str
+                or len(product.events_json.encode())>ARCHIVE_TRANSACTION_BYTES
+                or product.input_hash!=(hashlib.sha256(raw.encode()).hexdigest() if raw is not None else digest(tx))
+                or product.product_hash!=digest([context,family,product.input_hash,product.events_json])):
+            return None
+        events=json.loads(product.events_json)
+        return events if type(events) is list and len(events)<=2048 and all(type(e) is dict for e in events) else None
+    except Exception:return None
+
+
+@dataclass(frozen=True)
+class SerializedEconomicBatch:
+    records: tuple
+    products: tuple
+
+
+def prepare_serialized_economics(rows):
+    """Success-only owner-local serialization before the page transaction.
+
+    Failure is deferred to the original ingest point, after its original page
+    receipt and lease checks. Keep plain records on the scalar ingestion path.
+    """
+    try:
+        if len(rows)>2048:return None
+        products=[];size=0
+        for row in rows:
+            product=row.serialized_body();size+=len(product[1].encode())
+            if size>16*1024*1024:return None
+            products.append(product)
+        return SerializedEconomicBatch(tuple(rows),tuple(products))
+    except Exception:return None
 
 
 @dataclass(frozen=True)
