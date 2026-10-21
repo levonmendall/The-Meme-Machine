@@ -57,8 +57,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_qualification_replay.py": {
-      "after_bytes": 9267,
-      "after_sha256": "90472d3f590bd81f9719cc770be2ac022b518435a54ad7a5eda72a8197bc6c1e",
+      "after_bytes": 10576,
+      "after_sha256": "f27dd98b312311996df31fc8defbbcfa617b97dd1e87de3ec78391883570084c",
       "status": "A"
     },
     "meme_machine/runtime/evidence_worker.py": {
@@ -214,8 +214,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "3d8c679956a4451e34871a045925e7f7ee0c812c",
-  "implementation_tree": "2bf7d63af5ccf513bba5df46751283de337560d9",
+  "implementation": "a2948daa3cafb9304cb268aa1f273b2b14f753a7",
+  "implementation_tree": "bde3a558e452a1d1e45b54b81261bea068ed2c45",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,
