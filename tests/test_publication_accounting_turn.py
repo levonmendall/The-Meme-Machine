@@ -263,26 +263,44 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
     async def test_capture_actor_canceled_accepted_delivery_full_commits_and_acks_without_proof_publication(self):
         from meme_machine import solana_history_delivery as delivery
         proof,_=await self.proof();await self.scouts(1);await self.enable_capture_actor()
-        original=delivery.deliver;entered,release=self.held()
+        original=delivery.deliver;original_ack=delivery.acknowledge_actor
+        entered,release=self.held();ack_entered,ack_release=self.held();acks=[];physical=[]
         def held(snapshot):
             result=original(snapshot);entered.set()
             if not release.wait(3):raise RuntimeError('offline-actor-delivery-release')
             return result
-        pool=ThreadPoolExecutor(max_workers=1);self.source.delivery_executor=pool
+        def held_ack(*args):
+            acks.append(True);ack_entered.set()
+            if not ack_release.wait(3):raise RuntimeError('offline-actor-ack-release')
+            return original_ack(*args)
+        pool=ThreadPoolExecutor(max_workers=1)
+        class TrackedExecutor:
+            def submit(_self,*args,**kwargs):
+                future=pool.submit(*args,**kwargs);physical.append(future);return future
+        self.source.delivery_executor=TrackedExecutor()
         try:
-            with patch.object(delivery,'deliver',held):
+            with patch.object(delivery,'deliver',held),patch.object(delivery,'acknowledge_actor',held_ack):
                 task=self.start(self.source.candidate_history_delivery())
-                await self.wait_entered(entered);task.cancel();await asyncio.sleep(0)
+                await self.wait_entered(entered);task.cancel('original-actor-delivery-cancel');await asyncio.sleep(0)
+                task.cancel('second-actor-delivery-cancel');await asyncio.sleep(0)
                 self.assertFalse(task.done(),'accepted physical consumer work was abandoned')
+                self.assertEqual(len(physical),2);self.assertFalse(physical[1].done())
+                self.assertFalse(physical[1].cancelled())
                 await self.query(lambda state:state.writer.db.execute(
                     "INSERT INTO service_health VALUES('actor-cancel-progress','1')"))
-                release.set()
-                with self.assertRaises(asyncio.CancelledError):await task
+                release.set();await self.wait_entered(ack_entered)
+                self.assertTrue(physical[1].done())
+                task.cancel('actor-cancel-during-owner-ack');await asyncio.sleep(0)
+                self.assertFalse(task.done(),'repeated cancel cut the owned cleanup before its fresh ACK')
+                ack_release.set()
+                with self.assertRaises(asyncio.CancelledError) as caught:await task
+                self.assertEqual(caught.exception.args,('original-actor-delivery-cancel',))
             self.assertEqual(await self.pending_scouts(),[])
             await self.assert_published(proof,False)
+            self.assertEqual(acks,[True])
             self.assertEqual([label for _,label,_ in self.work.calls],['candidate_delivery_ack'])
         finally:
-            release.set();await asyncio.to_thread(pool.shutdown,wait=True)
+            release.set();ack_release.set();await asyncio.to_thread(pool.shutdown,wait=True)
 
     async def test_capture_actor_cancellation_joins_physical_read_and_preserves_pending_work(self):
         from meme_machine import solana_history_delivery as delivery
@@ -296,18 +314,79 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
         try:
             with patch.object(delivery._CaptureReader,'unconsumed',held):
                 task=self.start(self.source.candidate_history_delivery())
-                await self.wait_entered(entered);task.cancel();await asyncio.sleep(0)
+                await self.wait_entered(entered);task.cancel('original-actor-read-cancel');await asyncio.sleep(0)
+                task.cancel('second-actor-read-cancel');await asyncio.sleep(0)
                 self.assertFalse(task.done(),'accepted read outlived its coroutine teardown')
                 await self.query(lambda state:state.writer.db.execute(
                     "INSERT INTO service_health VALUES('actor-read-progress','1')"))
                 release.set()
-                with self.assertRaises(asyncio.CancelledError):await task
+                with self.assertRaises(asyncio.CancelledError) as caught:await task
+                self.assertEqual(caught.exception.args,('original-actor-read-cancel',))
             self.assertEqual(len(await self.pending_scouts()),1)
             self.assertEqual(self.work.calls,[],'read cancellation admitted an unnecessary owner operation')
             self.assertEqual(await self.query(lambda state:state.writer.db.execute(
                 'PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0]),0)
         finally:
             release.set();await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_capture_actor_repeated_cancel_preserves_original_cancel_after_terminal_read_failure(self):
+        from meme_machine import solana_history_delivery as delivery
+        await self.proof();await self.scouts(1);await self.enable_capture_actor()
+        entered,release=self.held();physical=[];failure=RuntimeError('offline-terminal-capture-error')
+        def failed_read(reader,*args,**kwargs):
+            entered.set()
+            if not release.wait(3):raise RuntimeError('offline-failed-read-release')
+            raise failure
+        pool=ThreadPoolExecutor(max_workers=1)
+        class TrackedExecutor:
+            def submit(_self,*args,**kwargs):
+                future=pool.submit(*args,**kwargs);physical.append(future);return future
+        self.source.delivery_executor=TrackedExecutor()
+        try:
+            with patch.object(delivery._CaptureReader,'unconsumed',failed_read):
+                task=self.start(self.source.candidate_history_delivery())
+                await self.wait_entered(entered);task.cancel('original-failing-read-cancel');await asyncio.sleep(0)
+                task.cancel('second-failing-read-cancel');await asyncio.sleep(0)
+                self.assertFalse(task.done());self.assertFalse(physical[0].done())
+                release.set()
+                with self.assertRaises(asyncio.CancelledError) as caught:await task
+                self.assertEqual(caught.exception.args,('original-failing-read-cancel',))
+            self.assertTrue(physical[0].done());self.assertIs(physical[0].exception(),failure)
+            self.assertEqual(len(await self.pending_scouts()),1)
+            self.assertEqual(self.work.calls,[])
+            self.assertEqual(await self.query(lambda state:state.writer.db.execute(
+                'PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0]),0)
+        finally:
+            release.set();await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_capture_actor_cancel_cleanup_ack_failure_stops_without_retry_or_publication(self):
+        from meme_machine import solana_history_delivery as delivery
+        proof,_=await self.proof();await self.scouts(1);await self.enable_capture_actor()
+        entered,release=self.held();ack_entered,ack_release=self.held()
+        original=delivery.deliver;failure=RuntimeError('offline-terminal-cancel-ack-error');acks=[]
+        def held(snapshot):
+            result=original(snapshot);entered.set()
+            if not release.wait(3):raise RuntimeError('offline-cancel-failed-ack-delivery-release')
+            return result
+        def failed_ack(*args):
+            acks.append(True);ack_entered.set()
+            if not ack_release.wait(3):raise RuntimeError('offline-cancel-failed-ack-release')
+            raise failure
+        pool=ThreadPoolExecutor(max_workers=1);self.source.delivery_executor=pool
+        try:
+            with patch.object(delivery,'deliver',held),patch.object(delivery,'acknowledge_actor',failed_ack):
+                task=self.start(self.source.candidate_history_delivery())
+                await self.wait_entered(entered);task.cancel();await asyncio.sleep(0)
+                release.set();await self.wait_entered(ack_entered)
+                task.cancel();await asyncio.sleep(0);self.assertFalse(task.done())
+                ack_release.set()
+                with self.assertRaises(RuntimeError) as caught:await task
+                self.assertIs(caught.exception,failure)
+            self.assertEqual(acks,[True]);self.assertEqual(len(await self.pending_scouts()),1)
+            self.assertEqual([label for _,label,_ in self.work.calls],['candidate_delivery_ack'])
+            await self.assert_published(proof,False)
+        finally:
+            release.set();ack_release.set();await asyncio.to_thread(pool.shutdown,wait=True)
 
     async def test_capture_actor_empty_read_keeps_callback_arriving_before_thread_returns(self):
         from meme_machine import solana_history_delivery as delivery
@@ -382,8 +461,11 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
         try:
             with patch.object(self.source,'_complete_history_delivery',complete):
                 await asyncio.wait_for(self.source.candidate_history_delivery(),5)
-            self.assertEqual(finished,[False,False,False,True])
-            self.assertEqual(sizes,[64,1]*4,'arrivals reset an active refresh cursor or extended its fixed horizon')
+            # Consuming the last arrival on the next first page changes the
+            # conservative all-delivery revision too. One final quiet sweep
+            # must then clear; neither cursor reset nor unbounded rescan wins.
+            self.assertEqual(finished,[False,False,False,False,True])
+            self.assertEqual(sizes,[64,1]*5,'arrivals reset an active refresh cursor or extended its fixed horizon')
             self.assertTrue(arrivals)
             for identity in arrivals:
                 self.assertIsNotNone(await self.query(lambda state:state.writer.db.execute(

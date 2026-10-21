@@ -77,6 +77,7 @@ class _CaptureReader:
         self._consumer_refresh_requested=hint.refresh_requested
         self._consumer_refresh_cursor=actor.refresh_cursor
         self._consumer_refresh_horizon=actor.refresh_horizon
+        self._consumer_refresh_revision=actor.refresh_revision
     def unconsumed(self,*args,**kwargs):
         from .solana_candidate_lifecycle import CandidateLifecycle
         return CandidateLifecycle.unconsumed(self,*args,**kwargs)
@@ -91,7 +92,7 @@ class CaptureActor:
     """
     def __init__(self,context):
         self.context=context;self.proof_generation=None;self.proof_progress={}
-        self.refresh_token=None;self.refresh_cursor=0;self.refresh_horizon=None
+        self.refresh_token=None;self.refresh_cursor=0;self.refresh_horizon=None;self.refresh_revision=None
         stat=None if context.source_identity is not None else Path(context.canonical_path).stat()
         self.source_identity=context.source_identity if stat is None else (stat.st_dev,stat.st_ino)
 
@@ -108,12 +109,12 @@ class CaptureActor:
                     if refresh['finished']:
                         # A newer commit can add work behind this cursor. Finish
                         # the bounded sweep first, then revisit after cadence.
-                        self.refresh_cursor=0;self.refresh_horizon=None
+                        self.refresh_cursor=0;self.refresh_horizon=None;self.refresh_revision=None
                     elif snapshot['refresh']:
                         self.refresh_cursor=snapshot['refresh'][-1][0]
         if hint.refresh_token!=self.refresh_token or not hint.refresh_requested:
             self.refresh_token=hint.refresh_token
-            self.refresh_cursor=0;self.refresh_horizon=None
+            self.refresh_cursor=0;self.refresh_horizon=None;self.refresh_revision=None
         path=Path(self.context.canonical_path);before=path.stat()
         if (before.st_dev,before.st_ino)!=self.source_identity:
             raise EvidenceUnavailable('candidate_delivery_source_replaced')
@@ -131,6 +132,7 @@ class CaptureActor:
                 self.proof_progress=dict(reader._proof_delivery_progress)
                 self.refresh_cursor=reader._consumer_refresh_cursor
                 self.refresh_horizon=reader._consumer_refresh_horizon
+                self.refresh_revision=reader._consumer_refresh_revision
             except BaseException:
                 try:db.rollback()
                 except sqlite3.Error:pass
@@ -304,7 +306,7 @@ def capture(life,*,revision=None,schedule=False):
     current_generation=generation(life)
     if revision is None:revision=getattr(life.history,'_history_delivery_revision',0)
     if actor and life._proof_delivery_generation!=digest(current_generation):
-        life._consumer_refresh_cursor=0;life._consumer_refresh_horizon=None
+        life._consumer_refresh_cursor=0;life._consumer_refresh_horizon=None;life._consumer_refresh_revision=None
     raw_proofs,scan,proof_deadline=_proof_selection(life,current_generation,revision)
     proofs=[];publication_ids=[];overflow=False
     consumer=None
@@ -339,13 +341,16 @@ def capture(life,*,revision=None,schedule=False):
             # the lifecycle population to find a separate active maximum.
             horizon=life.db.execute('SELECT MAX(rowid) FROM candidate_lifecycle').fetchone()[0] or 0
             life._consumer_refresh_horizon=horizon
+            # EOF authenticates this entire fixed sweep. A newer page hint
+            # cannot erase a change behind an already ACKed rowid cursor.
+            life._consumer_refresh_revision=revision
         bound='' if horizon is None else ' AND rowid<=?'
         for rowid,family,address,state,deadline in life.db.execute('SELECT rowid,family,address,state,deadline FROM candidate_lifecycle WHERE '+
                 active+' AND rowid>?'+bound+' ORDER BY rowid LIMIT 64',(cursor,*(() if horizon is None else (horizon,)))):
             promotion=life.db.execute("SELECT id FROM candidate_history_outbox WHERE family=? AND address=? AND kind='promotion' ORDER BY created DESC,rowid DESC LIMIT 1",(family,address)).fetchone()
             refresh.append((rowid,family,address,state,deadline,promotion))
         if actor:
-            refresh_scan=dict(token=life.hint.refresh_token,revision=revision,
+            refresh_scan=dict(token=life.hint.refresh_token,revision=life._consumer_refresh_revision,
                 finished=len(refresh)<64 or bool(refresh and refresh[-1][0]==horizon))
         elif not refresh:life._consumer_refresh_requested=False;life._consumer_refresh_cursor=0
     if not rows and not proofs and not refresh:

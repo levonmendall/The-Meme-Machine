@@ -1943,12 +1943,20 @@ class SelectiveSource:
             except asyncio.CancelledError:
                 # A physical read must release its transaction before owner
                 # teardown. It has no external write requiring a canonical ACK.
-                await asyncio.shield(future)
+                # Match native preparation's terminal drain: repeated cancels
+                # cannot orphan it, and a later read error cannot replace this
+                # original cancellation. No new shutdown grace is introduced.
+                while not future.done():
+                    try:await asyncio.shield(future)
+                    except asyncio.CancelledError:continue
+                    except BaseException:break
+                if not future.cancelled():future.exception()
                 raise
             previous=None
             if snapshot is None:
                 deadline=None;continue
             deadline=snapshot.get('proof_deadline')
+            cancel_cleanup=None
             try:
                 consumer_work=bool(snapshot['rows'] or snapshot['proofs'] or snapshot['refresh'])
                 if consumer_work:
@@ -1956,10 +1964,20 @@ class SelectiveSource:
                     try:result=await asyncio.shield(future)
                     except asyncio.CancelledError:
                         # Preserve accepted FULL delivery -> fresh owner ACK ->
-                        # cancellation. Pending proofs publish after restart.
-                        result=await asyncio.shield(future)
-                        await self.work(lambda state:acknowledge_actor(install(state).lifecycle,snapshot,result),2,
-                            label='candidate_delivery_ack')
+                        # cancellation in one owned cleanup. Coordinator cancel
+                        # cannot split its physical commit from its owner ACK.
+                        async def finish_delivery():
+                            result=await future
+                            return await self.work(lambda state:acknowledge_actor(install(state).lifecycle,snapshot,result),2,
+                                label='candidate_delivery_ack')
+                        cancel_cleanup=asyncio.create_task(finish_delivery())
+                        while not cancel_cleanup.done():
+                            try:await asyncio.shield(cancel_cleanup)
+                            except asyncio.CancelledError:continue
+                            except BaseException:break
+                        # FULL/ACK failures remain real failures; successful
+                        # cleanup returns the original cancel without publishing.
+                        cancel_cleanup.result()
                         raise
                 else:result=dict(acknowledgements=[],refreshed=[])
                 try:accepted=await self._complete_history_delivery(snapshot,result)
@@ -1979,6 +1997,7 @@ class SelectiveSource:
                 if publication or more or not accepted:self.delivery_urgent.notify()
                 failures=0
             except sqlite3.OperationalError as exc:
+                if cancel_cleanup is not None:raise
                 if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
                 failures+=1
                 await self.work(lambda state:install(state)._observation(None,'candidate_consumer_write_busy',
@@ -1986,6 +2005,7 @@ class SelectiveSource:
                 await asyncio.sleep(min(2,.1*2**min(failures-1,5)))
                 self.delivery_wakeup.notify()
             except (RuntimeError,MemoryError) as exc:
+                if cancel_cleanup is not None:raise
                 failures+=1
                 await self.work(lambda state:install(state)._observation(None,'candidate_delivery_unavailable',
                     dict(complete=False,failures=failures,reason=type(exc).__name__)),2)

@@ -1065,18 +1065,22 @@ class CaptureActorTests(unittest.TestCase):
             # New work above the active horizon cannot prolong this sweep.
             self.h.db.execute('INSERT INTO candidate_lifecycle VALUES(?,?,?,?,?,?,?,?,?,?)',
                 ('pump','refresh:later','queued',0,100,100,NOW,NOW,NOW+50,100))
+            identity=life.emit('pump','during-refresh','scout',dict(fields={}))
         last=actor.capture(delivery_hint(self.h),(first,feedback))
         self.assertEqual([row[2] for row in last['refresh']],['refresh:65'])
         self.assertTrue(last['refresh_scan']['finished'])
-        # A commit after capture invalidates EOF, even when it is an ordinary
-        # arrival. Its outbox work must still receive normal bounded service.
-        identity=life.emit('pump','during-refresh','scout',dict(fields={}))
+        self.assertEqual(last['refresh_scan']['revision'],first['refresh_scan']['revision'])
+        self.assertLess(last['refresh_scan']['revision'],delivery_hint(self.h).revision)
+        self.assertEqual([row[0] for row in last['rows']],[identity])
+        # No commit follows the final capture. The change BETWEEN pages must
+        # still invalidate EOF; using its latest page hint would falsely clear.
         feedback=delivery.acknowledge_actor(life,last,delivery.deliver(last))
         self.assertTrue(feedback.accepted);self.assertFalse(feedback.refresh_cleared)
         self.assertTrue(life._consumer_refresh_requested)
         revisit=actor.capture(feedback.hint,(last,feedback))
         self.assertIn('refresh:0',[row[2] for row in revisit['refresh']])
-        self.assertEqual([row[0] for row in revisit['rows']],[identity])
+        self.assertEqual(revisit['rows'],[])
+        self.assertEqual(revisit['refresh_scan']['revision'],feedback.hint.revision)
         accepted=delivery.acknowledge_actor(life,revisit,delivery.deliver(revisit))
         self.assertTrue(accepted.accepted)
         self.assertIsNotNone(self.h.db.execute('SELECT consumed FROM candidate_history_outbox WHERE id=?',(identity,)).fetchone()[0])
