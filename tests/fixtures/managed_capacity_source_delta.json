@@ -118,13 +118,66 @@
       "status": "M"
     },
     "meme_machine/solana_candidate_lifecycle.py": {
-      "after_bytes": 45311,
-      "after_sha256": "8afdcbde1a3fd220cf3661861d6850b537da757b3e285d5ceadb5b5a01edf2ab",
+      "after_bytes": 45421,
+      "after_sha256": "0a2be4431664fdfe4191bcef75c3cc844d058ce828282f08e461deaeb14ff507",
       "before_bytes": 44124,
       "before_sha256": "4c48fe1247281b07e3b71235c533b76afe728a31db7a8b2cae85c1878a669293",
       "changed_nodes": [
         "CandidateLifecycle.deliver_rows",
-        "CandidateLifecycle.queue_records"
+        "CandidateLifecycle.queue_records",
+        "CandidateLifecycle.repair"
+      ],
+      "status": "M"
+    },
+    "meme_machine/solana_economic_preparation.py": {
+      "after_bytes": 7731,
+      "after_sha256": "e0c128e1fed5e70228d6596379dbd0644982493bce4d1d0cda168e24e95fcdf6",
+      "before_bytes": 4381,
+      "before_sha256": "92eafe7b8309e1895ce8deb940d3fe81e01c6dc8adad0ec6ed32d750ecf7bd03",
+      "changed_nodes": [
+        "PreparedArchiveTransaction.__layout__",
+        "PreparedArchiveTransaction.__statement_0",
+        "PreparedArchiveTransaction.__statement_1",
+        "PreparedArchiveTransaction.__statement_2",
+        "PreparedArchiveTransaction.__statement_3",
+        "PreparedArchiveTransaction.__statement_4",
+        "SerializedEconomicBatch.__layout__",
+        "SerializedEconomicBatch.__statement_0",
+        "SerializedEconomicBatch.__statement_1",
+        "__statement_3",
+        "__statement_4",
+        "__statement_5",
+        "__statement_6",
+        "__statement_7",
+        "__statement_8",
+        "__statement_9",
+        "archive_preparation_context",
+        "archive_prepared_events",
+        "prepare_archive_transaction",
+        "prepare_serialized_economics"
+      ],
+      "status": "M"
+    },
+    "meme_machine/solana_evidence_control.py": {
+      "after_bytes": 27462,
+      "after_sha256": "0cf25960f1d60b39b98db13c7a92e176063d7be55ece07edd986267d0a964034",
+      "before_bytes": 26073,
+      "before_sha256": "10f148f07039cdea7551ec3a329a73e7a02932cdd4c54d513c4a43f3742efd3c",
+      "changed_nodes": [
+        "PriorityOwner.__init__",
+        "PriorityOwner.__layout__",
+        "PriorityOwner._run",
+        "PriorityOwner.try_continuation"
+      ],
+      "status": "M"
+    },
+    "meme_machine/solana_evidence_service.py": {
+      "after_bytes": 86835,
+      "after_sha256": "5a626812311803993c3d1be9426e0945c4fcb96cf5c24e87168d424b2d24e124",
+      "before_bytes": 85144,
+      "before_sha256": "2644baf4b6396608bde735e29d00adc22e5a67a39a4eb94c22d2bdc998ce1f84",
+      "changed_nodes": [
+        "serve"
       ],
       "status": "M"
     },
@@ -139,31 +192,49 @@
       ],
       "status": "M"
     },
+    "meme_machine/solana_preparation_pool.py": {
+      "after_bytes": 6038,
+      "after_sha256": "414c7d10d0dc6f32f384ddf148c320490a7d6c89cc77263ab136a758c1ff7fff",
+      "status": "A"
+    },
     "meme_machine/solana_selective_history.py": {
-      "after_bytes": 70605,
-      "after_sha256": "ce05704c119c7ec7d13876eef46b3fcd7cfe4f9a8c7ec5b6d59b63fa50d64633",
+      "after_bytes": 73041,
+      "after_sha256": "de0030c1127fb46c56815bd323c05df53a6a21b04b8486dd028b08b0a8c573f0",
       "before_bytes": 68510,
       "before_sha256": "d7b79f1a25b687cadc0ebe16f81ddc1ffba222402c3433378658ba39a5734ae3",
       "changed_nodes": [
+        "SelectiveHistory.__layout__",
+        "SelectiveHistory._archive_preparation_tightened",
+        "SelectiveHistory.commit_page",
+        "SelectiveHistory.ingest",
+        "SelectiveHistory.plan",
+        "SelectiveHistory.request",
         "__statement_20",
-        "_archive_log_join"
+        "_archive_log_join",
+        "economic_records"
       ],
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 169956,
-      "after_sha256": "af1d606142f8c042153a4e0359a731f45b2c1355df876f9c59892067c9336db8",
+      "after_bytes": 180784,
+      "after_sha256": "c0e7bba9965e76302ca16569ee2dddd2425f8e05aa889e968f3b440ebccf9137",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
         "CandidateCommitQueue.__init__",
         "CandidateCommitQueue.put",
+        "SelectiveSource.__init__",
         "SelectiveSource.__layout__",
+        "SelectiveSource._archive_preparation_turn",
+        "SelectiveSource._complete_history_delivery",
         "SelectiveSource.acquire",
+        "SelectiveSource.candidate_commits",
+        "SelectiveSource.candidate_history_delivery",
         "SelectiveSource.live",
         "SelectiveSource.measured_log_batch",
         "SelectiveSource.measured_rpc",
         "SelectiveSource.observe",
+        "SelectiveSource.prepare_archive_page",
         "SelectiveSource.rolling_programs",
         "__statement_15",
         "__statement_16",
@@ -192,6 +263,7 @@
         "__statement_49",
         "__statement_50",
         "consistent_incomplete_archive_logs",
+        "source_work",
         "wait_candidate_log_space"
       ],
       "status": "M"
@@ -233,8 +305,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "533ec284549bb1ce1907808a17a077ee6b641a8c",
-  "implementation_tree": "2af08f590ff58f6070d144c33e352e69d78d578e",
+  "implementation": "339c6a08ac118d364db047306ae7bb2135ed30d1",
+  "implementation_tree": "e7ed2a452888f8e63aafbd0b8cd0e5ed7abf59d0",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,
