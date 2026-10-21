@@ -3,7 +3,9 @@ from contextlib import closing
 from copy import deepcopy
 from dataclasses import replace
 import json
+import time
 import unittest
+from unittest.mock import patch
 
 from meme_machine.operational import managed_native_pump as managed
 from meme_machine.operational.managed_pump_qualification import QualificationReader
@@ -169,6 +171,48 @@ class GlobalPumpPublicationTests(unittest.TestCase):
         self.assertEqual(self.history.db.execute(
             "SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='canonical'").fetchone(), (0,))
         self.assertEqual(self.worker.step()['durably_observed_native_events'], 0)
+
+    def test_same_captured_native_stream_has_identical_reader_outputs_and_resume(self):
+        from meme_machine.operational.managed_qualification_replay import compare_readers
+        row = self.trade()
+        self.history.ingest([row])
+        snapshot = capture(self.life)
+        self.assertTrue(acknowledge(self.life, snapshot, deliver(snapshot)))
+        before = self.pending(row.identity)
+        with patch('meme_machine.operational.managed_pump_qualification.MarketSnapshotProvider',
+                   side_effect=AssertionError('comparison_must_not_construct_network_provider')):
+            result = compare_readers(self.config, until=time.monotonic()+20,
+                                     as_of=int(self.history.clock()))
+            repeated = compare_readers(self.config, until=time.monotonic()+20,
+                                       as_of=result['as_of'])
+        self.assertTrue(result['coherent'])
+        self.assertTrue(result['reader_restart_verified'])
+        self.assertEqual(result['input_rows'], 1)
+        self.assertEqual(result['output_rows'], 1)
+        self.assertEqual(result['provider_requests'], 0)
+        self.assertEqual(result['reference']['output_sha256'], repeated['optimized']['output_sha256'])
+        self.assertEqual(self.pending(row.identity), before)
+        # Missing creation is honestly equal unavailable evidence; equality
+        # does not establish complete qualification or actionable decisions.
+        self.assertFalse(result['verified'])
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['optimized']['snapshot']['stages'], {'creation_unavailable': 1})
+        print('QUALIFICATION_READER_REPLAY ' + json.dumps(result, sort_keys=True), flush=True)
+
+    def test_comparison_keeps_unpublished_cursor_barrier_and_denies_live_sizing(self):
+        from meme_machine.operational.managed_qualification_replay import compare_readers
+        row = self.trade()
+        self.history.ingest([row])
+        result = compare_readers(self.config, until=time.monotonic()+20,
+                                 as_of=int(self.history.clock()))
+        self.assertTrue(result['coherent'])
+        self.assertEqual(result['input_rows'], 0)
+        self.assertEqual(result['output_rows'], 0)
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['reference']['snapshot']['native_event_backlog'], 1)
+        with self.assertRaisesRegex(ValueError, 'retained_integer_target_required'):
+            compare_readers(self.config, until=time.monotonic()+20,
+                            as_of=int(self.history.clock()), decision_target=lambda now: 1)
 
 
 if __name__ == '__main__':

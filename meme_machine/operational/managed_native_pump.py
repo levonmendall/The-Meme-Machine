@@ -406,11 +406,21 @@ def replay_pump(config, *, seconds=60):
                  'financial_or_strategy_authority_detected')
     finally:
         history.close()
+    from .managed_qualification_replay import compare_readers
+    comparison = compare_readers(config, until=until, as_of=int(time.time()))
     after = fingerprint()
     _require(before == after, 'replay_mutated_native_history')
+    # A post-stop replay cannot manufacture provider quotes, current liveness
+    # or Survivor decisions. Retain partial comparison evidence separately;
+    # native byte replay and complete strategy equivalence are different gates.
+    _require(comparison['coherent'] and comparison['reader_restart_verified'],
+             'qualification_reader_replay_conflict')
     return dict(verified=True, candidates=candidates, events=events,
                 logical_sha256=logical.hexdigest(), read_only=True,
-                native_state_sha256=after, canonical_source_path_isolated=True)
+                native_state_sha256=after, canonical_source_path_isolated=True,
+                coherent=comparison['coherent'], complete=comparison['complete'],
+                input_rows=comparison['input_rows'], output_rows=comparison['output_rows'],
+                qualification_reader_comparison=comparison)
 
 
 async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_seconds=5,
