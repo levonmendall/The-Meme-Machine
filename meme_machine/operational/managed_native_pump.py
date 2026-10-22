@@ -322,6 +322,8 @@ def pump_snapshot(config, *, driver=None):
 def replay_pump(config, *, seconds=60):
     """Authenticate every retained candidate event through the native reader.
 
+    Event retention may precede discovery/strategy registration. Audit the
+    complete physical event/reference population without creating candidates.
     Called after source shutdown. All SQLite handles are read-only, including
     the CandidateHistory facade; no schema install or checkpoint is performed.
     """
@@ -386,18 +388,84 @@ def replay_pump(config, *, seconds=60):
     history.db.execute('PRAGMA query_only=ON')
     events = candidates = 0
     logical = hashlib.sha256()
+    def read_events(candidate):
+        nonlocal events
+        from collections import Counter
+        # Authenticate physical index columns as well as the native reader's
+        # body/hash checks. A key union must not hide a crossed registry/event
+        # key or relabel a retained native slot/identity. Duplicate physical
+        # views still count separately, just as the original expected total.
+        physical = Counter(); references = {}
+        with history._startup_read(lambda: time.monotonic() >= until) as check_index:
+            for indexed in history.db.execute('''SELECT identity,slot,transaction_index,event_index,market_time,kind,NULL
+                    FROM events WHERE lane='pump' AND candidate=? UNION ALL
+                    SELECT identity,slot,transaction_index,event_index,market_time,kind,body
+                    FROM canonical_event_refs WHERE lane='pump' AND candidate=?''', (candidate, candidate)):
+                check_index()
+                physical[indexed[:6]] += 1
+                if indexed[6] is not None:references[indexed[0], indexed[5]] = json.loads(indexed[6])
+        for event in history.events('pump', candidate, cancelled=lambda: time.monotonic() >= until):
+            check()
+            key = tuple(event[field] for field in ('identity', 'slot', 'transaction_index',
+                'event_index', 'market_time', 'kind'))
+            _require(event['lane'] == 'pump' and event['candidate'] == candidate
+                     and physical[key] > 0, 'candidate_history_corruption')
+            ref = references.get((event['identity'], event['kind']))
+            if ref is not None:
+                payload = event['payload']; native_id = ref['canonical_identity']
+                fields = dict(_economic_order=event['transaction_index'])
+                if native_id.startswith('program:pump:'):
+                    _require(candidate == payload.get('mint')
+                             and event['identity'] == 'pump-source:'+native_id
+                             and event['kind'] == 'pump_'+str(payload.get('event_type')),
+                             'candidate_history_corruption')
+                    source = history._source_readers[config.evidence.resolve()]
+                    source.set_progress_handler(lambda: int(time.monotonic() >= until), 1000)
+                    first_seen = source.execute('SELECT first_seen FROM canonical_evidence WHERE identity=?', (native_id,)).fetchone()
+                    check()
+                    _require(first_seen is not None and type(first_seen[0]) in (int, float),
+                             'candidate_history_corruption')
+                    fields['available_time'] = int(first_seen[0])
+                else:
+                    # queue_records permits only native-address recipients.
+                    # Do not use a current binding as proof of its historical
+                    # alias: retain any allowed immutable address projection.
+                    addresses = {str(payload[name]) for name in ('pool', 'mint', 'wallet') if payload.get(name)}
+                    _require(native_id.startswith('program:pumpswap:') and candidate in addresses
+                             and event['identity'] == str(payload.get('id') or native_id)
+                             and event['kind'] == 'pumpswap_trade', 'candidate_history_corruption')
+                _require(_canonical(ref.get('fields')) == _canonical(fields), 'candidate_history_corruption')
+            physical[key] -= 1
+            events += 1
+            add(logical, ['event', event])
+        _require(not any(physical.values()), 'replay_population_mismatch')
     try:
         for (raw,) in history.db.execute('SELECT body FROM canonical_event_refs'):
             check()
             _require(json.loads(raw)['path'] == str(config.evidence),
                      'foreign_canonical_reference_refused')
+        registered = set()
         for row in history.candidates(lane='pump', cancelled=lambda: time.monotonic() >= until):
+            check()
+            candidate = row['candidate']
+            _require(row['lane'] == 'pump' and isinstance(candidate, str) and candidate,
+                     'candidate_history_corruption')
+            indexed = history.db.execute("SELECT body FROM candidates WHERE lane='pump' AND candidate=?", (candidate,)).fetchone()
+            _require(candidate not in registered and indexed is not None
+                     and json.loads(indexed[0]) == row, 'candidate_history_corruption')
+            registered.add(candidate)
             candidates += 1
             add(logical, ['candidate', row])
-            for event in history.events('pump', row['candidate'],
-                                        cancelled=lambda: time.monotonic() >= until):
-                events += 1
-                add(logical, ['event', event])
+            read_events(candidate)
+        with history._startup_read(lambda: time.monotonic() >= until) as check_keys:
+            keys = []
+            for (candidate,) in history.db.execute("SELECT candidate FROM events WHERE lane='pump' UNION SELECT candidate FROM canonical_event_refs WHERE lane='pump'"):
+                check_keys()
+                _require(isinstance(candidate, str) and candidate, 'candidate_history_corruption')
+                if candidate not in registered:keys.append(candidate)
+        for candidate in keys:
+            check()
+            read_events(candidate)
         check()
         expected = history.db.execute("SELECT (SELECT count(*) FROM events WHERE lane='pump') + (SELECT count(*) FROM canonical_event_refs WHERE lane='pump')").fetchone()[0]
         _require(events == expected, 'replay_population_mismatch')
