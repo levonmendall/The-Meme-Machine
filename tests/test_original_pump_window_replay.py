@@ -395,6 +395,12 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         self.assertEqual(result['quote_inputs'], 'unavailable_no_synthetic_quotes')
         self.assertEqual(result['context_rows_imported_as_state'], 0)
         left, right = result['runs']
+        self.assertFalse(result['outbox_preparation_comparison'])
+        for row in result['runs']:
+            self.assertFalse(row['outbox_preparation']['enabled'])
+            self.assertEqual(row['outbox_preparation']['products'], 0)
+            self.assertFalse(row['outbox_preparation']['emit_probe_enabled'])
+            self.assertIsNone(row['outbox_preparation']['successful_prepared_emits'])
         self.assertEqual(left['store_fingerprints'], right['store_fingerprints'])
         self.assertEqual(len(left['store_fingerprints']), 6)
         for row in result['runs']:
@@ -416,6 +422,57 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         self.assertGreater(right['counters']['observed_before_intake_finished'], 0)
         self.assertGreater(right['counters']['intake_turns_without_qualification_drain'], 0)
         self.assertEqual(left['counters'].get('intake_turns_without_qualification_drain', 0), 0)
+
+    def test_optin_outbox_abba_uses_real_normalized_preparation_and_preserves_all_stores(self):
+        parcel = CapturedParcel()
+        with patch('meme_machine.operational.managed_pump_qualification.MarketSnapshotProvider',
+                   side_effect=AssertionError('no_provider_construction')):
+            result = concurrent.benchmark(parcel, self.root/'outbox-abba', batch=1, rate=5,
+                                          seconds=30, outbox_preparation=True)
+        self.assertTrue(result['engineering_validation_passed'])
+        self.assertTrue(result['coherent']); self.assertTrue(result['preparation_exercised'])
+        self.assertTrue(result['outbox_preparation_comparison'])
+        self.assertTrue(result['same_concurrent_configuration'])
+        self.assertEqual(result['mode_order'], ['inline', 'prepared', 'prepared', 'inline'])
+        self.assertEqual(result['semantic_fields'], list(original.SEMANTIC_FIELDS))
+        self.assertEqual(result['different_semantic_fields'], [])
+        self.assertEqual(result['different_stores'], [])
+        self.assertFalse(result['native_acquisition_join_repair_exercised'])
+        self.assertFalse(result['full_qualification_proven']); self.assertFalse(result['financial_authority'])
+        for mode, row in zip((False, True, True, False), result['runs']):
+            self.assertEqual(row['implementation'], 'concurrent')
+            self.assertEqual(row['store_fingerprints'], result['runs'][0]['store_fingerprints'])
+            self.assertTrue(row['reader_restart_verified']); self.assertTrue(row['owner_actor_restart_verified'])
+            measured = row['outbox_preparation']
+            self.assertIs(measured['enabled'], mode); self.assertTrue(measured['emit_probe_enabled'])
+            if mode:
+                self.assertGreater(measured['products'], 0)
+                self.assertGreater(measured['successful_prepared_emits'], 0)
+            else:
+                self.assertEqual(measured['products'], 0)
+                self.assertEqual(measured['successful_prepared_emits'], 0)
+        self.assertTrue(parcel.checked)
+
+    def test_outbox_comparison_requires_actual_preparation_and_every_original_field(self):
+        control = {key: ['retained', key] for key in original.SEMANTIC_FIELDS}
+        control.update(implementation='concurrent',
+            store_fingerprints={key:'retained' for key in concurrent.STORE_FIELDS},
+            outbox_preparation=dict(enabled=False, emit_probe_enabled=True, products=0,
+                                    successful_prepared_emits=0))
+        prepared = deepcopy(control)
+        prepared['outbox_preparation'].update(enabled=True, products=1, successful_prepared_emits=1)
+        runs = [deepcopy(row) for row in (control, prepared, prepared, control)]
+        self.assertTrue(concurrent.compare_outbox_modes(runs)['preparation_exercised'])
+        for key in original.SEMANTIC_FIELDS:
+            changed = deepcopy(runs); del changed[2][key]
+            result = concurrent.compare_outbox_modes(changed)
+            self.assertFalse(result['coherent']); self.assertEqual(result['different_semantic_fields'], [key])
+        missing = deepcopy(runs); missing[1]['outbox_preparation']['products'] = 0
+        self.assertFalse(concurrent.compare_outbox_modes(missing)['preparation_exercised'])
+        missing = deepcopy(runs); missing[2]['outbox_preparation']['successful_prepared_emits'] = 0
+        self.assertFalse(concurrent.compare_outbox_modes(missing)['preparation_exercised'])
+        changed = deepcopy(runs); changed[1]['store_fingerprints']['canonical_native'] = 'mutated'
+        self.assertEqual(concurrent.compare_outbox_modes(changed)['different_stores'], ['canonical_native'])
 
     def test_completion_waits_for_real_alias_outbox_acks_after_all_native_observations(self):
         from meme_machine.operational.managed_pump_qualification import QualificationReader

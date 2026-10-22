@@ -11,6 +11,8 @@ import ast
 import asyncio
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
+from dataclasses import dataclass
 import json
 import math
 import os
@@ -21,6 +23,7 @@ import sys
 import threading
 import time
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from engineering.diagnostics import replay_original_pump_window as original
 
@@ -37,7 +40,7 @@ MAX_CANDIDATE_DETAILS = 16
 MAX_CANDIDATE_DIFFERENCE_BYTES = 64 * 1024
 
 
-def candidate_difference_report(directory):
+def candidate_difference_report(directory, names=('serial-control', 'concurrent')):
     """Bounded diagnosis of quiescent stores; every original comparison stays strict.
 
     Candidate identities and metadata values leave this function only as hashes.
@@ -63,7 +66,7 @@ def candidate_difference_report(directory):
         finally:
             try:db.rollback()
             finally:db.close()
-    before, after = load('serial-control'), load('concurrent')
+    before, after = (load(name) for name in names)
     columns = Counter(); body_fields = Counter(); metadata_fields = Counter()
     differing = unknown_metadata = 0; details = []
     for key in sorted(before.keys() | after.keys()):
@@ -189,6 +192,51 @@ def compare_arms(before, after):
                 different_semantic_fields=fields, different_stores=stores)
 
 
+@dataclass(frozen=True)
+class NormalizedOutboxBatch:
+    """Economic-record carrier only; no native frame, census or finality fields."""
+    rows: tuple
+    outbox: tuple = ()
+
+
+def prepare_normalized_outbox(rows, path, endpoint):
+    """Use the operating optional preview on the authenticated normalized cohort.
+
+    The existing owner independently checks fresh storage, recipients, source
+    generation, bytes and first availability. This carrier grants no authority.
+    """
+    from meme_machine.solana_economic_preparation import MAX_BYTES, PreparedEconomicRecord, prepare_outbox
+    original.need(0 < len(rows) <= original.BATCH and
+                  all(type(row) is PreparedEconomicRecord for row in rows), 'concurrent_outbox_rows')
+    original.need(sum(row.original_bytes for row in rows) <= MAX_BATCH_BYTES, 'concurrent_batch_bytes')
+    retained = sum(row.original_bytes + row.byte_count for row in rows)
+    original.need(retained <= MAX_BYTES, 'concurrent_outbox_product_bound')
+    products, size = prepare_outbox((NormalizedOutboxBatch(tuple(rows)),), path, endpoint, MAX_BYTES-retained)
+    return products[0].outbox, size
+
+
+def compare_outbox_modes(runs):
+    """All existing semantic/store checks plus actual ABBA preparation/reuse."""
+    order = (False, True, True, False)
+    original.need(len(runs) == len(order) and all(run['implementation'] == 'concurrent' and
+        run['outbox_preparation']['enabled'] is mode for run, mode in zip(runs, order)),
+        'concurrent_outbox_arm_order')
+    compared = [compare_arms(runs[0], run) for run in runs[1:]]
+    fields = [key for key in original.SEMANTIC_FIELDS
+              if any(key in row['different_semantic_fields'] for row in compared)]
+    stores = sorted({key for row in compared for key in row['different_stores']})
+    exercised = all(run['outbox_preparation']['emit_probe_enabled'] and
+        ((run['outbox_preparation']['products'] > 0 and
+          run['outbox_preparation']['successful_prepared_emits'] > 0) if mode else
+         (run['outbox_preparation']['products'] == 0 and
+          run['outbox_preparation']['successful_prepared_emits'] == 0))
+        for run, mode in zip(runs, order))
+    return dict(coherent=not fields and not stores, semantic_fields=list(original.SEMANTIC_FIELDS),
+        different_semantic_fields=fields, different_stores=stores,
+        preparation_exercised=exercised, mode_order=['inline', 'prepared', 'prepared', 'inline'],
+        same_concurrent_configuration=True, arm_comparisons=compared)
+
+
 def stores(state, reader):
     """Six logical stores; source paths are authenticated before normalization."""
     def digest(db, sql):
@@ -215,7 +263,8 @@ def stores(state, reader):
         qualification_candidates=digest(reader.db, 'SELECT * FROM candidate_state ORDER BY mint'))
 
 
-async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seconds):
+async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seconds,
+                  outbox_preparation=False):
     from meme_machine.solana_evidence_plane import EvidenceWriter
     from meme_machine.solana_evidence_service import FinalizedFence
     from meme_machine.solana_evidence_control import PriorityOwner
@@ -246,6 +295,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
     intake_finished = False; changed = asyncio.Event(); delivery_changed = asyncio.Event(); latest = None
     provider = NoNetworkProvider(); loop = asyncio.get_running_loop()
     queue = asyncio.Queue(maxsize=ARRIVAL_BATCHES)
+    original.need(type(outbox_preparation) is bool, 'concurrent_outbox_mode')
 
     def factory():
         writer = EvidenceWriter(config.evidence, clock=lambda: at)
@@ -349,7 +399,17 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
 
     async def admit_group(group):
         prepared = [records[item['identity']][0] for item in group]
-        await source.work(lambda state: state.selective.ingest(prepared), 2,
+        options = {}
+        if outbox_preparation:
+            begun, cpu = time.perf_counter_ns(), time.thread_time_ns()
+            products, size = prepare_normalized_outbox(prepared, config.evidence, endpoint)
+            counters['outbox_preparation_calls'] += 1
+            counters['outbox_preparation_products'] += len(products)
+            counters['outbox_preparation_bytes'] += size
+            counters['outbox_preparation_wall_nanoseconds'] += time.perf_counter_ns()-begun
+            counters['outbox_preparation_cpu_nanoseconds'] += time.thread_time_ns()-cpu
+            options['prepared_outbox'] = products
+        await source.work(lambda state: state.selective.ingest(prepared, **options), 2,
                           label='source_commit', component='candidate')
 
     def check_tasks():
@@ -526,6 +586,12 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 command_intents_sha256=original.sha(original.canonical(commands)),
                 reader_restart_verified=True, owner_actor_restart_verified=True,
                 store_fingerprints=before_restart, counters=dict(counters), owner_counters=owner_counts,
+                outbox_preparation=dict(enabled=outbox_preparation,
+                    products=counters['outbox_preparation_products'],
+                    scope='normalized_records_actual_readonly_preview_on_source_event_loop_before_owner_admission_no_native_frame_or_process_IPC',
+                    economic_products_frozen_before_timing_for_both_modes=True,
+                    preparation_counters_include_untimed_warmup=True,
+                    owner_callback_counts_are_not_SQL_statement_counts=True),
                 thread_ids=thread_ids, distinct_pipeline_threads=len(set(thread_ids.values())) == 3,
                 production_work_capabilities=capabilities,
                 controlled_batch_progress=progress,
@@ -549,36 +615,60 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                     qualification_pool.shutdown(wait=True, cancel_futures=True)
 
 
-def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
+def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120, outbox_preparation=False):
     from meme_machine.runtime.evidence_worker import owner_thread_fairness
     limits(batch, rate, seconds)
+    original.need(type(outbox_preparation) is bool, 'concurrent_outbox_mode')
     directory = Path(directory).absolute()
     original.need(directory.parent.resolve(strict=True) == directory.parent and not directory.exists(),
                   'new_output_required')
     records, batches, _ = freeze(parcel, batch)
     directory.mkdir(mode=0o700); old_umask = os.umask(0o077)
+    def measured_arm(name, concurrent, prepared=False):
+        from meme_machine.solana_candidate_lifecycle import CandidateLifecycle
+        native_emit = CandidateLifecycle.emit_raw
+        hits = Counter()
+        def observed_emit(life, *args, **kwargs):
+            answer = native_emit(life, *args, **kwargs)
+            if kwargs.get('_prepared') is not None:hits['successful_prepared_emits'] += 1
+            return answer
+        # Only the explicitly selected comparison instruments the operating
+        # method. The default route retains its existing measurement overhead.
+        with patch.object(CandidateLifecycle, 'emit_raw', observed_emit) if outbox_preparation else nullcontext():
+            run = asyncio.run(run_arm(parcel, records, batches, directory/name,
+                concurrent=concurrent, rate=rate, seconds=seconds, outbox_preparation=prepared))
+        run['outbox_preparation'].update(emit_probe_enabled=outbox_preparation,
+            successful_prepared_emits=hits['successful_prepared_emits'] if outbox_preparation else None)
+        return run
     try:
         with original.no_network(), owner_thread_fairness():
-            runs = [asyncio.run(run_arm(parcel, records, batches, directory/name,
-                concurrent=concurrent, rate=rate, seconds=seconds))
-                for name, concurrent in (('serial-control', False), ('concurrent', True))]
-        comparison = compare_arms(*runs)
+            if outbox_preparation:
+                names = ('outbox-control-0', 'outbox-prepared-1', 'outbox-prepared-2', 'outbox-control-3')
+                runs = [measured_arm(name, True, prepared) for name, prepared in
+                        zip(names, (False, True, True, False))]
+                comparison = compare_outbox_modes(runs)
+            else:
+                names = ('serial-control', 'concurrent')
+                runs = [measured_arm(name, concurrent) for name, concurrent in zip(names, (False, True))]
+                comparison = compare_arms(*runs)
         for prepared, checksum, _ in records.values():
             original.need(original.sha(original.canonical(prepared.record.body())) == checksum,
                           'concurrent_normalized_input_mutated')
         parcel.unchanged()
-        exercised = all(runs[1]['counters'].get(key, 0) > 0 for key in
-                        ('delivery_before_intake_finished', 'observed_before_intake_finished',
-                         'intake_turns_without_qualification_drain'))
+        exercised = all(run['counters'].get(key, 0) > 0 for run in (runs if outbox_preparation else runs[1:])
+                        for key in ('delivery_before_intake_finished', 'observed_before_intake_finished',
+                                    'intake_turns_without_qualification_drain'))
         return dict(schema=SCHEMA, **comparison, concurrency_exercised=exercised,
-            candidate_state_difference=candidate_difference_report(directory),
+            candidate_state_difference=candidate_difference_report(directory, names[:2]),
             engineering_validation_passed=comparison['coherent'] and exercised and
+                (not outbox_preparation or comparison['preparation_exercised']) and
                 all(run['distinct_pipeline_threads'] for run in runs),
             source=parcel.manifest['source'], source_manifest_sha256=parcel.manifest_fingerprint[1],
             input_provenance='public_fixture' if 'fixture' in parcel.manifest['source'] else 'authenticated_original_parcel',
             input_parcel_sha256=parcel.fingerprint[1], input_events=len(parcel.inputs),
             selected_events=len(parcel.measured), runtime_baseline_commit=original.RUNTIME_BASELINE,
             consumer_source_sha256=original.sha(Path(__file__).read_bytes()), runs=runs,
+            outbox_preparation_comparison=outbox_preparation,
             schedule=dict(batch=batch, offered_events_per_second=rate, arrival_queue_batches=ARRIVAL_BATCHES,
                 max_batch_bytes=MAX_BATCH_BYTES, clock=max(item['first_seen'] for item in parcel.inputs),
                 clock_scope='fixed_availability_and_decision_clock_not_original_visibility_or_wall_clock',
@@ -605,6 +695,8 @@ def main():
     parser.add_argument('--batch', type=int)
     parser.add_argument('--rate', type=float)
     parser.add_argument('--seconds', type=float, default=120)
+    parser.add_argument('--outbox-preparation', action='store_true',
+        help='Compare inline/prepared/prepared/inline with the same concurrent configuration.')
     parser.add_argument('--worker', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.batch is None:args.batch = 1 if args.public_fixture else 64
@@ -623,8 +715,9 @@ def main():
                 '--rate', str(args.rate), '--seconds', str(args.seconds)]
             command += (['--parcel', str(args.parcel.absolute()), '--manifest-sha256', args.manifest_sha256]
                         if args.parcel else ['--public-fixture'])
+            if args.outbox_preparation:command.append('--outbox-preparation')
             child = subprocess.Popen(command, start_new_session=True, stdout=subprocess.DEVNULL)
-            until = time.monotonic() + 2*args.seconds
+            until = time.monotonic() + (4 if args.outbox_preparation else 2)*args.seconds
             try:
                 while child.poll() is None:
                     scratch.check(); original.need(time.monotonic() < until, 'concurrent_worker_deadline')
@@ -648,7 +741,8 @@ def main():
             from tests.test_original_pump_window_replay import CapturedParcel
             parcel = CapturedParcel()
         else:parcel = original.Parcel(args.parcel, args.manifest_sha256)
-        result = benchmark(parcel, args.new_output_directory, batch=args.batch, rate=args.rate, seconds=args.seconds)
+        result = benchmark(parcel, args.new_output_directory, batch=args.batch, rate=args.rate, seconds=args.seconds,
+                           outbox_preparation=args.outbox_preparation)
         original._report(args.new_output_directory/'report.json', original.canonical(result)+b'\n')
     print(json.dumps(dict(schema=SCHEMA, engineering_validation_passed=result['engineering_validation_passed'],
         coherent=result['coherent'], concurrency_exercised=result['concurrency_exercised'],
