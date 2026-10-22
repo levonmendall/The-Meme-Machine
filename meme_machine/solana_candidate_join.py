@@ -465,10 +465,15 @@ class CandidateTransactionJoin:
         meta=state['meta']
         anchored=meta is not None and (meta.parent_slot==self.completed
             or meta.parent_slot<self.filtered_from_slot)
-        reserve=bool(len(inflight)>=7 and anchored and all(slot>head for slot,_ in inflight))
+        # Accepted responses remain physically owned through their exact late
+        # authentication and commit. A completed older slot, or a head field
+        # already supplied by WS, no longer services any missing head demand.
+        # Count that logical demand separately without releasing its context.
+        servicing_head=any(slot==head and sig in missing for slot,sig in inflight)
+        reserve=bool(len(inflight)>=7 and anchored and not servicing_head)
         bound=8 if reserve else 7
         if len(inflight)>=bound:return ()
-        lookahead=bool(missing and any(slot==head for slot,_ in inflight))
+        lookahead=bool(missing and servicing_head)
         slots=[head]
         if lookahead and len(inflight)<7:
             slots.extend(slot for slot in sorted(self.pending)[1:8]

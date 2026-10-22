@@ -926,6 +926,224 @@ class StreamFullLogContentTests(unittest.TestCase):
 
 
 
+    def test_completed_old_read_preserves_ownership_without_blocking_new_head_service(self):
+        """Physical response ownership is distinct from missing head service."""
+        import based58
+        clock=[100.]
+        join,fetched,full,old_witness=self.native_required_join(clock=lambda:clock[0])
+        slot=full['slot'];old=(slot,full['transaction']['signatures'][0])
+        head=slot+1
+        head_signatures=[based58.b58encode(bytes([n])*64).decode() for n in range(100,104)]
+        # B is wholly absent. C..H each require one field, and I supplies H's
+        # genuine linked-finalized-child hint. A uses its original ten-second
+        # grace, while every future read has its own native child witness.
+        future=[]
+        for offset in range(2,8):
+            sig=based58.b58encode(bytes([110+offset])*64).decode()
+            future.append((slot+offset,sig));self.lookahead_slot(join,slot+offset,[sig])
+        self.lookahead_slot(join,slot+8,[])
+        clock[0]=110.
+        self.assertEqual(join.live_log_repair_keys(set()),(old,))
+        self.assertEqual(join.begin_required_log_read(*old),old_witness)
+        active={old};chosen=join.live_log_repair_keys(active)
+        self.assertEqual(chosen,tuple(future))
+        for key in chosen:join.begin_required_log_read(*key)
+        active.update(chosen);self.assertEqual(len(join.required_log_reads),7)
+        # A settles through actual WS input while its accepted HTTP result is
+        # still owned. Do not fabricate the context's completed checksum.
+        first=join.feed_log(*old,full['meta']['logMessages'],None,NOW+1)
+        self.assertEqual(first.update.block.slot,slot)
+        self.assertEqual(first.observed_at[old[1]],NOW+1)
+        self.assertEqual(join.completed,slot)
+        self.assertIsNotNone(join.required_log_reads[old]['completed'])
+        self.lookahead_slot(join,head,head_signatures,parent_hash='native-hash')
+        self.assertEqual(min(join.pending),head)
+        self.assertEqual(len(join.pending[head]['missing_logs']),4)
+        self.assertTrue(join.head_has_finalized_child())
+        self.assertEqual(join.pending[head]['meta'].parent_slot,join.completed)
+        before=copy.deepcopy(join.__dict__)
+        next_head=(head,head_signatures[0])
+        self.assertEqual(join.live_log_repair_keys(active),(next_head,))
+        self.assertEqual(join.__dict__,before)
+        self.assertEqual(set(join.required_log_reads),active)
+        # The available eighth context serves B while A's original response
+        # remains physically owned and independently authenticatable.
+        join.begin_required_log_read(*next_head);active.add(next_head)
+        self.assertEqual(len(join.required_log_reads),8)
+        self.assertIn(old,join.required_log_reads)
+        self.assertEqual(join.required_log_witness(*old,include_completed=True),old_witness)
+        self.assertEqual(join.live_log_repair_keys(active),())
+        # Its original witness authenticates the late A response, which cannot
+        # republish A or change A's original WS availability.
+        logs,receipt=authenticate_required_log(join,old_witness,fetched,ENDPOINT)
+        self.assertTrue(receipt['native_order_preserved'])
+        self.assertIsNone(join.complete_required_log(*old,logs,NOW+3))
+        self.assertEqual(join.completed,slot)
+        self.assertEqual(first.observed_at[old[1]],NOW+1)
+        join.end_required_log_read(*old);active.remove(old)
+        self.assertEqual(len(join.required_log_reads),7)
+        frames=[first];expected_available={old:NOW+1}
+        for key in [(head,sig) for sig in head_signatures]+future:
+            if key not in active:
+                self.assertIn(key,join.live_log_repair_keys(active))
+                join.begin_required_log_read(*key);active.add(key)
+            self.assertLessEqual(len(join.required_log_reads),8)
+            witness=join.required_log_witness(*key)
+            tx=copy.deepcopy(fetched);tx['slot']=key[0]
+            tx['transaction']['signatures'][0]=key[1]
+            available=NOW+10+len(expected_available);expected_available[key]=available
+            logs,receipt=authenticate_required_log(join,witness,tx,ENDPOINT)
+            self.assertEqual(receipt['native_witness'],witness)
+            frame=join.complete_required_log(*key,logs,available)
+            if frame is not None:frames.append(frame)
+            join.end_required_log_read(*key);active.remove(key)
+            while True:
+                frame=join.drain()
+                if frame is None:break
+                frames.append(frame)
+        self.assertEqual([frame.update.block.slot for frame in frames],list(range(slot,slot+9)))
+        for frame in frames:
+            for tx in frame.log_transactions:
+                key=(tx['slot'],tx['transaction']['signatures'][0])
+                self.assertEqual(frame.observed_at[key[1]],expected_available[key])
+                self.assertEqual(tx['meta']['logMessages'],full['meta']['logMessages'])
+                self.assertEqual(tx['transactionIndex'],join.recent[key[0]]['signature_indices'][key[1]])
+                expected=copy.deepcopy(full);expected['slot']=key[0]
+                expected['transaction']['signatures'][0]=key[1]
+                expected['transactionIndex']=tx['transactionIndex']
+                self.assertEqual(pump_events(tx),pump_events(expected))
+        self.assertEqual(join.pending,{})
+        self.assertEqual(join.required_log_reads,{})
+        self.assertEqual(join.pending_bytes,0);self.assertEqual(join.early_log_bytes,0)
+
+    def test_ws_supplied_owned_head_field_preserves_ownership_without_blocking_missing_service(self):
+        """An owned field already supplied by WS is no longer needed service."""
+        import based58
+        clock=[100.]
+        join,fetched,full,_=self.native_required_join(extra_missing=6,earlier=1,clock=lambda:clock[0])
+        future_slot=full['slot'];head=future_slot-1;clock[0]=110.
+        old=join.live_log_repair_keys(set());self.assertEqual(len(old),7)
+        for key in old:join.begin_required_log_read(*key)
+        active=set(old)
+        head_signatures=[based58.b58encode(bytes([n])*64).decode() for n in (130,131)]
+        self.lookahead_slot(join,head,head_signatures,blockhash='native-parent')
+        first=(head,head_signatures[0]);second=(head,head_signatures[1])
+        self.assertEqual(join.live_log_repair_keys(active),(first,))
+        first_witness=join.begin_required_log_read(*first);active.add(first)
+        self.assertEqual(len(join.required_log_reads),8)
+        # Settle one original future HTTP field through the actual authenticator
+        # and join. Its content stays buffered; only its read ownership ends.
+        released=old[0]
+        logs,_=authenticate_required_log(join,join.required_log_witness(*released),fetched,ENDPOINT)
+        self.assertIsNone(join.complete_required_log(*released,logs,NOW+1))
+        join.end_required_log_read(*released);active.remove(released)
+        self.assertEqual(len(join.required_log_reads),7)
+        self.assertIn(released,join.early_logs)
+        self.assertIsNone(join.feed_log(*first,full['meta']['logMessages'],None,NOW+2))
+        self.assertEqual(join.pending[head]['missing_logs'],{second[1]})
+        self.assertIn(first,join.required_log_reads)
+        self.assertIsNone(join.required_log_reads[first]['completed'])
+        self.assertTrue(join.head_has_finalized_child())
+        self.assertLess(join.pending[head]['meta'].parent_slot,join.filtered_from_slot)
+        before=copy.deepcopy(join.__dict__)
+        self.assertEqual(join.live_log_repair_keys(active),(second,))
+        self.assertEqual(join.__dict__,before)
+        witness=join.begin_required_log_read(*second);active.add(second)
+        self.assertEqual(len(join.required_log_reads),8)
+        self.assertIn(first,join.required_log_reads)
+        self.assertEqual(join.live_log_repair_keys(active),())
+        tx=copy.deepcopy(fetched);tx['slot']=head;tx['transaction']['signatures'][0]=second[1]
+        logs,_=authenticate_required_log(join,witness,tx,ENDPOINT)
+        frame=join.complete_required_log(*second,logs,NOW+4)
+        self.assertEqual(frame.update.block.slot,head)
+        self.assertEqual([tx['transaction']['signatures'][0] for tx in frame.log_transactions],head_signatures)
+        self.assertEqual([tx['transactionIndex'] for tx in frame.log_transactions],[0,1])
+        self.assertEqual(frame.observed_at,{first[1]:NOW+2,second[1]:NOW+4})
+        self.assertIsNotNone(join.required_log_reads[first]['completed'])
+        join.end_required_log_read(*second);active.remove(second)
+        # Even after B retires, the exact late first-field response must agree
+        # with its original WS content. It cannot republish or refresh B.
+        tx['transaction']['signatures'][0]=first[1]
+        logs,_=authenticate_required_log(join,first_witness,tx,ENDPOINT)
+        self.assertIsNone(join.complete_required_log(*first,logs,NOW+5))
+        self.assertEqual(join.completed,head)
+        self.assertEqual(frame.observed_at,{first[1]:NOW+2,second[1]:NOW+4})
+        join.end_required_log_read(*first);active.remove(first)
+        for key in old[1:]:
+            witness=join.required_log_witness(*key)
+            tx=copy.deepcopy(fetched);tx['transaction']['signatures'][0]=key[1]
+            logs,_=authenticate_required_log(join,witness,tx,ENDPOINT)
+            completed=join.complete_required_log(*key,logs,NOW+6)
+            join.end_required_log_read(*key);active.remove(key)
+        self.assertEqual(completed.update.block.slot,future_slot)
+        self.assertEqual(completed.observed_at[released[1]],NOW+1)
+        for native_frame in (frame,completed):
+            for tx in native_frame.log_transactions:
+                expected=copy.deepcopy(full);expected['slot']=tx['slot']
+                expected['transaction']['signatures'][0]=tx['transaction']['signatures'][0]
+                expected['transactionIndex']=tx['transactionIndex']
+                self.assertEqual(pump_events(tx),pump_events(expected))
+        self.assertEqual(join.pending,{})
+        self.assertEqual(join.required_log_reads,{})
+        self.assertEqual(active,set())
+        self.assertEqual(join.pending_bytes,0);self.assertEqual(join.early_log_bytes,0)
+
+    def test_ws_supplied_owned_head_field_cannot_authorize_speculative_lookahead(self):
+        import based58
+        clock=[100.]
+        join,fetched,full,first_witness=self.native_required_join(extra_missing=1,clock=lambda:clock[0])
+        slot=full['slot'];first=(slot,full['transaction']['signatures'][0])
+        second=(slot,next(sig for sig in join.pending[slot]['missing_logs'] if sig!=first[1]))
+        future=(slot+2,based58.b58encode(bytes([140])*64).decode())
+        self.lookahead_slot(join,future[0],[future[1]])
+        self.lookahead_slot(join,slot+3,[])
+        join.begin_required_log_read(*first);active={first}
+        self.assertIsNone(join.feed_log(*first,full['meta']['logMessages'],None,NOW+1))
+        self.assertEqual(join.pending[slot]['missing_logs'],{second[1]})
+        self.assertFalse(join.head_has_finalized_child())
+        self.assertTrue(join.log_repair_ready(*future))
+        before=copy.deepcopy(join.__dict__)
+        self.assertEqual(join.live_log_repair_keys(active),())
+        self.assertEqual(join.__dict__,before)
+        self.assertEqual(set(join.required_log_reads),{first})
+        # The original grace admits the actual missing head field first. Only
+        # its accepted service may authorize bounded future preparation.
+        clock[0]=110.
+        self.assertEqual(join.live_log_repair_keys(active),(second,))
+        second_witness=join.begin_required_log_read(*second);active.add(second)
+        self.assertEqual(join.live_log_repair_keys(active),(future,))
+        future_witness=join.begin_required_log_read(*future);active.add(future)
+        self.assertEqual(len(join.required_log_reads),3)
+        self.lookahead_slot(join,slot+1,[],parent_hash='native-hash')
+        tx=copy.deepcopy(fetched);tx['slot']=future[0];tx['transaction']['signatures'][0]=future[1]
+        logs,_=authenticate_required_log(join,future_witness,tx,ENDPOINT)
+        self.assertIsNone(join.complete_required_log(*future,logs,NOW+2))
+        join.end_required_log_read(*future);active.remove(future)
+        logs,_=authenticate_required_log(join,first_witness,fetched,ENDPOINT)
+        self.assertIsNone(join.complete_required_log(*first,logs,NOW+3))
+        join.end_required_log_read(*first);active.remove(first)
+        tx=copy.deepcopy(fetched);tx['transaction']['signatures'][0]=second[1]
+        logs,_=authenticate_required_log(join,second_witness,tx,ENDPOINT)
+        frames=[join.complete_required_log(*second,logs,NOW+4)]
+        join.end_required_log_read(*second);active.remove(second)
+        while True:
+            frame=join.drain()
+            if frame is None:break
+            frames.append(frame)
+        self.assertEqual([frame.update.block.slot for frame in frames],list(range(slot,slot+4)))
+        self.assertEqual(frames[0].observed_at,{first[1]:NOW+1,second[1]:NOW+4})
+        self.assertEqual(frames[2].observed_at,{future[1]:NOW+2})
+        for frame in frames:
+            for tx in frame.log_transactions:
+                expected=copy.deepcopy(full);expected['slot']=tx['slot']
+                expected['transaction']['signatures'][0]=tx['transaction']['signatures'][0]
+                expected['transactionIndex']=tx['transactionIndex']
+                self.assertEqual(pump_events(tx),pump_events(expected))
+        self.assertEqual(join.pending,{})
+        self.assertEqual(join.required_log_reads,{})
+        self.assertEqual(active,set())
+        self.assertEqual(join.pending_bytes,0);self.assertEqual(join.early_log_bytes,0)
+
     def test_required_http_serialized_response_bound_covers_absent_and_truncated_fields(self):
         for truncated in (False,True):
             with self.subTest(truncated=truncated):
