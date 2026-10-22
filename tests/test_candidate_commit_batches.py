@@ -797,9 +797,13 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         commit_candidate_batch(self.state,frames,self.addresses,'fanout-session',publish=False,defer_fanout=True)
         expected=self.snapshot(h);actual=self.snapshot(self.h)
         self.assertTrue(expected['candidate_history_outbox'])
-        reserved=actual['candidate_history_outbox']
+        reserved=[row for row in actual['candidate_history_outbox'] if row[0].startswith('fanout:')]
         self.assertTrue(reserved)
-        self.assertTrue(all(row[0].startswith('fanout:') for row in reserved))
+        # Real creation adoption emits its original scout metadata before the
+        # canonical fanout boundary. Preserve it rather than demanding zero.
+        self.assertEqual([row for row in actual['candidate_history_outbox'] if not row[0].startswith('fanout:')],
+            [row for row in expected['candidate_history_outbox'] if row[3]!='canonical'])
+        self.assertEqual(len(reserved),sum(row[3]=='canonical' for row in expected['candidate_history_outbox']))
         self.assertEqual({k:v for k,v in actual.items() if k!='candidate_history_outbox'},
             {k:v for k,v in expected.items() if k!='candidate_history_outbox'})
         pending=self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall()
@@ -863,7 +867,7 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((queue.count,queue.bytes),(0,0))
                 self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM canonical_evidence').fetchone()[0],0)
                 self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],0)
-                self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE id NOT GLOB 'fanout:*'").fetchone()[0],0)
+                self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='canonical' AND id NOT GLOB 'fanout:*'").fetchone()[0],0)
                 self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
                 # New native frame admission and an unrelated owner transaction
                 # can progress while derived CPU preparation holds no owner or
@@ -929,6 +933,10 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         rows=economic_records('pump',PROGRAMS['pump'],copy.deepcopy(FIXTURE['pump'][0]),
             endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_stream')
         mint=next(row.payload['event']['mint'] for row in rows if row.kind=='event')
+        other,h=state_at(Path(self.tmp.name)/'inline-binding-fanout.sqlite')
+        self.addCleanup(other.writer.close)
+        h.bind('pump','retained-alias',market_address=mint)
+        commit_candidate_batch(other,[frame(100)],self.addresses,'binding-fanout',publish=False)
         self.h.bind('pump','retained-alias',market_address=mint)
         commit_candidate_batch(self.state,[frame(100)],self.addresses,'binding-fanout',publish=False,defer_fanout=True)
         before=self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall()
@@ -939,12 +947,12 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             self.h.db.execute("UPDATE evidence_bindings SET market_address='changed' WHERE family='pump' AND address='retained-alias'")
         self.assertFalse(apply(self.h.lifecycle,product))
         self.assertEqual(self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall(),before)
-        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE id NOT GLOB 'fanout:*'").fetchone()[0],0)
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='canonical' AND id NOT GLOB 'fanout:*'").fetchone()[0],0)
         with self.state.writer.transaction():
             self.h.db.execute("UPDATE evidence_bindings SET market_address=? WHERE family='pump' AND address='retained-alias'",(mint,))
         self.assertTrue(apply(self.h.lifecycle,product))
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],0)
-        self.assertEqual(self.h.db.execute('SELECT DISTINCT address FROM candidate_history_outbox').fetchall(),[('retained-alias',)])
+        self.assertEqual(self.snapshot(self.h),self.snapshot(h))
 
 
 if __name__=='__main__':unittest.main()
