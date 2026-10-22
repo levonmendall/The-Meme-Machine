@@ -43,6 +43,165 @@ class TapeAdapter:
 
 
 class FundedRallyLifecycles(unittest.TestCase):
+    def test_actual_bridge_entry_restart_and_settlement_share_selected_1000_authority(self):
+        """Synthetic bridge tape plus native quotes, real shared USD lifecycles."""
+        from fractions import Fraction
+        from hashlib import sha256
+        from types import SimpleNamespace
+        from meme_machine.exact_money import arithmetic
+        from meme_machine.lanes.pump.pumpswap_survivor import POLICY, POLICY_HASH, STRATEGY_ID, evaluate_entry
+        from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime, Quotes
+        from meme_machine.lanes.pump.postgrad import PostGraduationAdapter
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.runtime.usd_valuation import USDValue
+        from meme_machine.shared_capital.native_sleeve import SharedSleeve
+        from tests.shared_capital_support import legacy_fixture
+        from tests.lanes.pump.test_pumpswap_survivor import bridge_facts
+        from tests.lanes.pump.test_postgrad_read_efficiency import MeteredRPC
+        from tests.lanes.pump.test_postgrad import MINT
+
+        root, authority, now, _ = native_fixtures.RuntimeIntegrationTests.fixture(
+            self, policy=shared_risk_candidate(), new_epoch=True)
+        # Retain a separate original $500 fixture byte-for-byte while the
+        # explicit new $1000 fixture exercises actual shared financial writes.
+        historical = root.parent/'historical-500.sqlite'
+        old = legacy_fixture(historical)
+        old.close()
+        historical_hash = sha256(historical.read_bytes()).hexdigest()
+        before = deepcopy(authority.ledger())
+        self.assertEqual(Decimal(before['initial_capital']), 1000)
+        self.assertEqual(Decimal(authority.snapshot()['capital']['free_cash']), 1000)
+
+        # One synthetic SOL/USD observation with native lamport units keeps
+        # the original ten-SOL native sizing basis equal to $1000, without
+        # replacing the shared allocator or inventing a provider quote.
+        value = USDValue('SOL', 9, Decimal('100'), now-1, now+100000,
+            'synthetic-bridge-sol-usd', 'e'*64)
+        with patch('meme_machine.runtime.usd_valuation.native_reader', return_value=lambda at:value), \
+                patch('meme_machine.runtime.usd_valuation.NativeValueReader', side_effect=lambda *args:lambda at:value):
+            rpc = MeteredRPC()
+            state = PostGraduationAdapter(rpc, scan_rpc=object()).pumpswap_snapshot(
+                MINT, 101, reuse_verified_pool=True, held_curve_inline=True)
+            graduation = now-600
+            state.update(market_time=now, available_time=now)
+            facts = bridge_facts(600, quote_scale=100000)
+            facts.update(now=now, graduation_at=graduation,
+                         base_end=facts['base_end']+graduation)
+            ratio = Fraction(state['state']['quote_reserve'], state['state']['base_reserve'])/162
+            for point in facts['price_points']:
+                point.update(at=point['at']+graduation, price=str(Fraction(point['price'])*ratio))
+            for event in facts['demand_events']:
+                event['at'] += graduation
+            facts['migration_price'] = str(100*ratio)
+            facts['recovery_vwap'] = str(155*ratio)
+            native_capital = 10_000_000_000
+            folder = root/'pump'
+            folder.mkdir(exist_ok=True)
+            with patch.dict(os.environ, MM_DIRECTIONAL_SLEEVE_DB=str(folder/'bridge-sleeve.sqlite')):
+                rt = object.__new__(Runtime)
+                rt.root = folder; rt.run_id = 'shared-bridge'; rt.last_error = None
+                rt.candidate_history = None; rt.adapter = None; rt.rpc = None
+                rt.clock = now; rt.now = lambda:rt.clock
+                rt.sleeve = open_sleeve('pump', native_capital)
+                rt.book = PaperBook(folder/'bridge-paper.sqlite', run_id=rt.run_id,
+                    lane=STRATEGY_ID, policy_hash=POLICY_HASH, initial=native_capital)
+                rt.history = History(folder/'bridge-history.sqlite', policy=POLICY_HASH)
+                rt.history.graduate(MINT, dict(at=graduation, pool=state['pool'],
+                    identity='synthetic-canonical-migration', signature='synthetic-finalized-migration',
+                    quote_amount=100, mint_amount=1))
+                rt.plane = SimpleNamespace(frontier=lambda scope:state['slot'],
+                    block_time=lambda slot:now, require_usable=lambda scope:None)
+                rt.discover = lambda:None; rt._increment = lambda *args:None
+                rt.fresh_state = lambda candidate, **kw:state
+                rt.reconstruct = lambda *args, **kw:deepcopy(facts)
+                try:
+                    self.assertIsInstance(rt.sleeve, SharedSleeve)
+                    target = rt.sleeve.sizing_basis(POLICY['target_sleeve_bps'])['target']
+                    probe = min(target, evaluate_entry(facts)['features']['turnover_cap'])
+                    loss_sizes = []
+                    native_loss = Quotes.loss
+                    def measured_loss(quotes, units):
+                        loss_sizes.append(units)
+                        return native_loss(quotes, units)
+                    with patch('meme_machine.runtime.storage.compact_survivor'), \
+                            patch.object(Quotes, 'loss', measured_loss):
+                        result = rt.step(admit=True)
+                    self.assertIsNone(result['last_boundary'], result)
+                    self.assertEqual(result['accounting']['open_positions'], 1)
+                    row = rt.history.get(MINT); identity = row['position']
+                    position = rt.book._load(identity)
+                    self.assertEqual(position['status'], 'open')
+                    self.assertEqual(row['decision']['features']['execution_profile'], 'pump_postgrad_bridge')
+                    self.assertEqual(row['decision']['features']['maturity_tier'], '10m-30m')
+                    self.assertIn(probe, loss_sizes); self.assertIn(probe*2, loss_sizes)
+                    funding = position['shared_funding']
+                    self.assertEqual(funding['epoch_id'], before['epoch_id'])
+                    ledger = authority.ledger()
+                    request_id = ledger['runtime_native_requests']['pump:'+identity]
+                    self.assertEqual(funding['request_id'], request_id)
+                    self.assertEqual(ledger['requests'][request_id]['status'], 'CONSUMED')
+                    entered = authority.snapshot()['capital']
+                    self.assertTrue(entered['conservation'])
+                    self.assertGreater(Decimal(entered['deployed_basis']), 0)
+                    self.assertLess(Decimal(entered['free_cash']), 1000)
+
+                    original_tokens = position['tokens']; original_basis = position['basis']
+                    rt.clock = now+1
+                    rt.exit_quote = lambda qty:dict(quantity=qty,
+                        net_proceeds=original_basis*115//400, acquired=rt.clock,
+                        market_time=rt.clock, slot=state['slot'])
+                    partial = monitor(book=rt.book, sleeve=rt.sleeve, identity=identity,
+                        adapter=rt, policy=POLICY['exits'], observation=dict(id='bridge-partial',
+                            at=rt.clock, after_cost_return_bps=1500,
+                            net_exit_proceeds=original_basis*115//100, exit_liquidity_valid=True))
+                    self.assertEqual(partial['action'], 'partial_exit')
+                    self.assertEqual(partial['quantity'], original_tokens//4)
+                    rt.book.close(); rt.history.close(); rt.sleeve.close()
+                    rt.sleeve = open_sleeve('pump', native_capital)
+                    rt.book = PaperBook(folder/'bridge-paper.sqlite', run_id=rt.run_id,
+                        lane=STRATEGY_ID, policy_hash=POLICY_HASH, initial=native_capital)
+                    rt.history = History(folder/'bridge-history.sqlite', policy=POLICY_HASH)
+                    self.assertIsInstance(rt.sleeve, SharedSleeve)
+                    self.assertEqual(rt.history.get(MINT)['position'], identity)
+                    risk = restore_risk(rt.book, identity)
+                    self.assertTrue(risk['realization_taken'])
+                    self.assertEqual(rt.position_policy(risk, POLICY['exits']), POLICY['bridge_exits'])
+                    remaining = rt.book._load(identity)
+                    self.assertEqual(remaining['tokens'], original_tokens-original_tokens//4)
+                    rt.clock = now+2
+                    rt.exit_quote = lambda qty:dict(quantity=qty,
+                        net_proceeds=remaining['basis']*92//100, acquired=rt.clock,
+                        market_time=rt.clock, slot=state['slot'])
+                    terminal_action = monitor(book=rt.book, sleeve=rt.sleeve, identity=identity,
+                        adapter=rt, policy=POLICY['exits'], observation=dict(id='bridge-stop',
+                            at=rt.clock, after_cost_return_bps=-800,
+                            net_exit_proceeds=remaining['basis']*92//100, exit_liquidity_valid=True))
+                    self.assertEqual((terminal_action['action'], terminal_action['reason']), ('full_exit', 'hard_stop'))
+                    terminal = rt.book._load(identity)
+                    native = rt.book.reconcile(); sleeve = rt.sleeve.reconcile()
+                    self.assertEqual(terminal['status'], 'settled')
+                    self.assertEqual((native['basis'], native['reserved'], native['open_positions']), (0, 0, 0))
+                    self.assertEqual(sleeve['reserved'], 0)
+                    self.assertTrue(rt.sleeve.reentry_verified(identity)['obligations_clear'])
+                    self.assertTrue(rt.book.replay()['verified'])
+                    authority.verify_replay()
+                    final = authority.snapshot()
+                    self.assertTrue(final['capital']['conservation'])
+                    for bucket in ('deployed_basis', 'active_reservations', 'pending_authoritative_commitments'):
+                        self.assertEqual(Decimal(final['capital'][bucket]), 0)
+                    self.assertEqual(Decimal(final['capital']['free_cash']), Decimal(final['capital']['realized_equity']))
+                    with arithmetic():
+                        expected_cash = Decimal(1000)+Decimal(terminal['realized'])/Decimal(10_000_000)
+                    self.assertEqual(Decimal(final['capital']['free_cash']), expected_cash)
+                    self.assertFalse(authority.ledger()['runtime_pending'])
+                    self.assertFalse(authority.ledger()['runtime_inbox'])
+                    for field in ('epoch_id', 'inception_sha256', 'contracts', 'initial_capital'):
+                        self.assertEqual(authority.ledger()[field], before[field])
+                    self.assertEqual(len(authority.ledger()['requests']), len(before['requests'])+1)
+                    self.assertEqual(sha256(historical.read_bytes()).hexdigest(), historical_hash)
+                finally:
+                    rt.book.close(); rt.history.close(); rt.sleeve.close()
+
     def qualification(self,family,at,graduation):
         if family=='pump':
             from tests.lanes.pump.test_pumpswap_survivor import facts
