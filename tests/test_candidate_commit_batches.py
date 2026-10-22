@@ -863,7 +863,7 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((queue.count,queue.bytes),(0,0))
                 self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM canonical_evidence').fetchone()[0],0)
                 self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],0)
-                self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE id NOT LIKE 'fanout:%'").fetchone()[0],0)
+                self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE id NOT GLOB 'fanout:*'").fetchone()[0],0)
                 self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
                 # New native frame admission and an unrelated owner transaction
                 # can progress while derived CPU preparation holds no owner or
@@ -939,7 +939,7 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             self.h.db.execute("UPDATE evidence_bindings SET market_address='changed' WHERE family='pump' AND address='retained-alias'")
         self.assertFalse(apply(self.h.lifecycle,product))
         self.assertEqual(self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall(),before)
-        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE id NOT LIKE 'fanout:%'").fetchone()[0],0)
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE id NOT GLOB 'fanout:*'").fetchone()[0],0)
         with self.state.writer.transaction():
             self.h.db.execute("UPDATE evidence_bindings SET market_address=? WHERE family='pump' AND address='retained-alias'",(mint,))
         self.assertTrue(apply(self.h.lifecycle,product))
