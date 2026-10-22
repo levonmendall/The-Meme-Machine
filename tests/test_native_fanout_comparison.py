@@ -15,6 +15,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+import sys
 import tempfile
 import threading
 import time
@@ -344,13 +345,18 @@ async def run_native_arm(path, frames, *, deferred, restart_before_apply=False):
                             raise AssertionError('native_comparison_restart_gate_not_exercised')
                         def reserved(state):
                             db = state.writer.db
-                            rows = list(db.execute('SELECT body,hash,consumed FROM candidate_history_outbox'))
+                            rows = list(db.execute("SELECT body,hash,consumed FROM candidate_history_outbox WHERE id GLOB 'fanout:*'"))
                             for raw, checksum, consumed in rows:
                                 body = json.loads(raw)
                                 if (hashlib.sha256(raw.encode()).hexdigest() != checksum or consumed is not None
                                         or body.get('fanout_pending') is not True
                                         or body['record']['identity'] not in expected):
                                     raise AssertionError('native_comparison_reservation_not_retained')
+                            # Native creation adoption also emits real scout
+                            # metadata. It is not a pending fanout marker. No
+                            # actual canonical row may precede gated apply.
+                            if db.execute("SELECT count(*) FROM candidate_history_outbox WHERE kind='canonical' AND id NOT GLOB 'fanout:*'").fetchone() != (0,):
+                                raise AssertionError('native_comparison_early_canonical_delivery')
                             targets = db.execute('SELECT count(*) FROM candidate_fanout_targets').fetchone()[0]
                             checkpoints = db.execute('SELECT count(*) FROM candidate_checkpoints').fetchone()[0]
                             return dict(placeholders=len(rows), targets=targets, checkpoints=checkpoints)
@@ -432,10 +438,16 @@ class NativeFanoutComparisonTests(unittest.IsolatedAsyncioTestCase):
             self.assertGreater(sum(value for key,value in arm['event_types'].items() if key.startswith('program:pumpswap:')), 0)
         self.assertTrue(any('solana_derived_fanout.prepare' in name for name in arms[1]['stages']))
         self.assertFalse(any('solana_derived_fanout.prepare' in name for name in arms[0]['stages']))
+        # Use the runner's visible stream and one bounded line per arm, so
+        # the retained Actions log carries actual measurements on failures too.
         print('NATIVE_FANOUT_COMPARISON '+json.dumps({
             'schema':'native-fanout-comparison-v1', 'order':['inline','deferred','deferred','inline'],
-            'semantic_equal':True, 'native_provider_or_live_capacity_claim':False,
-            'arms':[{key:value for key,value in arm.items() if key != 'semantics'} for arm in arms]}, sort_keys=True))
+            'semantic_equal':True, 'native_provider_or_live_capacity_claim':False}, sort_keys=True),
+            file=sys.stderr,flush=True)
+        for index,arm in enumerate(arms):
+            print('NATIVE_FANOUT_ARM '+json.dumps(dict(index=index,
+                **{key:value for key,value in arm.items() if key != 'semantics'}),sort_keys=True),
+                file=sys.stderr,flush=True)
 
     async def test_native_commits_continue_past_prepared_apply_and_restart_retains_all_obligations(self):
         frames = native_frames()
