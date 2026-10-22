@@ -364,8 +364,12 @@ class CandidateTransactionJoin:
         meta=s['meta']
         if s['finality']!=meta.parent_slot or not meta.HasField('block_time'):
             raise EvidenceUnavailable('yellowstone_finalized_block_shape')
-        for index,fact in s['log_required'].items():
-            if s['signature_text'][index]!=sig:continue
+        index=s.get('signature_indices',{}).get(sig)
+        # Retained predecessor/test states did not need the inverse index.
+        if index is None:
+            index=next((i for i in s['log_required'] if s['signature_text'][i]==sig),None)
+        if index is not None:
+            fact=s['log_required'][index]
             if index>=meta.executed_transaction_count:
                 raise EvidenceUnavailable('yellowstone_transaction_index_shape')
             return dict(slot=slot,signature=sig,transaction_index=index,
@@ -394,6 +398,37 @@ class CandidateTransactionJoin:
             if read is not None:checksum=read['completed']
         return checksum
 
+    def required_log_can_fit(self,slot,sig,logs):
+        """A future HTTP field may wait without spending either join budget.
+
+        The accepted read still owns its bounded provider response outside the
+        join. Only the current head may use the existing native-byte fallback;
+        future fields must fit the ordinary log reservoir before installation.
+        This is an admission hint, never authentication or a coverage verdict.
+        """
+        key=(slot,sig)
+        if slot<=self.completed or key in self.completed_log_fields:return True
+        if slot==min(self.pending,default=None):return True
+        old=self.early_logs.get(key)
+        if old is not None and key not in self.incomplete_logs:return True
+        previous=0 if old is None else len(str(old[0]).encode())
+        return (len(self.early_logs)<32768 or old is not None) and (
+            self.early_log_bytes-previous+len(str(logs).encode())<=MAX_PENDING_BYTES)
+
+    def log_repair_ready(self,slot,sig):
+        """Permit content acquisition only after the independent native witness.
+
+        A linked child is the ordinary WS grace. An old validated head cannot
+        wait indefinitely for that additional hint: reuse the original ten
+        second join bound before requesting its absent field. Time supplies no
+        identity, order, finality or economic completeness.
+        """
+        if self.required_log_witness(slot,sig) is None:return False
+        head=min(self.pending,default=None)
+        if slot!=head:return self.has_finalized_child(slot)
+        return ((slot,sig) in self.incomplete_logs or self.has_finalized_child(slot)
+            or self.clock()-self.pending[slot]['started']>=min(MAX_JOIN_SECONDS,self.max_join_seconds))
+
     def head_has_finalized_child(self):
         """Progress hint for missing live fields; never interval coverage.
 
@@ -401,14 +436,56 @@ class CandidateTransactionJoin:
         wholly absent WS field. Explicit truncations need no such grace. This
         avoids treating every status that precedes its WS packet as a repair.
         """
-        head=min(self.pending,default=None)
-        if head is None:return False
+        return self.has_finalized_child(min(self.pending,default=None))
+
+    def has_finalized_child(self,head):
+        if head not in self.pending:return False
         meta=self.pending[head]['meta']
         if meta is None:return False
         return any(slot>head and child['meta'] is not None
             and child['finality']==head and child['meta'].parent_slot==head
             and child['meta'].parent_blockhash==meta.blockhash
             for slot,child in self.pending.items())
+
+    def live_log_repair_keys(self,inflight):
+        """Choose a bounded head-first live content stage, without retiring it.
+
+        Seven ordinary accepted contexts leave one service slot for an earlier
+        head. Only an anchored head may borrow that eighth context: an earlier
+        unanchored block must first receive its missing parent. All content is
+        still authenticated and admitted by the original join methods.
+        """
+        head=min(self.pending,default=None)
+        if head is None:return ()
+        state=self.pending[head];missing=state['missing_logs']
+        if len(inflight)>=8:
+            if missing and all(slot>head for slot,_ in inflight):
+                raise EvidenceUnavailable('candidate_log_buffer_pressure')
+            return ()
+        meta=state['meta']
+        anchored=meta is not None and (meta.parent_slot==self.completed
+            or meta.parent_slot<self.filtered_from_slot)
+        reserve=bool(len(inflight)>=7 and anchored and all(slot>head for slot,_ in inflight))
+        bound=8 if reserve else 7
+        if len(inflight)>=bound:return ()
+        lookahead=bool(missing and any(slot==head for slot,_ in inflight))
+        slots=[head]
+        if lookahead and len(inflight)<7:
+            slots.extend(slot for slot in sorted(self.pending)[1:8]
+                if self.has_finalized_child(slot))
+        head_ready=bool(self.head_has_finalized_child()
+            or self.clock()-state['started']>=min(MAX_JOIN_SECONDS,self.max_join_seconds))
+        chosen=[]
+        for key in self.missing_log_keys(max(self.pending),slots=slots,exclude=inflight):
+            if key[0]==head:
+                if not (head_ready or key in self.incomplete_logs):continue
+                if self.required_log_witness(*key) is None:continue
+            else:
+                if not lookahead or len(inflight)+len(chosen)>=7:continue
+                if not self.log_repair_ready(*key):continue
+            chosen.append(key)
+            if len(inflight)+len(chosen)>=bound:break
+        return tuple(chosen)
 
     def feed(self,update,size,seen):
         now=self.clock()
@@ -487,6 +564,7 @@ class CandidateTransactionJoin:
                     else:
                         s['log_required'][item.index]=fact
                         text=signature(fact[0]);s['signature_text'][item.index]=text
+                        s.setdefault('signature_indices',{}).setdefault(text,item.index)
                         if (slot,text) not in self.early_logs or (slot,text) in self.incomplete_logs:
                             s['missing_logs'].add(text)
             s['statuses'][item.index]=fact;s['status_seen'].setdefault(item.index,seen)
@@ -653,15 +731,22 @@ class CandidateTransactionJoin:
                     del self.recent_logs[key];self.recent_incomplete_logs.pop(key,None)
         return result
 
-    def missing_log_keys(self,through):
+    def missing_log_keys(self,through,*,slots=None,exclude=(),limit=None):
         """Only authenticated successful identities missing their log field.
 
         The recovery caller bounds concurrency and its durable replay interval.
         No signatures are reconverted while a provider request is outstanding.
         """
-        for slot in sorted(self.pending):
+        if limit is not None and limit<=0:return
+        count=0
+        for slot in sorted(self.pending) if slots is None else slots:
             if slot>through:break
-            for sig in sorted(self.pending[slot]['missing_logs']):yield slot,sig
+            for sig in sorted(self.pending[slot]['missing_logs']):
+                key=(slot,sig)
+                if key in exclude:continue
+                yield key
+                count+=1
+                if limit is not None and count>=limit:return
 
     def block_repair_groups(self,keys,profile,now):
         """Known successful native identities only; never interval coverage.

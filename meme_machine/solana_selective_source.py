@@ -2647,10 +2647,22 @@ class SelectiveSource:
                     token=next_token
             if rolling:
                 async def repair_logs():
-                    # Only the oldest independently witnessed slot can retire.
-                    # Complete its required fields before buying later repairs;
-                    # an absent live field cannot wait forever for a WS packet.
-                    inflight=set();owned_reads=set();batch_inflight=False
+                    # Content acquisition can look ahead of a blocked head;
+                    # only the original ordered join may retire a native slot.
+                    # Each of at most eight read contexts owns at most one
+                    # existing16MiB serialized provider response until terminal.
+                    # This bounds retained inputs, not Python decoded-object RSS.
+                    inflight=set();owned_reads=set();batch_inflight=False;first_failure=[]
+                    def fail_session(error):
+                        if not first_failure and not isinstance(error,asyncio.CancelledError):first_failure.append(error)
+                        session_stop.set()
+                    def release_read(key,context):
+                        # A terminal member can release before its batch's other
+                        # members. Old batch cleanup must never remove a newer
+                        # read of that same still-missing native identity.
+                        if context is not None and join.required_log_reads.get(key) is context:
+                            join.end_required_log_read(*key)
+                            owned_reads.discard(key);inflight.discard(key)
                     async def publish_log(slot,sig,logs):
                         await self.work(lambda s:install(s)._observation(None,'selective_missing_field',dict(signature=sig,slot=slot,field='logMessages',reason='RECOVERY_GAP')),2)
                         frame=join.feed_log(slot,sig,logs,None,time.time());join_progress.set()
@@ -2661,14 +2673,15 @@ class SelectiveSource:
                             join_progress.set();await commit(frame)
                     not_fetched=object()
                     async def one(slot,sig,fetched=not_fetched,witness=not_fetched,available=None):
-                        authenticated=False;owned_read=witness is not not_fetched
+                        authenticated=False;retained=False;context=None
                         try:
                             if witness is not_fetched:
                                 pending_slot=join.pending.get(slot)
                                 if pending_slot is None or sig not in pending_slot['missing_logs']:return
-                                witness=join.begin_required_log_read(slot,sig);owned_read=True
+                                witness=join.begin_required_log_read(slot,sig)
                                 owned_reads.add((slot,sig))
                             if witness is None:raise EvidenceUnavailable('candidate_required_content_missing')
+                            context=join.required_log_reads[(slot,sig)]
                             if fetched is not_fetched:
                                 self.observe('log_repair',stage='repair_logical_calls')
                                 tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
@@ -2693,9 +2706,33 @@ class SelectiveSource:
                                 raise
                             await self.work(lambda s:install(s)._observation(None,
                                 'native_stream_log_supplement',dict(receipt,http_result_available_at=available)),2)
+                            # Future content remains inside its accepted read
+                            # context when the original log reservoir is full.
+                            # It never borrows the head's native-byte fallback,
+                            # drops its original HTTP availability or renews the
+                            # head-start deadline. The durable input receipt and
+                            # normal disconnect gap preserve an unfinished field.
+                            waiting=False
+                            while not join.required_log_can_fit(slot,sig,complete):
+                                if not waiting:
+                                    waiting=True
+                                    await self.work(lambda s:install(s)._observation(None,
+                                        'selective_missing_field',dict(signature=sig,slot=slot,
+                                            field='logMessages',reason='RECOVERY_GAP',
+                                            http_result_available_at=available,
+                                            authenticated_content_retained=True)),2)
+                                if self.stop.is_set() or local_stop.is_set():
+                                    retained=True;return
+                                state=join.pending.get(slot)
+                                if state is None or join.clock()-state['started']>=join.max_join_seconds:
+                                    raise EvidenceUnavailable('yellowstone_incomplete_status_census')
+                                join_progress.clear()
+                                if join.required_log_can_fit(slot,sig,complete):break
+                                try:await asyncio.wait_for(join_progress.wait(),.05)
+                                except TimeoutError:pass
                             # The receipt write yielded to native/WS delivery.
-                            # Recheck its exact witness and any newly observed
-                            # prefix/duplicate before changing the join.
+                            # Capacity waits can yield too. Recheck the exact
+                            # witness and new WS prefix before changing the join.
                             complete,_=authenticate_required_log(join,witness,tx,self.config.identity)
                             frame=join.complete_required_log(slot,sig,complete,available)
                             join_progress.set();await commit(frame)
@@ -2705,32 +2742,70 @@ class SelectiveSource:
                                 join_progress.set();await commit(frame)
                             authenticated=True
                             self.observe('log_repair',stage='supplements_authenticated')
+                        except BaseException as error:
+                            # Make an authentication/admission failure visible
+                            # before waiting for other prepared responses. Stop
+                            # intake so their capacity waits can retain original
+                            # evidence rather than hide this cause until expiry.
+                            fail_session(error)
+                            raise
                         finally:
-                            if witness is not not_fetched and witness is not None and not authenticated:
+                            if witness is not not_fetched and witness is not None and not authenticated and not retained:
                                 self.observe('log_repair',stage='supplements_failed')
-                            if owned_read:join.end_required_log_read(slot,sig)
-                            owned_reads.discard((slot,sig))
-                            inflight.discard((slot,sig))
-                    async def log_batch(keys,witnesses):
+                            release_read((slot,sig),context)
+                    async def log_batch(keys,witnesses,*,legacy=False):
                         nonlocal batch_inflight
-                        fetched=False
+                        fetched=False;members=[];member_group=None;cleanup_deadline=None
+                        def owned_deadline():
+                            nonlocal cleanup_deadline
+                            if cleanup_deadline is None:cleanup_deadline=self.shutdown_deadline()
+                            return cleanup_deadline
+                        contexts={key:join.required_log_reads.get(key) for key in keys}
                         try:
                             if any(value is None for value in witnesses.values()):
                                 raise EvidenceUnavailable('candidate_required_content_missing')
                             for _ in keys:self.observe('log_repair',stage='repair_logical_calls')
                             values=await self.measured_log_batch([sig for _,sig in keys],2)
                             available=time.time();fetched=True
+                            # Physical fetch admission ends here, not after a
+                            # slow owner's receipt/canonical commit. Key/result
+                            # ownership remains in inflight until every member
+                            # terminates, including accepted cancellation cleanup.
                             # Each response still needs its exact current native
                             # witness and original WS prefix/suffix. Ordered frame
                             # publication remains the existing single commit queue.
-                            for (slot,sig),value in zip(keys,values):
-                                await one(slot,sig,value,witnesses[(slot,sig)],available)
+                            if legacy:
+                                for index,(slot,sig) in enumerate(keys):
+                                    member=one(slot,sig,values[index],witnesses[(slot,sig)],available)
+                                    values[index]=None
+                                    await member
+                            else:
+                                members=[asyncio.create_task(one(slot,sig,value,witnesses[(slot,sig)],available))
+                                    for (slot,sig),value in zip(keys,values)]
+                                # Transfer every response to its exact accepted
+                                # member before yielding. This parent must not
+                                # keep completed siblings alive after their read
+                                # contexts permit the next bounded acquisition.
+                                values=None
+                                member_group=asyncio.gather(*members,return_exceptions=True)
+                                try:results=await asyncio.shield(member_group)
+                                except asyncio.CancelledError:
+                                    results=await finish_owned(member_group,owned_deadline())
+                                    for result in results:
+                                        if isinstance(result,BaseException) and not isinstance(result,asyncio.CancelledError):raise result
+                                    raise
+                                for result in results:
+                                    if isinstance(result,BaseException):raise result
                         finally:
+                            # Never cancel a sibling's already accepted result
+                            # because another response failed. Each original
+                            # context must settle or retain its recovery input.
+                            if member_group is not None and not member_group.done():
+                                await finish_owned(member_group,owned_deadline())
                             if not fetched:
                                 for _ in keys:self.observe('log_repair',stage='supplements_failed')
-                            for key in keys:
-                                join.end_required_log_read(*key);owned_reads.discard(key)
-                            inflight.difference_update(keys);batch_inflight=False
+                            for key,context in contexts.items():release_read(key,context)
+                            if legacy:batch_inflight=False
                     async def block_group(keys,witness,profile):
                         from .solana_candidate_join import authenticated_block_logs
                         try:
@@ -2755,17 +2830,16 @@ class SelectiveSource:
                         while not self.stop.is_set() and not local_stop.is_set():
                             for task in list(pending):
                                 if task.done():task.result();pending.remove(task)
-                            keys=[];head=min(join.pending,default=None)
-                            live_head=join.head_has_finalized_child()
-                            for key in join.missing_log_keys(head if head is not None else tip):
-                                if key in inflight:continue
-                                deferred=key in join.incomplete_logs
-                                if batch_inflight or join.required_log_witness(*key) is None:continue
-                                if not (deferred or live_head
-                                        or has_checkpoint and not fresh_rolling and key[0]<=tip):continue
-                                keys.append(key)
-                                if len(keys)>=max(0,8-len(inflight)):break
-                            if len(inflight)>=8:keys=[]
+                            head=min(join.pending,default=None)
+                            old_head=has_checkpoint and not fresh_rolling and head is not None and head<=tip
+                            if old_head:
+                                # Historical checkpoint recovery retains the
+                                # original oldest-only dense/scalar contract.
+                                keys=[] if batch_inflight else [key for key in
+                                    join.missing_log_keys(head,exclude=inflight,limit=max(0,8-len(inflight)))
+                                    if join.required_log_witness(*key) is not None]
+                            else:
+                                keys=list(join.live_log_repair_keys(inflight))
                             profile=getattr(self.rpc,'block_repair_profile',None)
                             grouped=set()
                             # A truncated packet needs its own exact WS binding;
@@ -2785,19 +2859,26 @@ class SelectiveSource:
                                 witnesses={}
                                 for key in fields:
                                     witnesses[key]=join.begin_required_log_read(*key);owned_reads.add(key)
-                                inflight.update(fields);batch_inflight=True
-                                pending.add(asyncio.create_task(log_batch(fields,witnesses)))
+                                inflight.update(fields)
+                                legacy=all(has_checkpoint and not fresh_rolling and key[0]<=tip for key in fields)
+                                if legacy:batch_inflight=True
+                                pending.add(asyncio.create_task(log_batch(fields,witnesses,legacy=legacy)))
                             await asyncio.sleep(.01)
+                    except BaseException as error:
+                        fail_session(error);raise
                     finally:
                         # An accepted HTTP result may complete the final native
                         # join. Let its original deadline finish before closing
                         # the commit queue; do not discard it on filter rebuild.
-                        try:results=await asyncio.gather(*pending,return_exceptions=True)
+                        try:
+                            cleanup=asyncio.gather(*pending,return_exceptions=True)
+                            results=await finish_owned(cleanup,self.shutdown_deadline())
                         finally:
                             # A task cancelled before its first instruction
                             # cannot run its own finally block.
                             for key in owned_reads:join.end_required_log_read(*key)
                             owned_reads.clear()
+                        if first_failure:raise first_failure[0]
                         for result in results:
                             if isinstance(result,BaseException):raise result
                 tasks.append(asyncio.create_task(repair_logs()))

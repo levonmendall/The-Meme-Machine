@@ -62,6 +62,7 @@ def authenticate_supplement(join,witness,fetched,endpoint_identity):
         other=join.deferred_complete_logs.get(key)
         if other is not None and other!=digest([complete['meta']['logMessages'],None]):raise KeyError()
         raw=canonical(fetched);partial=canonical(observed)
+        if len(raw.encode())>16*1024*1024:raise KeyError()
         receipt=dict(method='getTransaction',commitment='finalized',endpoint_identity=endpoint_identity,
             native_witness=witness,observed_websocket_logs=list(observed),response=fetched,
             observed_websocket_seen=join.early_logs[key][2],
@@ -120,6 +121,8 @@ def authenticate_required_log(join,witness,fetched,endpoint_identity):
         if retained is not None and digest(retained[0][:2])!=checksum:raise KeyError()
         if slot<=join.completed and join.required_log_checksum(slot,sig)!=checksum:raise KeyError()
         raw=canonical(fetched)
+        # At most eight original read contexts may retain a response while
+        # admission waits; this serialized envelope is not Python RSS.
         if len(raw.encode())>16*1024*1024:raise KeyError()
         receipt=dict(method='getTransaction',commitment='finalized',endpoint_identity=endpoint_identity,
             native_witness=witness,response=fetched,completion_kind='native_required_log',
