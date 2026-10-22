@@ -346,7 +346,7 @@ class ManagedPumpTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cold_payload_corruption'):
             managed.replay_pump(self.config)
 
-    def test_replay_rejects_orphan_population_and_same_count_mutation(self):
+    def test_replay_covers_unregistered_population_and_rejects_same_count_mutation(self):
         self.stores()
         from meme_machine.runtime.candidate_history import CandidateHistory
         with managed.production_environment(self.config):
@@ -355,8 +355,10 @@ class ManagedPumpTests(unittest.TestCase):
                 transaction_index=2, event_index=0, market_time=100,
                 kind='pump_buy', payload=dict(mint='mint', event_type='buy'))
             history.close()
-        with self.assertRaisesRegex(ValueError, 'replay_population_mismatch'):
-            managed.replay_pump(self.config)
+        # Event retention is independent of strategy/discovery registration.
+        # The audit must authenticate this row without fabricating a candidate.
+        result = managed.replay_pump(self.config)
+        self.assertEqual((result['candidates'], result['events']), (0, 1))
         with managed.production_environment(self.config):
             history = CandidateHistory(self.config.history)
             history.observe('pump', 'mint', surface='pump.fun', observed_at=100)
@@ -370,6 +372,189 @@ class ManagedPumpTests(unittest.TestCase):
         with patch.object(CandidateHistory, 'events', mutate_after_read):
             with self.assertRaisesRegex(ValueError, 'replay_mutated_native_history'):
                 managed.replay_pump(self.config)
+
+    def retained_canonical_before_scout(self, family='pumpswap'):
+        """Real canonical intake/FULL/ACK can precede its scout registry row."""
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        from meme_machine.solana_evidence_service import ServiceState
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        from meme_machine.solana_selective_history import economic_records, PROGRAMS
+        from meme_machine.solana_selective_source import install
+        from meme_machine import solana_history_delivery as delivery
+        fixture = json.loads((Path(__file__).parent / 'fixtures/solana_selective_cohort.json').read_text())
+        self.stores()
+        with managed.production_environment(self.config):
+            endpoint = managed.AlchemyEndpoint.parse(self.config.endpoint)
+            state = ServiceState(self.config.evidence, endpoint)
+            try:
+                history = install(state); life = history.lifecycle
+                record = next(iter(economic_records(family, PROGRAMS[family], fixture[family][0],
+                    endpoint_identity=endpoint.identity, seen=1791400000., source='alchemy_finalized_stream')))
+                record = prepare_economic_record(record).record
+                pool = record.payload['event']['pool' if family == 'pumpswap' else 'mint']
+                history.bind(family, pool)
+                history.observe(family, pool, slot=record.slot, signature=record.signature,
+                    seen=record.observed_at, fields={})
+                with state.writer.transaction():
+                    history.rolling.store(record)
+                    life.queue_records([record])
+                raw = state.writer.db.execute("SELECT body FROM candidate_history_outbox WHERE kind='canonical'").fetchone()[0]
+                # Scale the existing byte boundary to select one real row,
+                # reproducing a full canonical page ahead of the lower-priority
+                # scout without changing production selection or auth logic.
+                with patch.object(delivery, 'MAX_BYTES', len(raw.encode())):
+                    snapshot = delivery.capture(life)
+                self.assertEqual(len(snapshot['rows']), 1)
+                self.assertEqual(snapshot['rows'][0][3], 'canonical')
+                result = delivery.deliver(snapshot)
+                self.assertTrue(delivery.acknowledge(life, snapshot, result))
+                self.assertEqual(state.writer.db.execute("SELECT kind,consumed IS NOT NULL FROM candidate_history_outbox ORDER BY priority").fetchall(),
+                    [('canonical', 1), ('scout', 0)])
+                with closing(CandidateHistory(self.config.history)) as shared:
+                    if family == 'pumpswap':self.assertIsNone(shared.candidate('pump', pool))
+                    else:self.assertIsNotNone(shared.candidate('pump', pool))
+                    retained = shared.events('pump', pool)
+                    self.assertEqual(len(retained), 1)
+                    self.assertEqual(retained[0]['kind'], 'pumpswap_trade' if family == 'pumpswap'
+                        else 'pump_'+record.payload['event']['event_type'])
+                    self.assertEqual(shared.db.execute('SELECT count(*) FROM source_receipts').fetchone()[0], 1)
+                    # PumpSwap reproduces the predecessor mismatch0 versus1;
+                    # Pump's native metadata fold already registers its mint.
+                    self.assertEqual(sum(len(shared.events('pump', row['candidate']))
+                        for row in shared.candidates(lane='pump')), 0 if family == 'pumpswap' else 1)
+                    self.assertEqual(shared.db.execute("SELECT count(*) FROM canonical_event_refs WHERE lane='pump'").fetchone()[0], 1)
+                return pool, retained, record
+            finally:
+                state.writer.close()
+
+    def test_real_pumpswap_reference_replays_before_pending_scout_without_registering_candidate(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        from meme_machine.solana_evidence_service import ServiceState
+        from meme_machine.solana_selective_source import install
+        from meme_machine.solana_history_delivery import capture, deliver, acknowledge
+        pool, retained, _ = self.retained_canonical_before_scout()
+        result = managed.replay_pump(self.config)
+        self.assertTrue(result['verified']);self.assertTrue(result['read_only'])
+        self.assertEqual((result['candidates'], result['events']), (0, 1))
+        with closing(CandidateHistory(self.config.history)) as shared:
+            self.assertIsNone(shared.candidate('pump', pool))
+            self.assertEqual(shared.events('pump', pool), retained)
+        # A normal reopen and later real scout FULL/ACK registers discovery;
+        # the already authenticated economics and original receipt stay intact.
+        with managed.production_environment(self.config):
+            state = ServiceState(self.config.evidence, managed.AlchemyEndpoint.parse(self.config.endpoint))
+            try:
+                life = install(state).lifecycle;snapshot = capture(life)
+                self.assertEqual([row[3] for row in snapshot['rows']], ['scout'])
+                self.assertTrue(acknowledge(life, snapshot, deliver(snapshot)))
+            finally:state.writer.close()
+        replayed = managed.replay_pump(self.config)
+        self.assertEqual((replayed['candidates'], replayed['events']), (1, 1))
+        with closing(CandidateHistory(self.config.history)) as shared:
+            self.assertIsNotNone(shared.candidate('pump', pool))
+            self.assertEqual(shared.events('pump', pool), retained)
+            self.assertEqual(shared.db.execute('SELECT count(*) FROM source_receipts').fetchone()[0], 2)
+            self.assertEqual(shared.db.execute('SELECT count(*) FROM funding').fetchone()[0], 0)
+            self.assertEqual(shared.db.execute('SELECT count(*) FROM decisions').fetchone()[0], 0)
+
+    def test_unregistered_canonical_reference_still_authenticates_its_hash(self):
+        self.retained_canonical_before_scout()
+        with sqlite3.connect(self.config.history) as db:
+            db.execute("UPDATE canonical_event_refs SET hash='corrupt-unregistered-reference'")
+        with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
+            managed.replay_pump(self.config)
+
+    def test_real_pump_reference_uses_original_mint_order_and_availability_without_replay_writes(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        mint, retained, record = self.retained_canonical_before_scout('pump')
+        with closing(CandidateHistory(self.config.history)) as shared:
+            registry = shared.db.execute('SELECT * FROM candidates ORDER BY lane,candidate').fetchall()
+        result = managed.replay_pump(self.config)
+        self.assertTrue(result['verified']);self.assertTrue(result['read_only'])
+        self.assertEqual((result['candidates'], result['events']), (1, 1))
+        self.assertEqual(retained[0]['identity'], 'pump-source:'+record.identity)
+        self.assertEqual(retained[0]['transaction_index'], record.transaction_index)
+        self.assertEqual(retained[0]['payload']['available_time'], int(record.observed_at))
+        with closing(CandidateHistory(self.config.history)) as shared:
+            self.assertEqual(shared.events('pump', mint), retained)
+            self.assertEqual(shared.db.execute('SELECT * FROM candidates ORDER BY lane,candidate').fetchall(), registry)
+        # A valid reference hash cannot authorize a fabricated availability.
+        with sqlite3.connect(self.config.history) as db:
+            ref = json.loads(db.execute('SELECT body FROM canonical_event_refs').fetchone()[0])
+            ref['fields']['available_time'] += 1;raw = managed._canonical(ref)
+            db.execute('UPDATE canonical_event_refs SET body=?,hash=?',
+                (raw, hashlib.sha256(raw.encode()).hexdigest()))
+        with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
+            managed.replay_pump(self.config)
+
+    def test_unregistered_native_address_aliases_remain_separate_authenticated_views(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        from meme_machine.solana_evidence_service import ServiceState
+        from meme_machine.solana_selective_source import install
+        from meme_machine import solana_history_delivery as delivery
+        pool, _, record = self.retained_canonical_before_scout()
+        alias = record.payload['event']['wallet'];self.assertNotEqual(alias, pool)
+        with managed.production_environment(self.config):
+            state = ServiceState(self.config.evidence, managed.AlchemyEndpoint.parse(self.config.endpoint))
+            try:
+                history = install(state);history.bind('pumpswap', alias)
+                with state.writer.transaction():history.lifecycle.queue_records([record])
+                raw = state.writer.db.execute("SELECT body FROM candidate_history_outbox WHERE kind='canonical' AND consumed IS NULL").fetchone()[0]
+                with patch.object(delivery, 'MAX_BYTES', len(raw.encode())):
+                    snapshot = delivery.capture(history.lifecycle)
+                self.assertEqual([row[3] for row in snapshot['rows']], ['canonical'])
+                self.assertTrue(delivery.acknowledge(history.lifecycle, snapshot, delivery.deliver(snapshot)))
+            finally:state.writer.close()
+        result = managed.replay_pump(self.config)
+        self.assertEqual((result['candidates'], result['events']), (0, 2))
+        with closing(CandidateHistory(self.config.history)) as shared:
+            self.assertIsNone(shared.candidate('pump', pool));self.assertIsNone(shared.candidate('pump', alias))
+            self.assertEqual(len(shared.events('pump', pool)), 1);self.assertEqual(len(shared.events('pump', alias)), 1)
+
+    def test_unregistered_reference_projection_rejects_outside_address_and_native_field_changes(self):
+        self.retained_canonical_before_scout()
+        with sqlite3.connect(self.config.history) as db:
+            original = db.execute('SELECT candidate,identity,kind,body,hash FROM canonical_event_refs').fetchone()
+        for column, value in (('candidate', 'outside-native-addresses'), ('identity', 'wrong-native-view'),
+                ('kind', 'pump_trade'), ('field', 'wallet'), ('field', '_economic_order')):
+            with self.subTest(column=column, value=value):
+                with sqlite3.connect(self.config.history) as db:
+                    if column == 'field':
+                        ref = json.loads(original[3]);ref['fields'][value] = 'wrong-native-field'
+                        raw = managed._canonical(ref)
+                        db.execute('UPDATE canonical_event_refs SET body=?,hash=?',
+                            (raw, hashlib.sha256(raw.encode()).hexdigest()))
+                    else:db.execute('UPDATE canonical_event_refs SET '+column+'=?', (value,))
+                try:
+                    with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
+                        managed.replay_pump(self.config)
+                finally:
+                    with sqlite3.connect(self.config.history) as db:
+                        db.execute('UPDATE canonical_event_refs SET candidate=?,identity=?,kind=?,body=?,hash=?', original)
+
+    def test_registry_and_event_index_key_mismatches_are_not_hidden_by_union_enumeration(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        self.stores()
+        with managed.production_environment(self.config):
+            with closing(CandidateHistory(self.config.history)) as history:
+                history.observe('pump', 'mint', surface='pump.fun', observed_at=100)
+                history.append_event('pump', 'mint', identity='event', slot=10,
+                    transaction_index=2, event_index=0, market_time=100,
+                    kind='pump_buy', payload=dict(mint='mint', event_type='buy'))
+        for table, column, wrong, original in (
+                ('candidates', 'candidate', 'wrong-registry-key', 'mint'),
+                ('events', 'candidate', 'wrong-event-key', 'mint'),
+                ('events', 'identity', 'wrong-event-identity', 'event'),
+                ('events', 'slot', 99, 10)):
+            with self.subTest(table=table, column=column):
+                with sqlite3.connect(self.config.history) as db:
+                    db.execute('UPDATE '+table+' SET '+column+'=?', (wrong,))
+                try:
+                    with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
+                        managed.replay_pump(self.config)
+                finally:
+                    with sqlite3.connect(self.config.history) as db:
+                        db.execute('UPDATE '+table+' SET '+column+'=?', (original,))
 
     def test_components_are_the_production_driver_rpc_and_sql_service(self):
         managed.prepare_generation(self.config)
