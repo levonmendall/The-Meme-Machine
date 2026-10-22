@@ -89,8 +89,8 @@
       "status": "M"
     },
     "meme_machine/solana_candidate_join.py": {
-      "after_bytes": 42876,
-      "after_sha256": "57862ad91917ba59d19b952c5e5787b09a9cffc9fd97a81f083d710701ef2eae",
+      "after_bytes": 47352,
+      "after_sha256": "f189b069fe1b01454077387f6328663ee708a5685759f0a5cb299ce25522ca8a",
       "before_bytes": 22910,
       "before_sha256": "cd570e5ed58519bf61ccfc553910d1a5093952e7754a9cab80d517f3e7269699",
       "changed_nodes": [
@@ -108,8 +108,13 @@
         "CandidateTransactionJoin.end_required_log_read",
         "CandidateTransactionJoin.feed",
         "CandidateTransactionJoin.feed_log",
+        "CandidateTransactionJoin.has_finalized_child",
         "CandidateTransactionJoin.head_has_finalized_child",
         "CandidateTransactionJoin.hold_complete_log",
+        "CandidateTransactionJoin.live_log_repair_keys",
+        "CandidateTransactionJoin.log_repair_ready",
+        "CandidateTransactionJoin.missing_log_keys",
+        "CandidateTransactionJoin.required_log_can_fit",
         "CandidateTransactionJoin.required_log_checksum",
         "CandidateTransactionJoin.required_log_witness",
         "__statement_15",
@@ -296,8 +301,8 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 193596,
-      "after_sha256": "82924c5ff4334228e67ea843f46c48d2c816feb90b9b72367ec34a722b246612",
+      "after_bytes": 199620,
+      "after_sha256": "498dff47e185cc1bbefc6091d1a63f2593e9291f3db6fcc4b8a1d37ef0dab7f5",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -354,8 +359,8 @@
       "status": "M"
     },
     "meme_machine/solana_stream_log_repair.py": {
-      "after_bytes": 8273,
-      "after_sha256": "d13fe3090e8faaa4c20dd97f513af25f37bc5247d4e7da5c244a88ed4a180c43",
+      "after_bytes": 8478,
+      "after_sha256": "aca6cc253dd3dc6fcf61f73ed10b0576796c67147b78e090e184513a4456685e",
       "status": "A"
     }
   },
@@ -390,8 +395,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "7490ec74108c661623c19bbc4702f2de71f85381",
-  "implementation_tree": "19a2a93c133f74514f6757fcaed58e01ff75b362",
+  "implementation": "78d0a455d981aeecff05eb8beee2af183b0db90a",
+  "implementation_tree": "6d7a8d6e1fe6bb82c6b3a1a1679fff6c010b4074",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 10024,
