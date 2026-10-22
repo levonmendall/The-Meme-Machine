@@ -48,6 +48,9 @@ jobs:
             tests.test_managed_log_repair_batches \
             tests.test_archive_full_log_content \
             tests.test_solana_source_drain \
+            tests.test_candidate_commit_batches \
+            tests.test_solana_derived_fanout \
+            tests.test_native_fanout_comparison \
             tests.test_managed_native_pump \
             tests.test_managed_native_pons \
             tests.test_managed_capacity_source_guard --verbose

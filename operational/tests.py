@@ -99,6 +99,8 @@ FAST=[
  'tests.test_native_usage_intake',
  'tests.test_scout_commit_batches',
  'tests.test_candidate_commit_batches',
+ 'tests.test_solana_derived_fanout',
+ 'tests.test_native_fanout_comparison',
  'tests.test_pump_first_check',
  'tests.test_first_owner_scope',
  'tests.test_redundant_acquisition',
