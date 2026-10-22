@@ -797,7 +797,9 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         commit_candidate_batch(self.state,frames,self.addresses,'fanout-session',publish=False,defer_fanout=True)
         expected=self.snapshot(h);actual=self.snapshot(self.h)
         self.assertTrue(expected['candidate_history_outbox'])
-        self.assertEqual(actual['candidate_history_outbox'],[])
+        reserved=actual['candidate_history_outbox']
+        self.assertTrue(reserved)
+        self.assertTrue(all(row[0].startswith('fanout:') for row in reserved))
         self.assertEqual({k:v for k,v in actual.items() if k!='candidate_history_outbox'},
             {k:v for k,v in expected.items() if k!='candidate_history_outbox'})
         pending=self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall()
@@ -861,7 +863,7 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((queue.count,queue.bytes),(0,0))
                 self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM canonical_evidence').fetchone()[0],0)
                 self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],0)
-                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox').fetchone()[0],0)
+                self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE id NOT LIKE 'fanout:%'").fetchone()[0],0)
                 self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
                 # New native frame admission and an unrelated owner transaction
                 # can progress while derived CPU preparation holds no owner or
@@ -932,7 +934,7 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             self.h.db.execute("UPDATE evidence_bindings SET market_address='changed' WHERE family='pump' AND address='retained-alias'")
         self.assertFalse(apply(self.h.lifecycle,product))
         self.assertEqual(self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall(),before)
-        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox').fetchone()[0],0)
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE id NOT LIKE 'fanout:%'").fetchone()[0],0)
         with self.state.writer.transaction():
             self.h.db.execute("UPDATE evidence_bindings SET market_address=? WHERE family='pump' AND address='retained-alias'",(mint,))
         self.assertTrue(apply(self.h.lifecycle,product))
