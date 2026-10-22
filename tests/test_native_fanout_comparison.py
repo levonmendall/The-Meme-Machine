@@ -118,7 +118,7 @@ def coherent_counts(path):
     with closing(sqlite3.connect(path.as_uri()+'?mode=ro', uri=True, isolation_level=None, timeout=0)) as db:
         db.execute('PRAGMA query_only=ON')
         return db.execute('SELECT (SELECT count(*) FROM canonical_evidence),'
-            
+
             '(SELECT count(*) FROM candidate_history_outbox WHERE consumed IS NULL),'
             '(SELECT count(*) FROM candidate_pending_proofs)').fetchone()
 
