@@ -16,6 +16,13 @@ Retention is deliberately a hard capacity stop, never an eviction/prune flag.
 Unverified/failed records remain intact. External authenticated archival and
 verified compaction are not implemented and must precede sustained use beyond
 these bounds. Installation is additive; the old executable can ignore this table.
+
+Integration limits: construction can raise on schema/storage/admission errors;
+future producer factories must contain that failure outside native protection.
+Payload bounds do not reserve financial page/WAL/disk headroom. In particular,
+Pons Current's existing 64 MiB native cap is shared with this additive table.
+Financial headroom, authenticated archival, pending-exit execution evidence and
+protected-host/source extraction are unimplemented prerequisites to wiring.
 """
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -24,6 +31,7 @@ import json
 import re
 import sqlite3
 import threading
+import time
 from typing import Protocol
 
 
@@ -132,6 +140,25 @@ def _stable_binding(value):
     return {key:value[key] for key in ('epoch_id', 'inception_sha256', 'native_genesis_sha256', 'regime')}
 
 
+def sample_clock():
+    """Capture an actual wall read bracketed by monotonic reads, without retiming.
+
+    No guessed tolerance: the bracket preserves scheduling/read uncertainty.
+    A discontinuity which cannot share a consistent offset with the acceptance
+    anchors is explicitly UNVERIFIED; it never fabricates a deadline or expiry.
+    """
+    before = time.monotonic_ns()
+    wall = time.time_ns()
+    after = time.monotonic_ns()
+    return dict(at_ns=before, wall_ns=wall, sample_end_ns=after)
+
+
+def _clock_pair(at, wall, after):
+    integer(at); integer(wall); integer(after)
+    require(after >= at, 'invalid_clock_sample_bracket')
+    return wall-after, wall-at
+
+
 @dataclass(frozen=True)
 class Limits:
     max_records: int = 8192
@@ -170,6 +197,8 @@ class ReceiptResolver(Protocol):
     positions. It returns start_cursor/end_cursor and lifecycles with native
     lifecycle_id, entry_hash and terminal_hash (None if still held). Existing
     full native/financial replay remains a separate mandatory gate.
+    Quote acquisitions must retain their own explicit boot/process identity;
+    provider source_generation is not a process clock-domain identifier.
     """
     def native(self, ref: dict) -> dict: ...
     def shared(self, ref: dict) -> dict: ...
@@ -216,8 +245,9 @@ class ProtectionJournal:
     Installation/appends fail before mutation if the connection is already in a
     transaction. A zero busy timeout bounds writer admission without altering
     the native connection's lasting configuration. Only the transaction begun
-    here is rolled back. Storage/validation errors return a sticky proof failure;
-    the integration must retain it and keep native protection running.
+    here is rolled back. try_append storage/validation errors return a sticky
+    proof failure. Construction itself raises: a future integration must contain
+    factory failure, retain proof unavailability and keep native protection running.
     """
     def __init__(self, db, identity, *, limits=Limits()):
         self.db, self.thread = db, threading.get_ident()
@@ -319,8 +349,9 @@ class ProtectionJournal:
 
 
 def _payload(kind, p):
-    common = ('owner', 'at_ns', 'wall_ns')
+    common = ('owner', 'at_ns', 'wall_ns', 'sample_end_ns')
     owner(p['owner']); integer(p['at_ns']); integer(p['wall_ns'])
+    _clock_pair(p['at_ns'], p['wall_ns'], p['sample_end_ns'])
     if kind == 'OWNER':
         exact_keys(p, common + ('binding',)); binding(p['binding'])
         return
@@ -357,24 +388,26 @@ def _payload(kind, p):
 
 
 def _quote(q):
-    exact_keys(q, ('evidence_sha256', 'profile', 'position_sha256', 'quantity', 'source_generation',
+    exact_keys(q, ('evidence_sha256', 'profile', 'acquisition_owner', 'position_sha256', 'quantity', 'source_generation',
         'provider_sha256', 'block_id', 'block_sha256', 'started_ns', 'completed_ns', 'deadline_ns'))
     for key in ('evidence_sha256', 'position_sha256', 'provider_sha256', 'block_sha256'):checksum(q[key])
     for key in ('quantity', 'started_ns', 'completed_ns', 'deadline_ns'):integer(q[key])
     text(q['source_generation']); text(q['block_id'])
+    owner(q['acquisition_owner'])
     require(q['profile'] in PROFILES, 'unsupported_protection_profile')
 
 
 def _usd(u):
     exact_keys(u, ('evidence_id', 'evidence_sha256', 'acquisition_id', 'acquisition_owner',
         'acquired_ns', 'acquisition_completed_ns', 'observed_wall_ns', 'valid_until_wall_ns',
-        'requested_ns', 'lock_acquired_ns', 'consumed_ns', 'consumed_wall_ns', 'mode'))
+        'requested_ns', 'lock_acquired_ns', 'consumed_ns', 'consumed_wall_ns', 'consumed_sample_end_ns', 'mode'))
     text(u['evidence_id']); text(u['acquisition_id']); checksum(u['evidence_sha256'])
     owner(u['acquisition_owner'])
     require(u['mode'] in ('FRESH', 'CACHE', 'PREFETCH'), 'invalid_usd_mode')
     for key in ('acquired_ns', 'acquisition_completed_ns', 'observed_wall_ns',
                 'valid_until_wall_ns', 'requested_ns', 'lock_acquired_ns', 'consumed_ns', 'consumed_wall_ns'):
         integer(u[key])
+    _clock_pair(u['consumed_ns'], u['consumed_wall_ns'], u['consumed_sample_end_ns'])
 
 
 def _native(ref, resolver, lifecycle):
@@ -437,6 +470,18 @@ class Window:
     start_cursor: dict
     end_cursor: dict
     head: dict
+    # None denotes an exact zero-width synthetic sample. Real extraction must
+    # retain sample_clock()'s actual second monotonic read at both boundaries.
+    start_sample_end_ns: int | None = None
+    end_sample_end_ns: int | None = None
+
+    @classmethod
+    def from_samples(cls, identity, owner_identity, start, end, start_cursor, end_cursor, head):
+        for sample in (start, end):
+            exact_keys(sample, ('at_ns', 'wall_ns', 'sample_end_ns'))
+            _clock_pair(sample['at_ns'], sample['wall_ns'], sample['sample_end_ns'])
+        return cls(identity, owner_identity, start['at_ns'], end['at_ns'], start['wall_ns'], end['wall_ns'],
+                   start_cursor, end_cursor, head, start['sample_end_ns'], end['sample_end_ns'])
 
 
 @dataclass(frozen=True)
@@ -532,6 +577,9 @@ def _verify_window(db, w, resolver, limits):
         elif kind == 'TURN':
             require(life in spans and spans[life]['close'] is None, 'turn_without_open_lifecycle')
             s = spans[life]
+            # Even an earlier failed turn owns the following schedule. Validate
+            # its structural clocks before it may seed an accepted interval.
+            _schedule(p, cadence)
             require(p['turn'] == len(s['turns'])+1 and p['previous_turn'] == s['previous_turn']
                     and p['native_before'] == s['last_native'], 'lifecycle_turn_gap')
             require(p['timing']['due_ns'] == s['next_due'], 'original_schedule_changed')
@@ -562,12 +610,33 @@ def _verify_window(db, w, resolver, limits):
         require(item['lifecycle_id'] not in actual, 'duplicate_financial_lifecycle')
         actual[item['lifecycle_id']] = item
     require(set(actual) == set(relevant), 'lifetime_census_incomplete')
+    anchors = [p for _, p, _ in all_records if p['owner'] == w.owner
+               and p['sample_end_ns'] >= w.start_ns and p['at_ns'] <= w.end_ns]
+    leading = {}
+    for life, s in relevant.items():
+        if s['open']['at_ns'] >= w.start_ns:continue
+        prior = [p for p in s['turns'] if p['timing']['completed_ns'] <= w.start_ns]
+        if prior:
+            leading[life] = prior[-1]
+            require(prior[-1]['outcome'] == 'COMPLETE', 'leading_held_coverage_unproved')
+            require(w.start_ns <= prior[-1]['timing']['next_due_ns']+cadence,
+                    'leading_held_coverage_gap')
+            anchors.append(prior[-1])
+        else:
+            # A newly authenticated entry may still be waiting for its original
+            # first monitor. It cannot cover an overdue initial observation.
+            require(w.start_ns <= s['open']['due_ns']+cadence, 'leading_held_coverage_gap')
+            anchors.append(s['open'])
+    offset = _window_clock(w, anchors)
     turns = 0; not_consumed = 0
     for life, s in relevant.items():
         require(actual[life]['entry_hash'] == s['open']['birth_ref']['hash'], 'lifecycle_entry_mismatch')
         terminal = s['close']['native_ref']['hash'] if s['close'] else None
         require(actual[life]['terminal_hash'] == terminal, 'lifecycle_terminal_mismatch')
         require(s['turns'], 'held_protection_unexercised')
+        if life in leading:
+            require(_turn(leading[life], resolver, life, cadence, w.identity, offset),
+                    'leading_required_usd_unproved')
         for p in s['turns']:
             t = p['timing']
             # Verify all retained turns for the intersecting lifetime. Failures
@@ -575,7 +644,7 @@ def _verify_window(db, w, resolver, limits):
             # fail a later separately recovered interval.
             if t['completed_ns'] < w.start_ns:continue
             if t['started_ns'] > w.end_ns:continue
-            consumed = _turn(p, resolver, life, cadence, w.identity)
+            consumed = _turn(p, resolver, life, cadence, w.identity, offset)
             not_consumed += int(not consumed); turns += 1
         boundary = min(w.end_ns, s['close']['at_ns']) if s['close'] else w.end_ns
         completed = [p for p in s['turns'] if p['timing']['completed_ns'] <= boundary]
@@ -597,8 +666,24 @@ def _utc_ns(value):
     return (delta.days*86400+delta.seconds)*NS+delta.microseconds*1000
 
 
-def _turn(p, resolver, life, cadence, identity):
-    require(p['outcome'] == 'COMPLETE', 'held_turn_'+p['outcome'].lower())
+def _window_clock(w, payloads):
+    start_after = w.start_ns if w.start_sample_end_ns is None else w.start_sample_end_ns
+    end_after = w.end_ns if w.end_sample_end_ns is None else w.end_sample_end_ns
+    require(start_after <= w.end_ns, 'window_clock_brackets_overlap')
+    intervals = [_clock_pair(w.start_ns, w.start_wall_ns, start_after),
+                 _clock_pair(w.end_ns, w.end_wall_ns, end_after)]
+    for p in payloads:
+        intervals.append(_clock_pair(p['at_ns'], p['wall_ns'], p['sample_end_ns']))
+        u = p.get('usd')
+        if u is not None:
+            intervals.append(_clock_pair(u['consumed_ns'], u['consumed_wall_ns'], u['consumed_sample_end_ns']))
+    low, high = max(i[0] for i in intervals), min(i[1] for i in intervals)
+    require(low <= high, 'wall_monotonic_clock_step_unverified')
+    return low, high
+
+
+def _schedule(p, cadence):
+    """Structural validity is required even outside the acceptance interval."""
     t = p['timing']
     require(t['due_ns'] <= t['started_ns'] <= t['decision_ns'] <= t['risk_completed_ns']
             <= t['completed_ns'] == p['at_ns'], 'protection_clock_order')
@@ -609,10 +694,17 @@ def _turn(p, resolver, life, cadence, identity):
     else:
         require(t['native_durable_ns'] is None and t['shared_ack_ns'] is None,
                 'unchanged_hold_has_no_new_commit_or_ack')
-    require(t['deadline_ns'] <= min(t['due_ns']+cadence, t['started_ns']+cadence)
-            and t['risk_completed_ns'] <= t['deadline_ns'], 'original_protection_deadline_missed')
+    require(t['started_ns'] <= t['deadline_ns'] <= min(t['due_ns']+cadence, t['started_ns']+cadence),
+            'original_schedule_deadline_invalid')
     require(t['completed_ns'] <= t['next_due_ns'] <= t['completed_ns']+cadence,
             'next_schedule_gap')
+
+
+def _turn(p, resolver, life, cadence, identity, offset):
+    require(p['outcome'] == 'COMPLETE', 'held_turn_'+p['outcome'].lower())
+    _schedule(p, cadence)
+    t = p['timing']
+    require(t['risk_completed_ns'] <= t['deadline_ns'], 'original_protection_deadline_missed')
     before = _native(p['native_before'], resolver, life)
     after = _native(p['native_after'], resolver, life)
     require(before['body']['position']['status'] in ('open', 'exit_pending'), 'turn_not_held')
@@ -622,9 +714,11 @@ def _turn(p, resolver, life, cadence, identity):
         # This record proves a held-risk observation/mark, not an execution.
         # A blocked durable mark/ACK must not disappear behind component timing.
         require(t['shared_ack_ns'] <= t['deadline_ns'], 'held_risk_delivery_deadline_missed')
+    require(t['completed_ns'] <= t['deadline_ns'], 'held_risk_completion_deadline_missed')
     q, u = p['quote'], p['usd']
     require(q is not None and p['shared_ref'] is not None, 'quote_or_ack_unavailable')
     profile = PROFILES[q['profile']]
+    require(q['acquisition_owner'] == p['owner'], 'quote_acquisition_clock_domain')
     require(profile[0] == identity['regime'], 'protection_profile_regime_mismatch')
     acquisition = resolver.acquisition(q['evidence_sha256'])
     exact_keys(acquisition, ('source_sha256', 'policy_sha256', 'regime', 'quote',
@@ -656,7 +750,7 @@ def _turn(p, resolver, life, cadence, identity):
     require(original == dict(source_sha256=identity['source_sha256'],
         policy_sha256=identity['policy_sha256'], **{key:u[key] for key in keys}),
         'usd_original_acquisition_identity_mismatch')
-    require(u['requested_ns'] <= u['lock_acquired_ns'] <= u['consumed_ns'] <= t['risk_completed_ns']
+    require(u['requested_ns'] <= u['lock_acquired_ns'] <= u['consumed_ns'] <= u['consumed_sample_end_ns'] <= t['risk_completed_ns']
             and t['started_ns'] <= u['requested_ns'] and u['consumed_ns'] <= t['risk_completed_ns'],
             'usd_consumption_clock_order')
     # Original acquisition may precede this turn (cache/prefetch), but cannot
@@ -670,6 +764,12 @@ def _turn(p, resolver, life, cadence, identity):
         require(u['acquisition_completed_ns'] <= u['requested_ns'], 'cache_identity_retimed')
     require(u['observed_wall_ns'] <= u['consumed_wall_ns'] <= u['valid_until_wall_ns'],
             'usd_original_validity_missed')
+    own_low, own_high = _clock_pair(u['consumed_ns'], u['consumed_wall_ns'], u['consumed_sample_end_ns'])
+    require(max(own_low, offset[0]) <= min(own_high, offset[1]),
+            'usd_wall_monotonic_clock_unverified')
+    require(u['observed_wall_ns'] <= u['consumed_ns']+offset[0]
+            and u['consumed_sample_end_ns']+offset[1] <= u['valid_until_wall_ns'],
+            'usd_wall_validity_interval_unverified')
     require(u['consumed_ns'] <= t['deadline_ns'], 'usd_original_deadline_missed')
     ev = shared.get('value_evidence')
     require(type(ev) is dict and ev.get('evidence_id') == u['evidence_id']

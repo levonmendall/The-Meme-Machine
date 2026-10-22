@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 from meme_machine.runtime.protection_evidence import (
     NS, TABLE, ZERO, Limits, ProofError, ProtectionJournal,
-    SQLiteReceiptResolver, Window, canonical, digest, verify_window)
+    SQLiteReceiptResolver, Window, canonical, digest, sample_clock, verify_window)
 from meme_machine.runtime.survivor_paper_book import PaperBook
 
 
@@ -56,9 +56,10 @@ class ProtectionEvidenceTests(unittest.TestCase):
             lambda key:self.fixture_read('fixture_acquisition', key),
             lambda key:self.fixture_read('fixture_usd', key))
         self.journal = ProtectionJournal(self.book.db, self.identity)
-        self.owner_record = dict(owner=self.owner, at_ns=0, wall_ns=100*NS, binding=self.identity)
+        self.owner_record = dict(owner=self.owner, at_ns=0, wall_ns=100*NS,
+                                 sample_end_ns=0, binding=self.identity)
         self.append('OWNER', self.owner_record)
-        self.open_record = dict(owner=self.owner, at_ns=NS, wall_ns=101*NS,
+        self.open_record = dict(owner=self.owner, at_ns=NS, wall_ns=101*NS, sample_end_ns=NS,
             lifecycle_id=self.life, birth_ref=self.birth, native_ref=self.birth,
             shared_ref=self.birth_ack, due_ns=2*NS)
         self.append('OPEN', self.open_record)
@@ -103,17 +104,19 @@ class ProtectionEvidenceTests(unittest.TestCase):
 
     def turn(self):
         q = dict(evidence_sha256='1'*64, profile='pons_survivor_shared_monitor',
+            acquisition_owner=self.owner,
             position_sha256=digest(self.before_position), quantity=10, source_generation='offline-source',
             provider_sha256='2'*64, block_id='100', block_sha256='3'*64,
             started_ns=2*NS, completed_ns=21*NS//10, deadline_ns=5*NS)
         u = dict(evidence_id='synthetic-usd', evidence_sha256='e'*64, acquisition_id='original-usd-read',
             acquisition_owner=self.owner, acquired_ns=2*NS, acquisition_completed_ns=22*NS//10,
             observed_wall_ns=90*NS, valid_until_wall_ns=300*NS, requested_ns=2*NS,
-            lock_acquired_ns=2*NS, consumed_ns=23*NS//10, consumed_wall_ns=102*NS, mode='FRESH')
+            lock_acquired_ns=2*NS, consumed_ns=23*NS//10, consumed_wall_ns=1023*NS//10,
+            consumed_sample_end_ns=23*NS//10, mode='FRESH')
         timing = dict(due_ns=2*NS, started_ns=2*NS, deadline_ns=5*NS, decision_ns=22*NS//10,
             risk_completed_ns=23*NS//10, native_durable_ns=24*NS//10,
             shared_ack_ns=25*NS//10, completed_ns=26*NS//10, next_due_ns=56*NS//10)
-        return dict(owner=self.owner, at_ns=26*NS//10, wall_ns=103*NS,
+        return dict(owner=self.owner, at_ns=26*NS//10, wall_ns=1026*NS//10, sample_end_ns=26*NS//10,
             lifecycle_id=self.life, turn=1, previous_turn=ZERO, outcome='COMPLETE', reason='native_hold',
             native_before=self.birth, native_after=self.mark, shared_ref=self.mark_ack,
             timing=timing, quote=q, usd=u, usd_requirement='REQUIRED')
@@ -186,7 +189,8 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.book.db.execute('BEGIN IMMEDIATE')
         self.book.db.execute("INSERT INTO runtime_state VALUES('proof','owner','{}','sentinel')")
         changes = self.book.db.total_changes
-        result = self.journal.try_append('END', dict(owner=self.owner, at_ns=10*NS, wall_ns=110*NS))
+        result = self.journal.try_append('END', dict(owner=self.owner, at_ns=10*NS,
+            wall_ns=110*NS, sample_end_ns=10*NS))
         self.assertEqual(result.failure, 'caller_transaction_active')
         self.assertTrue(self.book.db.in_transaction)
         self.assertEqual(self.book.db.total_changes, changes)
@@ -207,7 +211,8 @@ class ProtectionEvidenceTests(unittest.TestCase):
     def test_wrong_native_owner_thread_cannot_touch_connection(self):
         before = self.journal.head(); results=[]
         worker = threading.Thread(target=lambda:results.append(
-            self.journal.try_append('END', dict(owner=self.owner, at_ns=10*NS, wall_ns=110*NS))))
+            self.journal.try_append('END', dict(owner=self.owner, at_ns=10*NS,
+                wall_ns=110*NS, sample_end_ns=10*NS))))
         worker.start(); worker.join(timeout=2)
         self.assertFalse(worker.is_alive())
         self.assertEqual(results[0].failure, 'native_owner_thread_required')
@@ -218,7 +223,8 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.addCleanup(lock.close)
         timeout = self.book.db.execute('PRAGMA busy_timeout').fetchone()[0]
         lock.execute('BEGIN IMMEDIATE')
-        result = self.journal.try_append('END', dict(owner=self.owner, at_ns=10*NS, wall_ns=110*NS))
+        result = self.journal.try_append('END', dict(owner=self.owner, at_ns=10*NS,
+            wall_ns=110*NS, sample_end_ns=10*NS))
         lock.execute('ROLLBACK')
         self.assertEqual(result.failure, 'proof_write_unavailable')
         self.assertEqual(self.book.db.execute('PRAGMA busy_timeout').fetchone()[0], timeout)
@@ -235,7 +241,8 @@ class ProtectionEvidenceTests(unittest.TestCase):
                 return original.execute(sql, *args)
         before = self.journal.head(); financial = self.book.replay()
         self.journal.db = FailingCommit()
-        result = self.journal.try_append('END', dict(owner=self.owner, at_ns=10*NS, wall_ns=110*NS))
+        result = self.journal.try_append('END', dict(owner=self.owner, at_ns=10*NS,
+            wall_ns=110*NS, sample_end_ns=10*NS))
         self.journal.db = original
         self.assertEqual(result.failure, 'proof_write_unavailable')
         self.assertFalse(original.in_transaction)
@@ -250,7 +257,8 @@ class ProtectionEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(sqlite3.IntegrityError, 'protection_append_only'):
             self.book.db.execute(f"UPDATE {TABLE} SET body='{{}}' WHERE sequence=1")
         head = self.journal.head()
-        result = self.journal.try_append('OWNER', dict(self.owner_record, at_ns=1))
+        result = self.journal.try_append('OWNER', dict(self.owner_record, at_ns=1,
+            sample_end_ns=1, wall_ns=100*NS+1))
         self.assertEqual(result.failure, 'conflicting_proof_receipt')
         self.assertEqual(self.journal.head(), head)
 
@@ -261,11 +269,12 @@ class ProtectionEvidenceTests(unittest.TestCase):
         db.execute('INSERT INTO genesis VALUES(1,?)', (canonical(self.book.identity),))
         journal = ProtectionJournal(db, self.identity, limits=Limits(max_records=8))
         for i in range(7):
-            p = dict(owner=dict(self.owner, generation=str(i)), at_ns=i, wall_ns=100*NS+i, binding=self.identity)
+            p = dict(owner=dict(self.owner, generation=str(i)), at_ns=i, wall_ns=100*NS+i,
+                     sample_end_ns=i, binding=self.identity)
             self.assertTrue(journal.try_append('OWNER', p).proof_available)
         before = list(db.execute(f'SELECT * FROM {TABLE}'))
         result = journal.try_append('OWNER', dict(owner=dict(self.owner, generation='overflow'),
-            at_ns=8, wall_ns=100*NS, binding=self.identity))
+            at_ns=8, wall_ns=100*NS+8, sample_end_ns=8, binding=self.identity))
         self.assertEqual(result.failure, 'proof_storage_capacity')
         self.assertEqual(list(db.execute(f'SELECT * FROM {TABLE}')), before)
         self.assertFalse(hasattr(journal, 'prune'))
@@ -280,7 +289,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
         for i in range(20):
             before = list(db.execute(f'SELECT * FROM {TABLE}'))
             p = dict(owner=dict(self.owner, boot_id='B'*256, generation=str(i)+'G'*250),
-                     at_ns=i, wall_ns=100*NS+i, binding=self.identity)
+                     at_ns=i, wall_ns=100*NS+i, sample_end_ns=i, binding=self.identity)
             result = journal.try_append('OWNER', p)
             if result.failure:
                 self.assertEqual(result.failure, 'proof_storage_capacity')
@@ -310,7 +319,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
         p = self.turn(); p['timing']['risk_completed_ns']=6*NS
         p['timing'].update(native_durable_ns=61*NS//10, shared_ack_ns=62*NS//10,
             completed_ns=63*NS//10, next_due_ns=9*NS)
-        p['at_ns']=63*NS//10
+        p.update(at_ns=63*NS//10, wall_ns=1063*NS//10, sample_end_ns=63*NS//10)
         self.append_turn(p)
         result = self.check(self.window(end_ns=7*NS, end_wall_ns=107*NS))
         self.assertEqual(result.reason, 'original_protection_deadline_missed')
@@ -319,7 +328,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
         p = self.turn()
         p['timing'].update(native_durable_ns=10*NS, shared_ack_ns=11*NS,
             completed_ns=12*NS, next_due_ns=15*NS)
-        p['at_ns']=12*NS; p['wall_ns']=112*NS
+        p.update(at_ns=12*NS, wall_ns=112*NS, sample_end_ns=12*NS)
         self.append_turn(p)
         result = self.check(self.window(end_ns=13*NS, end_wall_ns=113*NS))
         self.assertEqual(result.reason, 'held_risk_delivery_deadline_missed')
@@ -374,7 +383,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.append_turn()
         self.book.transition(self.life, 'settled', 102, amount=98)
         terminal = self.native_ref(); terminal_ack = self.shared_delivery(terminal, 'settle')
-        self.append('CLOSE', dict(owner=self.owner, at_ns=3*NS, wall_ns=103*NS,
+        self.append('CLOSE', dict(owner=self.owner, at_ns=3*NS, wall_ns=103*NS, sample_end_ns=3*NS,
             lifecycle_id=self.life, native_ref=terminal, shared_ref=terminal_ack))
         self.census_rows[0]['terminal_hash']=terminal['hash']
         result = self.check(self.window(end_cursor=terminal_ack))
@@ -390,7 +399,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
     def test_new_generation_and_uncompleted_crash_interval_fail(self):
         self.append_turn()
         self.append('OWNER', dict(owner=dict(self.owner, boot_id='new-boot', generation='replacement'),
-            at_ns=1, wall_ns=104*NS, binding=self.identity))
+            at_ns=1, wall_ns=104*NS, sample_end_ns=1, binding=self.identity))
         self.assertEqual(self.check().reason, 'window_owner_changed')
 
     def test_overdue_tail_and_missing_turn_cannot_be_reconstructed(self):
@@ -400,7 +409,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
 
     def test_pinned_earlier_head_cannot_hide_later_failure(self):
         self.append_turn(); earlier = self.journal.head()
-        self.append('END', dict(owner=self.owner, at_ns=3*NS, wall_ns=103*NS))
+        self.append('END', dict(owner=self.owner, at_ns=3*NS, wall_ns=103*NS, sample_end_ns=3*NS))
         self.assertEqual(self.check(self.window(head=earlier)).reason, 'pinned_head_not_current_snapshot')
 
     def test_binding_epoch_and_native_genesis_are_not_caller_override_flags(self):
@@ -417,12 +426,96 @@ class ProtectionEvidenceTests(unittest.TestCase):
         changed = dict(self.identity, source_sha256='7'*64, configuration_sha256='6'*64)
         replacement = ProtectionJournal(self.book.db, changed)
         result = replacement.try_append('OWNER', dict(owner=dict(self.owner, generation='new-source'),
-            at_ns=5*NS, wall_ns=105*NS, binding=changed))
+            at_ns=5*NS, wall_ns=105*NS, sample_end_ns=5*NS, binding=changed))
         self.assertTrue(result.proof_available, result.failure)
         self.assertEqual(list(self.book.db.execute(f'SELECT * FROM {TABLE} WHERE sequence<=? ORDER BY sequence',
             (len(before),))), before)
         self.assertEqual(self.book.replay(), financial)
         self.assertEqual(self.check().reason, 'window_owner_changed')
+
+    def later_unchanged_turn(self, due, previous):
+        p = self.turn()
+        p.update(turn=2, previous_turn=previous['hash'], native_before=self.mark,
+            native_after=self.mark, shared_ref=self.mark_ack)
+        p['timing'].update(due_ns=due, started_ns=due, deadline_ns=due+3*NS,
+            decision_ns=due+NS//5, risk_completed_ns=due+3*NS//10,
+            native_durable_ns=None, shared_ack_ns=None, completed_ns=due+3*NS//5,
+            next_due_ns=due+18*NS//5)
+        p.update(at_ns=p['timing']['completed_ns'], sample_end_ns=p['timing']['completed_ns'],
+                 wall_ns=100*NS+p['timing']['completed_ns'])
+        p['quote'].update(evidence_sha256='6'*64, position_sha256=digest(self.book._load(self.life)),
+            started_ns=due, completed_ns=due+NS//10, deadline_ns=due+3*NS)
+        p['usd'].update(mode='CACHE', requested_ns=due, lock_acquired_ns=due,
+            consumed_ns=due+3*NS//10, consumed_sample_end_ns=due+3*NS//10,
+            consumed_wall_ns=100*NS+due+3*NS//10)
+        return p
+
+    def historical_failed_turn(self, next_due):
+        p = self.turn()
+        p.update(outcome='FAILED', reason='historical_provider_failure', quote=None,
+            usd=None, usd_requirement='NOT_CONSUMED', at_ns=9*NS, wall_ns=109*NS, sample_end_ns=9*NS)
+        p['timing'].update(completed_ns=9*NS, next_due_ns=next_due)
+        return self.append_turn(p)
+
+    def test_pre_window_failed_turn_cannot_invent_far_future_schedule(self):
+        previous = self.historical_failed_turn(100*NS)
+        self.append_turn(self.later_unchanged_turn(100*NS, previous))
+        result = self.check(self.window(start_ns=10*NS, end_ns=101*NS,
+            start_wall_ns=110*NS, end_wall_ns=201*NS))
+        self.assertEqual(result.reason, 'next_schedule_gap')
+
+    def test_failed_pre_window_turn_does_not_cover_leading_unrecovered_gap(self):
+        previous = self.historical_failed_turn(12*NS)
+        self.append_turn(self.later_unchanged_turn(12*NS, previous))
+        result = self.check(self.window(start_ns=10*NS, end_ns=13*NS,
+            start_wall_ns=110*NS, end_wall_ns=113*NS))
+        self.assertEqual(result.reason, 'leading_held_coverage_unproved')
+
+    def test_historical_failure_remains_retained_after_a_fresh_recovered_window(self):
+        previous = self.historical_failed_turn(12*NS)
+        p = self.later_unchanged_turn(12*NS, previous)
+        self.append_turn(p)
+        begin = p['timing']['completed_ns']
+        result = self.check(self.window(start_ns=begin, end_ns=14*NS,
+            start_wall_ns=100*NS+begin, end_wall_ns=114*NS))
+        self.assertTrue(result.ok, result.reason)
+        self.assertTrue(result.held_coverage)
+        self.assertEqual(self.journal.head()['sequence'], 5)
+
+    def test_record_wall_time_cannot_be_changed_independently_of_window_clocks(self):
+        p = self.turn(); p['wall_ns'] += NS
+        self.append_turn(p)
+        self.assertEqual(self.check().reason, 'wall_monotonic_clock_step_unverified')
+
+    def test_usd_consumption_wall_time_cannot_be_retimed_to_a_valid_oracle_epoch(self):
+        p = self.turn(); p['usd']['consumed_wall_ns'] += NS
+        self.append_turn(p)
+        self.assertEqual(self.check().reason, 'wall_monotonic_clock_step_unverified')
+
+    def test_real_clock_step_is_unverified_without_inventing_a_tolerance(self):
+        self.append_turn()
+        result = self.check(self.window(end_wall_ns=105*NS))
+        self.assertFalse(result.ok)
+        self.assertEqual(result.reason, 'wall_monotonic_clock_step_unverified')
+        self.assertFalse(result.held_coverage)
+
+    def test_real_bracket_uncertainty_can_resolve_without_retiming_samples(self):
+        self.append_turn()
+        start = dict(at_ns=NS, wall_ns=101*NS+2, sample_end_ns=NS+4)
+        end = dict(at_ns=4*NS, wall_ns=104*NS+2, sample_end_ns=4*NS+4)
+        w = Window.from_samples(self.identity, self.owner, start, end,
+            self.birth_ack, self.mark_ack, self.journal.head())
+        self.assertTrue(self.check(w).ok)
+
+    def test_clock_capture_brackets_the_actual_wall_read(self):
+        with patch('meme_machine.runtime.protection_evidence.time.monotonic_ns', side_effect=[12,15]), \
+                patch('meme_machine.runtime.protection_evidence.time.time_ns', return_value=107):
+            self.assertEqual(sample_clock(), dict(at_ns=12, wall_ns=107, sample_end_ns=15))
+
+    def test_quote_clock_cannot_cross_boot_or_process_generation(self):
+        p = self.turn(); p['quote']['acquisition_owner'] = dict(self.owner, boot_id='another-boot')
+        self.append_turn(p)
+        self.assertEqual(self.check().reason, 'quote_acquisition_clock_domain')
 
 
 if __name__ == '__main__':
