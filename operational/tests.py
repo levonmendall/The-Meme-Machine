@@ -58,6 +58,7 @@ FAST=[
  'tests.test_frozen_paused_reader',
  'tests.test_session_economic_recovery',
     'tests.test_funded_rally_lifecycle',
+    'tests.test_protection_evidence',
     'tests.test_rally_cycle_authority',
     'tests.test_pinned_runtime_checkout',
     'tests.test_provider_clock_domain',
