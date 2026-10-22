@@ -7,6 +7,7 @@ The fixed decision clock and unavailable quotes are explicit fixture limits;
 this is engineering Track A, never live acceptance or a capacity certificate.
 """
 import argparse
+import ast
 import asyncio
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -28,6 +29,31 @@ MAX_BATCH_BYTES = 16 * 1024**2
 ARRIVAL_BATCHES = 2
 STORE_FIELDS = ('canonical_native', 'canonical_discovery', 'canonical_delivery',
                 'candidate_history', 'qualification_observations', 'qualification_candidates')
+
+
+def production_capabilities(work):
+    """Copy only literal capabilities declared beside the actual serve.work.
+
+    The existing OwnedWork adapter compiles that real function. Read its
+    adjacent flags too, so a combined successor exercises its real publication
+    handoff automatically while an older baseline keeps its actual contract.
+    """
+    from meme_machine import solana_evidence_service as service
+    tree = ast.parse(Path(service.__file__).read_bytes())
+    serve = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef) and node.name == 'serve')
+    capabilities = {name:False for name in ('candidate_delivery_continuation',
+        'candidate_delivery_capture_actor', 'candidate_delivery_publication_handoff')}
+    for node in serve.body:
+        if not isinstance(node, ast.Assign):continue
+        for target in node.targets:
+            if (isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and
+                    target.value.id == 'work' and target.attr in capabilities):
+                original.need(isinstance(node.value, ast.Constant) and type(node.value.value) is bool,
+                              'concurrent_production_capability_literal')
+                capabilities[target.attr] = node.value.value
+    for name, enabled in capabilities.items():setattr(work, name, enabled)
+    original.need(capabilities['candidate_delivery_capture_actor'], 'concurrent_actual_actor_capability_required')
+    return capabilities
 
 
 def limits(batch, rate, seconds):
@@ -128,7 +154,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
         history=directory/'history.sqlite', generation='concurrent-engineering-v1',
         source_revision=original.RUNTIME_BASELINE)
     endpoint = records[parcel.inputs[0]['identity']][0].record.endpoint_identity
-    counters = Counter(); owner = source = work = reader = None
+    counters = Counter(); owner = source = work = reader = None; capabilities = None
     delivery_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='track-a-history')
     qualification_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='track-a-qualification')
     tasks = []; acknowledgements = []; commands = []; progress = []; thread_ids = {}
@@ -193,7 +219,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             raise
 
     async def bootstrap():
-        nonlocal owner, source, work
+        nonlocal owner, source, work, capabilities
         owner = PriorityOwner(factory)
         ready = asyncio.wrap_future(owner.ready)
         try:await asyncio.shield(ready)
@@ -208,7 +234,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             raise
         source = SelectiveSource(SimpleNamespace(identity=endpoint), None, token='offline')
         source.stop = asyncio.Event(); source.delivery_executor = delivery_pool
-        work = OwnedWork(owner); work.candidate_delivery_capture_actor = True
+        work = OwnedWork(owner); capabilities = production_capabilities(work)
         source.work = source_work(work, source.stop)
         source.canonical_path = str(config.evidence); source.history_separated = True
         def seed(state):
@@ -398,6 +424,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 reader_restart_verified=True, owner_actor_restart_verified=True,
                 store_fingerprints=before_restart, counters=dict(counters), owner_counters=owner_counts,
                 thread_ids=thread_ids, distinct_pipeline_threads=len(set(thread_ids.values())) == 3,
+                production_work_capabilities=capabilities,
                 controlled_batch_progress=progress,
                 decision_target='unavailable_no_original_oracle_retained', missing_provider_inputs=provider.missing,
                 provider_requests=0, financial_authority=False, full_strategy_equivalence_proven=False,
