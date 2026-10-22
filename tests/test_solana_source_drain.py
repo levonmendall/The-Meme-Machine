@@ -414,6 +414,11 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             responses.append(time.time())
             return fetched
         source.work=work;source.measured_rpc=rpc
+        async def log_batch(signatures,priority=2):
+            return await asyncio.gather(*(rpc('getTransaction',[number,dict(commitment='finalized',
+                encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',priority)
+                for number in signatures))
+        source.measured_log_batch=log_batch
         def create_task(coroutine,*args,**kwargs):
             if getattr(getattr(coroutine,'cr_code',None),'co_name',None)!='log_batch':
                 return native_create_task(coroutine,*args,**kwargs)
@@ -500,7 +505,11 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                     batch_release.set()
                 await asyncio.wait_for(http_entered.wait(),2)
                 await asyncio.wait_for(published.wait(),2)
-                self.assertEqual(physical,[signature])
+                self.assertEqual(physical[0],signature)
+                if later_truncated:
+                    self.assertLessEqual(len(physical),7)
+                    self.assertEqual(len(physical),len(set(physical)))
+                else:self.assertEqual(physical,[signature])
                 if complete_ws:
                     await packet(signature,original['meta']['logMessages'])
                     await asyncio.wait_for(self.entered.wait(),2)
