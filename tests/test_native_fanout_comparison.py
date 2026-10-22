@@ -340,9 +340,6 @@ async def run_native_arm(path, frames, *, deferred, restart_before_apply=False):
                         # The first physical prepare is done and its lock is
                         # released. All later actual native commits finish
                         # while owner-apply admission is deliberately held.
-                        restart_pending = coherent_counts(path)
-                        if restart_pending[0] != len(expected) or restart_pending[1] == 0 or restart_pending[2] == 0:
-                            raise AssertionError('native_comparison_restart_gate_not_exercised')
                         def reserved(state):
                             db = state.writer.db
                             rows = list(db.execute("SELECT body,hash,consumed FROM candidate_history_outbox WHERE id GLOB 'fanout:*'"))
@@ -360,10 +357,20 @@ async def run_native_arm(path, frames, *, deferred, restart_before_apply=False):
                             targets = db.execute('SELECT count(*) FROM candidate_fanout_targets').fetchone()[0]
                             checkpoints = db.execute('SELECT count(*) FROM candidate_checkpoints').fetchone()[0]
                             metadata_pending = db.execute("SELECT count(*) FROM candidate_history_outbox WHERE consumed IS NULL AND id NOT GLOB 'fanout:*'").fetchone()[0]
-                            return dict(placeholders=len(rows), targets=targets, metadata_pending=metadata_pending, checkpoints=checkpoints)
+                            # One owner callback supplies the entire cut: a
+                            # concurrent consumer ACK cannot cross its counts.
+                            pending = db.execute('SELECT (SELECT count(*) FROM canonical_evidence),'
+                                '(SELECT count(*) FROM candidate_derived_fanout),'
+                                '(SELECT count(*) FROM candidate_history_outbox WHERE consumed IS NULL),'
+                                '(SELECT count(*) FROM candidate_pending_proofs)').fetchone()
+                            return dict(placeholders=len(rows), targets=targets, metadata_pending=metadata_pending,
+                                        checkpoints=checkpoints,pending=pending)
                         restart_reserved = await source.work(reserved, 0, label=None)
+                        restart_pending = restart_reserved['pending']
+                        if restart_pending[0] != len(expected) or restart_pending[1] == 0 or restart_pending[2] == 0:
+                            raise AssertionError('native_comparison_restart_gate_not_exercised')
                         if (restart_reserved['targets']+restart_reserved['metadata_pending'] != restart_pending[2]
-                                or restart_reserved['placeholders'] != restart_pending[2]
+                                or restart_reserved['placeholders'] != restart_reserved['targets']
                                 or restart_reserved['checkpoints'] != 0 or source.preparation_lock.locked()):
                             raise AssertionError('native_comparison_reservation_or_lock_changed')
                         await close_source()
@@ -424,8 +431,15 @@ class NativeFanoutComparisonTests(unittest.IsolatedAsyncioTestCase):
     async def test_native_inline_deferred_abba_preserves_economics_receipts_ack_and_restart(self):
         frames = native_frames()
         with tempfile.TemporaryDirectory() as directory:
-            arms = [await run_native_arm(Path(directory)/str(index)/'canonical.sqlite', frames, deferred=mode)
-                    for index, mode in enumerate((False, True, True, False))]
+            arms=[]
+            for index,mode in enumerate((False,True,True,False)):
+                arm=await run_native_arm(Path(directory)/str(index)/'canonical.sqlite',frames,deferred=mode)
+                arms.append(arm)
+                # Retain each completed arm even if a later arm or semantic
+                # comparison fails. No equality verdict is implied here.
+                print('NATIVE_FANOUT_ARM '+json.dumps(dict(index=index,
+                    **{key:value for key,value in arm.items() if key != 'semantics'}),sort_keys=True),
+                    file=sys.stderr,flush=True)
         for arm in arms:
             self.assertEqual(arm['semantics'], arms[0]['semantics'])
             self.assertTrue(arm['restart_equal']); self.assertEqual(arm['frames'], 8)
@@ -439,16 +453,11 @@ class NativeFanoutComparisonTests(unittest.IsolatedAsyncioTestCase):
             self.assertGreater(sum(value for key,value in arm['event_types'].items() if key.startswith('program:pumpswap:')), 0)
         self.assertTrue(any('solana_derived_fanout.prepare' in name for name in arms[1]['stages']))
         self.assertFalse(any('solana_derived_fanout.prepare' in name for name in arms[0]['stages']))
-        # Use the runner's visible stream and one bounded line per arm, so
-        # the retained Actions log carries actual measurements on failures too.
+        # Publish the equality verdict only after every arm and invariant passes.
         print('NATIVE_FANOUT_COMPARISON '+json.dumps({
             'schema':'native-fanout-comparison-v1', 'order':['inline','deferred','deferred','inline'],
             'semantic_equal':True, 'native_provider_or_live_capacity_claim':False}, sort_keys=True),
             file=sys.stderr,flush=True)
-        for index,arm in enumerate(arms):
-            print('NATIVE_FANOUT_ARM '+json.dumps(dict(index=index,
-                **{key:value for key,value in arm.items() if key != 'semantics'}),sort_keys=True),
-                file=sys.stderr,flush=True)
 
     async def test_native_commits_continue_past_prepared_apply_and_restart_retains_all_obligations(self):
         frames = native_frames()
