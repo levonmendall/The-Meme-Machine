@@ -397,6 +397,8 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         self.assertEqual(len(left['store_fingerprints']), 6)
         for row in result['runs']:
             self.assertTrue(row['distinct_pipeline_threads'])
+            self.assertTrue(row['production_work_capabilities']['candidate_delivery_capture_actor'])
+            self.assertIsInstance(row['production_work_capabilities']['candidate_delivery_publication_handoff'], bool)
             self.assertTrue(row['reader_restart_verified'])
             self.assertTrue(row['owner_actor_restart_verified'])
             self.assertEqual(row['initial']['native_event_backlog'], len(parcel.warmup))
