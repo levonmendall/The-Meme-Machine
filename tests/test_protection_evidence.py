@@ -163,6 +163,13 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.assertEqual(self.book.replay(), financial)
         self.assertEqual(self.book.reconcile(), accounting)
         self.assertEqual(self.book.identity['initial'], 500)
+        # The old PaperBook has already reopened/replayed without consulting
+        # the additive proof schema. Proof readers must now use its new native
+        # connection rather than the closed connection from before the restart.
+        self.journal = ProtectionJournal(self.book.db, self.identity)
+        self.resolver = SQLiteReceiptResolver(self.book.db, self.shared, self.census,
+            lambda key:self.fixture_read('fixture_acquisition', key),
+            lambda key:self.fixture_read('fixture_usd', key))
         self.assertTrue(self.check().ok)
 
     def test_complete_required_path_resolves_actual_native_and_shared_sql_rows(self):
