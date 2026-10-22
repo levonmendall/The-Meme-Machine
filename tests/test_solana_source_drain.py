@@ -196,9 +196,10 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             item=copy.deepcopy(tx);item['transactionIndex']=index+number
             if repair_members>1:item['transaction']['signatures']=[based58.b58encode(bytes([number+1])*64).decode()]
             txs.append(item)
-        tx=txs[0];batch_sizes=[]
+        tx=txs[0];batch_sizes=[];repair_calls=[]
         admitted_members=repair_members if repair_admitted_members is None else repair_admitted_members
         assert 1<=admitted_members<=repair_members
+        full_cancel=cancel_repair and admitted_members==repair_members and repair_members>7
         addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
         statuses_ready=asyncio.Event();native_accepted=asyncio.Event()
         socket_idle=asyncio.Event();repair_entered=asyncio.Event();repair_release=asyncio.Event()
@@ -212,9 +213,10 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             if method=='getTransaction':
                 # WS must keep reading while the selective HTTP repair is in
                 # flight, including the same transaction's duplicate packet.
-                if repair_members==1:repair_entered.set()
+                repair_calls.append(args[0][0])
+                if repair_members==1 or full_cancel:repair_entered.set()
                 await socket_idle.wait()
-                if cancel_repair and repair_members==1:await repair_release.wait()
+                if cancel_repair and (repair_members==1 or full_cancel):await repair_release.wait()
                 fetched=copy.deepcopy(next(item for item in txs if item['transaction']['signatures'][0]==args[0][0]));fetched.pop('transactionIndex',None)
                 if repair_failure:fetched['meta']['logMessages']=partial
                 return fetched
@@ -223,8 +225,10 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         real_batch=source.measured_log_batch
         async def batch(signatures,priority=2):
             if len(signatures)==1:return await real_batch(signatures,priority)
-            batch_sizes.append(len(signatures));repair_entered.set();await socket_idle.wait()
-            if cancel_repair:await repair_release.wait()
+            batch_sizes.append(len(signatures));repair_calls.extend(signatures)
+            if not full_cancel:repair_entered.set()
+            await socket_idle.wait()
+            if cancel_repair and not full_cancel:await repair_release.wait()
             return [dict(copy.deepcopy(next(item for item in txs if item['transaction']['signatures'][0]==sig)))
                 for sig in signatures]
         source.measured_log_batch=batch
@@ -300,14 +304,20 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                 return slot
             if cancel_repair:
                 await asyncio.wait_for(repair_entered.wait(),1)
-                if repair_members>1:self.assertEqual(batch_sizes,[admitted_members])
+                if repair_members>1:self.assertEqual(batch_sizes,[min(admitted_members,7)])
+                if full_cancel:
+                    # Seven prepared fields have settled; the last scalar HTTP
+                    # read is now independently accepted before cancellation.
+                    # Never label seven accepted fields as a completed eight.
+                    self.assertEqual(len(repair_calls),repair_members)
+                    self.assertEqual(source.pipeline_metrics['log_repair:rolling']['repair_logical_calls'],repair_members)
                 task.cancel();await asyncio.sleep(.01)
                 self.assertFalse(task.done());repair_release.set()
                 if admitted_members==repair_members:
                     await asyncio.wait_for(self.entered.wait(),1);self.release.set()
                 else:self.assertFalse(self.entered.is_set())
                 with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task,2)
-                self.last_batch_sizes=batch_sizes
+                self.last_batch_sizes=batch_sizes;self.last_repair_calls=repair_calls
                 return slot
             await asyncio.wait_for(native_accepted.wait(),1)
             if cancel:task.cancel()
@@ -327,7 +337,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             elif cancel:
                 with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task,2)
             else:await asyncio.wait_for(task,2)
-        self.last_batch_sizes=batch_sizes
+        self.last_batch_sizes=batch_sizes;self.last_repair_calls=repair_calls
         return slot
 
     async def test_actual_live_filter_replacement_finishes_accepted_commit_and_preserves_gap(self):
@@ -368,7 +378,8 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE hi IS NULL').fetchone()[0],2)
 
     async def native_head_live(self, *, truncated=False, later_truncated=0, exhaust=False,
-            complete_ws=False, selection_ws=False, cancel=False, invalid_response=None):
+            complete_ws=False, selection_ws=False, cancel=False, invalid_response=None,
+            lookahead=None,future_capacity=False,repeated_cancel=False):
         """Actual live native head, with independently controlled accepted HTTP/owner work."""
         import based58
         import time
@@ -382,10 +393,15 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         packets=asyncio.Queue();http_entered=asyncio.Event();http_release=asyncio.Event()
         batch_selected=asyncio.Event();batch_release=asyncio.Event();native_create_task=asyncio.create_task
         head_committed=asyncio.Event();published=asyncio.Event();tail_published=asyncio.Event();partial_progress=asyncio.Event()
+        later_http=asyncio.Event();receipt_entered=asyncio.Event();receipt_release=asyncio.Event()
+        authenticated=asyncio.Event();authenticated_count=[0];first_receipt=[True];joined_slots=[]
         physical=[];responses=[];ws_seen=[];partials=[0];published_slots=[];transactions={signature:original}
         first_owner=[True];failure=None
         partial=original['meta']['logMessages'][:4]+['Log truncated']
         def observe(kind,values):
+            if kind=='joined_frame':joined_slots.append(values['slot'])
+            if kind=='log_repair' and values.get('stage')=='supplements_authenticated':
+                authenticated_count[0]+=1;authenticated.set()
             if kind=='log_repair' and values.get('stage')=='deferred':
                 partials[0]+=1;partial_progress.set()
             if kind=='delivery' and values.get('family')=='candidate_logs':
@@ -395,6 +411,9 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                     ws_seen.append(values['seen'])
         source.observer=observe
         async def work(fn,priority=2,**options):
+            if (lookahead=='receipt' or invalid_response=='post_receipt_conflict') and first_receipt[0] and 'native_stream_log_supplement' in fn.__code__.co_consts:
+                first_receipt[0]=False;answer=fn(self.state);receipt_entered.set()
+                await receipt_release.wait();return answer
             if options.get('component')=='candidate' and first_owner[0]:
                 first_owner[0]=False;self.entered.set();await self.release.wait()
                 answer=fn(self.state);head_committed.set();return answer
@@ -405,12 +424,15 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(args[0][1],dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1))
             self.assertEqual(args[1:],('rolling_recovery_missing_logs',2))
             requested=args[0][0];physical.append(requested);http_entered.set()
+            if requested!=signature:later_http.set()
             await http_release.wait()
-            if invalid_response=='null':
+            bad=invalid_response if not lookahead or requested==signature else None
+            if bad=='null':
                 responses.append(time.time());return None
             fetched=copy.deepcopy(transactions[requested]);fetched.pop('transactionIndex',None)
-            if invalid_response=='identity':fetched['slot']+=1
-            elif invalid_response=='truncated':fetched['meta']['logMessages']=partial
+            if bad=='identity':fetched['slot']+=1
+            elif bad=='truncated':fetched['meta']['logMessages']=partial
+            elif bad=='post_receipt_conflict':fetched['meta']['logMessages'][0]='different provider content'
             responses.append(time.time())
             return fetched
         source.work=work;source.measured_rpc=rpc
@@ -482,7 +504,10 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             # An absent live field becomes eligible only with its independently
             # finalized linked successor; the HTTP response grants no finality.
             count=MAX_PENDING_SLOTS-1 if exhaust else max(1,later_truncated)
-            for offset in range(1,count+1):await native_slot(handler,offset,economic=offset<=later_truncated)
+            for offset in range(1,count+1):
+                if lookahead=='receipt' and offset==2:await receipt_entered.wait()
+                await native_slot(handler,offset,economic=offset<=later_truncated)
+            if lookahead:await native_slot(handler,count+1)
             published.set()
             if exhaust:
                 await head_committed.wait()
@@ -493,7 +518,12 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         desired=[dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,deadline=NOW+150,
             lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
         local_stop=asyncio.Event()
+        from meme_machine.solana_candidate_join import CandidateTransactionJoin
+        can_fit=CandidateTransactionJoin.required_log_can_fit
+        def capacity(join,number,sig,logs):
+            return can_fit(join,number,sig,logs) if number==slot else False
         with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()), \
+                patch.object(CandidateTransactionJoin,'required_log_can_fit',capacity) if future_capacity else nullcontext(), \
                 patch('meme_machine.solana_selective_source.asyncio.create_task',create_task) if selection_ws else nullcontext():
             task=asyncio.create_task(source.live(None,desired,local_stop))
             try:
@@ -504,6 +534,9 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                     await asyncio.wait_for(self.entered.wait(),2)
                     batch_release.set()
                 await asyncio.wait_for(http_entered.wait(),2)
+                if lookahead=='receipt':
+                    http_release.set();await asyncio.wait_for(receipt_entered.wait(),2)
+                if lookahead:await asyncio.wait_for(later_http.wait(),2)
                 await asyncio.wait_for(published.wait(),2)
                 self.assertEqual(physical[0],signature)
                 if later_truncated:
@@ -516,28 +549,44 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                 if cancel:
                     task.cancel();await asyncio.sleep(0)
                     self.assertFalse(task.done())
+                    if repeated_cancel:
+                        original_deadline=source.shutdown_deadline(task)
+                        source.session_deadlines[task]=original_deadline
+                        task.cancel();await asyncio.sleep(0)
+                        self.assertFalse(task.done());self.assertEqual(source.shutdown_deadline(task),original_deadline)
                 http_release.set()
+                if invalid_response=='post_receipt_conflict':
+                    await asyncio.wait_for(receipt_entered.wait(),2)
+                    await packet(signature,original['meta']['logMessages'])
+                    await asyncio.wait_for(self.entered.wait(),2);self.release.set()
+                receipt_release.set()
                 if invalid_response is not None:
                     reason={'truncated':'candidate_stream_log_supplement_incomplete',
                         'identity':'candidate_stream_log_supplement_identity_unverified',
+                        'post_receipt_conflict':'candidate_stream_log_supplement_identity_unverified',
                         'null':'candidate_required_content_missing'}[invalid_response]
                     with self.assertRaisesRegex(EvidenceUnavailable,reason) as refused:await asyncio.wait_for(task,3)
                     failure=refused.exception
-                    self.assertFalse(self.entered.is_set())
+                    if invalid_response!='post_receipt_conflict':self.assertFalse(self.entered.is_set())
                 else:
                     await asyncio.wait_for(self.entered.wait(),2)
                     self.assertFalse(task.done());self.release.set()
+                    if lookahead:
+                        while authenticated_count[0]<later_truncated+1:
+                            authenticated.clear()
+                            if authenticated_count[0]>=later_truncated+1:break
+                            await asyncio.wait_for(authenticated.wait(),2)
                     if exhaust:await asyncio.wait_for(tail_published.wait(),3)
                     if not cancel:local_stop.set()
                     if cancel:
                         with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task,3)
                     else:await asyncio.wait_for(task,3)
             finally:
-                batch_release.set();http_release.set();self.release.set();local_stop.set()
+                batch_release.set();http_release.set();receipt_release.set();self.release.set();local_stop.set()
                 if not task.done():task.cancel()
                 await asyncio.gather(task,return_exceptions=True)
         return SimpleNamespace(slot=slot,signature=signature,physical=physical,responses=responses,ws_seen=ws_seen,
-            published_slots=published_slots,head=original,failure=failure)
+            published_slots=published_slots,head=original,failure=failure,joined_slots=joined_slots)
 
     async def test_absent_native_head_completes_before_original_pending_slot_bound(self):
         result=await self.native_head_live(exhaust=True)
@@ -630,6 +679,78 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(live.call_count,2)
         self.assertEqual([body['reason'] for kind,body in self.source.pending_diagnostics if kind=='rolling_retry'],
             ['candidate_required_content_missing'])
+
+    async def test_live_lookahead_fetches_linked_future_fields_while_first_http_is_blocked(self):
+        result=await self.native_head_live(truncated=True,later_truncated=3,lookahead='http')
+        self.assertEqual(len(result.physical),4);self.assertEqual(len(set(result.physical)),4)
+        self.assertEqual(result.joined_slots,sorted(set(result.joined_slots)))
+        self.assertEqual(result.joined_slots[:4],list(range(result.slot,result.slot+4)))
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_authenticated'],4)
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_failed'],0)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling']['pending'],0)
+        from meme_machine.solana_selective_history import economic_records
+        expected=set()
+        for offset in range(4):
+            tx=copy.deepcopy(result.head);tx['slot']+=offset;tx['blockTime']+=offset
+            if offset:
+                import based58
+                tx['transaction']['signatures']=[based58.b58encode(bytes([offset+1])*64).decode()]
+            expected.update(row.identity for row in economic_records('pump',PROGRAMS['pump'],tx,
+                endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_stream'))
+        self.assertEqual({row[0] for row in self.history.db.execute('SELECT identity FROM rolling_economic_events')},expected)
+        self.assertEqual(self.history.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='native_stream_log_supplement'").fetchone()[0],4)
+        path=self.state.writer.path;self.state.writer.close();self.state,self.history=state_at(path)
+        self.addCleanup(self.state.writer.close)
+        self.assertEqual({row[0] for row in self.history.db.execute('SELECT identity FROM rolling_economic_events')},expected)
+        self.assertEqual(self.history.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='native_stream_log_supplement'").fetchone()[0],4)
+
+    async def test_live_lookahead_fetch_admission_does_not_wait_for_first_owner_receipt_return(self):
+        result=await self.native_head_live(truncated=True,later_truncated=3,lookahead='receipt')
+        self.assertEqual(len(result.physical),4)
+        self.assertEqual(result.joined_slots,sorted(set(result.joined_slots)))
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_authenticated'],4)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling']['pending'],0)
+        self.assertEqual(self.source.source_drain['unpreserved_sessions'],0)
+
+    async def test_first_null_error_stops_future_capacity_waits_and_keeps_actual_recovery_inputs(self):
+        result=await self.native_head_live(truncated=False,later_truncated=3,lookahead='http',
+            invalid_response='null',future_capacity=True)
+        self.assertEqual(result.failure.args,('candidate_required_content_missing',))
+        metric=self.source.pipeline_metrics['log_repair:rolling']
+        self.assertEqual(metric['supplements_failed'],1);self.assertEqual(metric['supplements_authenticated'],0)
+        receipts=[json.loads(row[0]) for row in self.history.db.execute(
+            "SELECT body FROM acquisition_observations WHERE kind='native_stream_log_supplement'")]
+        self.assertEqual(len(receipts),3)
+        self.assertTrue(all(row['http_result_available_at']>0 for row in receipts))
+        retained=[json.loads(row[0]) for row in self.history.db.execute(
+            "SELECT body FROM acquisition_observations WHERE kind='selective_missing_field'")]
+        self.assertEqual(sum(row.get('authenticated_content_retained') is True for row in retained),3)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE lo=? AND hi IS NULL',(result.slot,)).fetchone()[0],2)
+
+    async def test_first_authenticated_identity_failure_is_not_replaced_by_callback_name_collision(self):
+        result=await self.native_head_live(invalid_response='identity')
+        self.assertEqual(result.failure.args,('candidate_stream_log_supplement_identity_unverified',))
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_failed'],1)
+        self.assertEqual(self.history.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='native_stream_log_supplement_failed'").fetchone()[0],1)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+
+    async def test_repeated_coordinator_cancel_joins_parallel_accepted_results_on_original_deadline(self):
+        result=await self.native_head_live(truncated=True,later_truncated=3,lookahead='http',
+            cancel=True,repeated_cancel=True)
+        self.assertEqual(len(result.physical),4)
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_authenticated'],4)
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_failed'],0)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling']['pending'],0)
+        self.assertEqual(self.source.source_drain['unpreserved_sessions'],0)
+
+    async def test_post_receipt_ws_conflict_counts_failed_and_preserves_durable_original_receipt(self):
+        result=await self.native_head_live(invalid_response='post_receipt_conflict')
+        self.assertEqual(result.failure.args,('candidate_stream_log_supplement_identity_unverified',))
+        metric=self.source.pipeline_metrics['log_repair:rolling']
+        self.assertEqual(metric['supplements_failed'],1);self.assertEqual(metric['supplements_authenticated'],0)
+        self.assertEqual(self.history.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='native_stream_log_supplement'").fetchone()[0],1)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling']['pending'],0)
 
     async def close_accepted_soft_wait(self, *, retry=False, hard_full=False, expired=False):
         """Real WS callback/session teardown; only transports and byte scale differ."""
@@ -754,7 +875,8 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_actual_eight_truncated_packets_coalesce_and_authenticate_before_one_ordered_commit(self):
         await self.actual_live(truncated=True,repair_members=8)
-        self.assertEqual(self.last_batch_sizes,[8])
+        self.assertEqual(self.last_batch_sizes,[7])
+        self.assertEqual(len(self.last_repair_calls),8);self.assertEqual(len(set(self.last_repair_calls)),8)
         metrics=self.source.pipeline_metrics['log_repair:rolling']
         self.assertEqual((metrics['repair_logical_calls'],metrics['supplements_authenticated'],metrics['supplements_failed']),(8,8,0))
         self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
@@ -763,7 +885,8 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_cancel_during_multi_member_repair_waits_for_original_batch_and_ordered_owner(self):
         await self.actual_live(truncated=True,repair_members=8,cancel_repair=True)
-        self.assertEqual(self.last_batch_sizes,[8])
+        self.assertEqual(self.last_batch_sizes,[7])
+        self.assertEqual(len(self.last_repair_calls),8);self.assertEqual(len(set(self.last_repair_calls)),8)
         self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
         self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
         self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_authenticated'],8)
@@ -986,6 +1109,146 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         from dataclasses import replace
         self.state.writer._coverage(replace(p,witness=dict(p.witness,lineage_hash='second-350')))
         self.assertIsNone(complete_control_recovery(self.state,CONTROL))
+
+
+    async def test_completed_repair_payloads_are_released_before_siblings_and_replacement_batches_finish(self):
+        import based58
+        import gc
+        import weakref
+
+        # The whole provider envelope has no join-store authority. Completed
+        # responses must disappear even while another member from their batch
+        # still awaits its actual durable receipt's owner return.
+        class EnvelopeMarker(dict):pass
+        source=self.source;source.batched=True
+        original=copy.deepcopy(FIXTURE['pump'][0]);slot=original['slot']
+        total=28;transactions={}
+        for number in range(total):
+            item=copy.deepcopy(original)
+            item['transaction']['signatures']=[based58.b58encode(bytes([number+1])*64).decode()]
+            item.pop('transactionIndex',None)
+            transactions[item['transaction']['signatures'][0]]=item
+        signatures=list(transactions)
+        addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+        statuses_ready=asyncio.Event();socket_idle=asyncio.Event()
+        owner_release=asyncio.Event();candidate_committed=asyncio.Event()
+        local_stop=asyncio.Event();held=set();paused=set();batches=[]
+        created=[];references={};live=weakref.WeakValueDictionary();peak_live=[0];completed=[0]
+
+        def observe(kind,values):
+            if kind=='log_repair' and values.get('stage')=='supplements_authenticated':
+                completed[0]+=1
+        source.observer=observe
+
+        async def work(fn,priority=2,**options):
+            before=self.history.db.execute('SELECT COALESCE(max(id),0) FROM acquisition_observations').fetchone()[0]
+            answer=fn(self.state)
+            # Real owner serialization stores bytes in SQLite. Retain only
+            # extracted identity strings here, never a mocked observation body
+            # or forensic response list that would manufacture this leak.
+            rows=self.history.db.execute("SELECT kind,json_extract(body,'$.native_witness.signature') "
+                'FROM acquisition_observations WHERE id>? ORDER BY id',(before,)).fetchall()
+            for kind,signature in rows:
+                if kind=='native_stream_log_supplement' and signature in held:
+                    paused.add(signature)
+                    await owner_release.wait()
+            if options.get('component')=='candidate':candidate_committed.set()
+            return answer
+
+        async def rpc(method,*args):
+            self.assertEqual(method,'getSlot')
+            return slot-1
+
+        async def batch(requested,priority=2):
+            self.assertEqual(priority,2)
+            self.assertTrue(requested)
+            self.assertFalse(set(requested).intersection(created))
+            batches.append(tuple(requested));held.add(requested[0])
+            values=[]
+            for signature in requested:
+                value=copy.deepcopy(transactions[signature])
+                # Keep the production authenticator's exact dict requirement.
+                # This ignored JSON object belongs only to its input envelope;
+                # the join retains log arrays, never this lifetime probe.
+                marker=EnvelopeMarker();value['_test_envelope_lifetime']=marker
+                created.append(signature);references[signature]=weakref.ref(marker);live[signature]=marker
+                values.append(value)
+                gc.collect();peak_live[0]=max(peak_live[0],len(live))
+            return values
+
+        source.work=work;source.measured_rpc=rpc;source.measured_log_batch=batch
+        partial=original['meta']['logMessages'][:4]+['Log truncated']
+        class Socket:
+            def __init__(socket):socket.acks=asyncio.Queue();socket.frontiers=iter((11,12));socket.sent=0
+            async def send(socket,raw):
+                request=json.loads(raw)
+                await socket.acks.put(json.dumps(dict(id=request['id'],result=request['id']+10)))
+            async def recv(socket):
+                if not socket.acks.empty():return await socket.acks.get()
+                frontier=next(socket.frontiers,None)
+                if frontier is not None:
+                    return json.dumps(dict(params=dict(subscription=frontier,result=dict(context=dict(slot=slot-1),
+                        value=dict(err={'InstructionError':[0,0]},signature='failed',logs=[])))))
+                await statuses_ready.wait()
+                if socket.sent==total:
+                    socket_idle.set();await asyncio.Event().wait()
+                signature=signatures[socket.sent];socket.sent+=1
+                return json.dumps(dict(params=dict(subscription=11,result=dict(context=dict(slot=slot),
+                    value=dict(err=None,signature=signature,logs=partial)))))
+        class Connection:
+            async def __aenter__(self):return Socket()
+            async def __aexit__(self,*args):pass
+        async def stream(channel,request,handler,family,stop):
+            for index,signature in enumerate(signatures):
+                u=pb.SubscribeUpdate(filters=[scope_labels(addresses)[program_scope('pump')]])
+                u.transaction_status.slot=slot;u.transaction_status.index=index
+                u.transaction_status.signature=based58.b58decode(signature.encode())
+                await handler(u,u.ByteSize(),NOW)
+            u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=slot;m.parent_slot=slot-1
+            m.blockhash=str(slot);m.parent_blockhash=str(slot-1);m.block_time.timestamp=original['blockTime']
+            m.executed_transaction_count=total
+            await handler(u,u.ByteSize(),NOW)
+            statuses_ready.set();await socket_idle.wait()
+            u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=slot;u.slot.parent=slot-1;u.slot.status=pb.SLOT_FINALIZED
+            await handler(u,u.ByteSize(),NOW)
+            await stop.wait()
+        source.stream=stream
+        desired=[dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,
+            deadline=NOW+150,lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
+
+        async def progress(predicate):
+            while not predicate():
+                if task.done():
+                    task.result();self.fail('live repair stopped before payload-lifetime checkpoint')
+                await asyncio.sleep(.005)
+
+        with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()):
+            task=asyncio.create_task(source.live(None,desired,local_stop))
+            try:
+                await asyncio.wait_for(progress(lambda:len(created)==total and len(paused)==len(batches)
+                    and completed[0]==total-len(paused)),3)
+                self.assertGreaterEqual(len(batches),3)
+                self.assertFalse(owner_release.is_set());self.assertFalse(candidate_committed.is_set())
+                self.assertEqual(len(paused),len(batches))
+                gc.collect()
+                self.assertLessEqual(peak_live[0],8)
+                self.assertEqual(set(live),paused)
+                self.assertTrue(all(reference() is None for signature,reference in references.items()
+                    if signature not in paused))
+                receipts=self.history.db.execute("SELECT count(*) FROM acquisition_observations "
+                    "WHERE kind='native_stream_log_supplement'").fetchone()[0]
+                self.assertEqual(receipts,total)
+                owner_release.set()
+                await asyncio.wait_for(candidate_committed.wait(),3)
+                local_stop.set();await asyncio.wait_for(task,3)
+                gc.collect()
+                self.assertEqual(len(live),0)
+                self.assertTrue(all(reference() is None for reference in references.values()))
+                self.assertEqual(source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
+            finally:
+                owner_release.set();local_stop.set()
+                if not task.done():task.cancel()
+                await asyncio.gather(task,return_exceptions=True)
 
 
 class NativeIntakeCancellationTests(unittest.IsolatedAsyncioTestCase):
