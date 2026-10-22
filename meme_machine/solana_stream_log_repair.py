@@ -54,21 +54,8 @@ def authenticate_supplement(join,witness,fetched,endpoint_identity):
         key=(slot,sig)
         if join.deferred_log_witness(slot,sig)!=witness:raise KeyError()
         observed=join.early_logs[key][0]
-        if not explicit_truncation(observed) or type(fetched) is not dict:raise KeyError()
-        logs=fetched['meta']['logMessages']
-        if type(logs) is list and any(type(line) is str and 'truncat' in line.lower() for line in logs):
-            raise EvidenceUnavailable('candidate_stream_log_supplement_incomplete')
-        if (fetched['slot']!=slot or type(fetched['slot']) is not int
-                or fetched['blockTime']!=witness['block_time'] or type(fetched['blockTime']) is not int
-                or fetched['transaction']['signatures'][0]!=sig or fetched['meta']['err'] is not None
-                or 'transactionIndex' in fetched and fetched['transactionIndex']!=index):raise KeyError()
-        # getTransaction does not supply chain transaction order. Only the
-        # independently delivered finalized native status supplies this index.
-        ordered=dict(fetched,transactionIndex=index)
-        normalized=rpc_economic_transaction(ordered,rich=False)
-        keys=set(normalized['transaction']['message']['accountKeys'])
-        scopes={scope for address,scope in join.programs.items() if address in keys}
-        if scopes!=set(witness['scopes']):raise KeyError()
+        if not explicit_truncation(observed):raise KeyError()
+        ordered=_native_response(join,witness,fetched,endpoint_identity)
         original=copy.deepcopy(ordered);original['meta']['logMessages']=list(observed)
         supplement=join_archive_log_supplement(original,fetched,endpoint_identity=endpoint_identity)
         complete=complete_archive_transaction(original,supplement,endpoint_identity=endpoint_identity)
@@ -84,6 +71,65 @@ def authenticate_supplement(join,witness,fetched,endpoint_identity):
             native_order_preserved=True,truncated_logs_used_as_complete=False)
         return complete['meta']['logMessages'],receipt
     except EvidenceUnavailable as error:
-        if str(error) in FATAL_REPAIR_REASONS:raise
+        if str(error) in FATAL_REPAIR_REASONS or str(error)=='yellowstone_incomplete_status_census':raise
+    except (KeyError,IndexError,TypeError,ValueError):pass
+    raise EvidenceUnavailable('candidate_stream_log_supplement_identity_unverified') from None
+
+
+def _native_response(join,witness,fetched,endpoint_identity,*,include_completed=False):
+    """Shared finalized identity validation, before any log-field authority."""
+    slot,sig,index=(witness[key] for key in ('slot','signature','transaction_index'))
+    if join.required_log_witness(slot,sig,include_completed=include_completed)!=witness:raise KeyError()
+    if (not isinstance(endpoint_identity,str) or len(endpoint_identity)!=64
+            or any(c not in '0123456789abcdef' for c in endpoint_identity)
+            or type(fetched) is not dict):raise KeyError()
+    logs=fetched['meta']['logMessages']
+    if type(logs) is list and any(type(line) is str and 'truncat' in line.lower() for line in logs):
+        raise EvidenceUnavailable('candidate_stream_log_supplement_incomplete')
+    if (type(logs) is not list or any(type(line) is not str for line in logs)
+            or fetched['slot']!=slot or type(fetched['slot']) is not int
+            or fetched['blockTime']!=witness['block_time'] or type(fetched['blockTime']) is not int
+            or fetched['transaction']['signatures'][0]!=sig or fetched['meta']['err'] is not None
+            or 'transactionIndex' in fetched and (type(fetched['transactionIndex']) is not int
+                or fetched['transactionIndex']!=index)):raise KeyError()
+    # RPC supplies content only. Native finalized status supplies its index.
+    ordered=dict(fetched,transactionIndex=index)
+    normalized=rpc_economic_transaction(ordered,rich=False)
+    keys=set(normalized['transaction']['message']['accountKeys'])
+    scopes={scope for address,scope in join.programs.items() if address in keys}
+    if scopes!=set(witness['scopes']):raise KeyError()
+    return ordered
+
+
+def authenticate_required_log(join,witness,fetched,endpoint_identity):
+    """Complete one native-required field, including a wholly absent WS log.
+
+    A real truncated packet still requires its original prefix/suffix check.
+    A complete WS race must agree byte-for-byte with the accepted HTTP result,
+    even after ordinary ordered retirement. Neither path invents a WS prefix.
+    """
+    try:
+        slot,sig=(witness[key] for key in ('slot','signature'));key=(slot,sig)
+        if key in join.incomplete_logs:
+            return authenticate_supplement(join,witness,fetched,endpoint_identity)
+        ordered=_native_response(join,witness,fetched,endpoint_identity,include_completed=True)
+        logs=ordered['meta']['logMessages'];checksum=digest([logs,None])
+        observed=join.early_logs.get(key)
+        if observed is not None and digest(observed[:2])!=checksum:raise KeyError()
+        retained=join.completed_log_fields.get(key)
+        if retained is not None and digest(retained[0][:2])!=checksum:raise KeyError()
+        if slot<=join.completed and join.required_log_checksum(slot,sig)!=checksum:raise KeyError()
+        raw=canonical(fetched)
+        if len(raw.encode())>16*1024*1024:raise KeyError()
+        receipt=dict(method='getTransaction',commitment='finalized',endpoint_identity=endpoint_identity,
+            native_witness=witness,response=fetched,completion_kind='native_required_log',
+            observed_websocket_logs=None if observed is None else list(observed[0]),
+            observed_websocket_seen=None if observed is None else observed[2],
+            response_sha256=hashlib.sha256(raw.encode()).hexdigest(),
+            complete_log_sha256=hashlib.sha256(canonical(logs).encode()).hexdigest(),
+            native_order_preserved=True,truncated_logs_used_as_complete=False)
+        return logs,receipt
+    except EvidenceUnavailable as error:
+        if str(error) in FATAL_REPAIR_REASONS or str(error)=='yellowstone_incomplete_status_census':raise
     except (KeyError,IndexError,TypeError,ValueError):pass
     raise EvidenceUnavailable('candidate_stream_log_supplement_identity_unverified') from None

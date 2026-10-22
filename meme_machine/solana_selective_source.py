@@ -24,7 +24,7 @@ from .solana_candidate_join import (
     CANDIDATE_COMMIT_BYTES,candidate_commit_size,
 )
 from .solana_stream_log_repair import (
-    explicit_truncation,log_input_reason,rebase_log_join,authenticate_supplement,FATAL_REPAIR_REASONS,
+    explicit_truncation,log_input_reason,rebase_log_join,authenticate_required_log,FATAL_REPAIR_REASONS,
 )
 from .solana_candidate_phases import CandidatePhases,DEVELOPMENT_PHASES,phase as candidate_phase
 from .runtime.operation_costs import operation,measured
@@ -2645,10 +2645,10 @@ class SelectiveSource:
                     token=next_token
             if rolling:
                 async def repair_logs():
-                    # Independent native identities determine the exact missing
-                    # field. This exception fetches bodies only for the recovery
-                    # prefix unavailable from a new WS, never every promotion.
-                    inflight=set();batch_inflight=False
+                    # Only the oldest independently witnessed slot can retire.
+                    # Complete its required fields before buying later repairs;
+                    # an absent live field cannot wait forever for a WS packet.
+                    inflight=set();owned_reads=set();batch_inflight=False
                     async def publish_log(slot,sig,logs):
                         await self.work(lambda s:install(s)._observation(None,'selective_missing_field',dict(signature=sig,slot=slot,field='logMessages',reason='RECOVERY_GAP')),2)
                         frame=join.feed_log(slot,sig,logs,None,time.time());join_progress.set()
@@ -2658,59 +2658,76 @@ class SelectiveSource:
                             if frame is None:break
                             join_progress.set();await commit(frame)
                     not_fetched=object()
-                    async def one(slot,sig,fetched=not_fetched):
-                        witness=None;authenticated=False
+                    async def one(slot,sig,fetched=not_fetched,witness=not_fetched,available=None):
+                        authenticated=False;owned_read=witness is not not_fetched
                         try:
-                            witness=join.deferred_log_witness(slot,sig)
+                            if witness is not_fetched:
+                                pending_slot=join.pending.get(slot)
+                                if pending_slot is None or sig not in pending_slot['missing_logs']:return
+                                witness=join.begin_required_log_read(slot,sig);owned_read=True
+                                owned_reads.add((slot,sig))
+                            if witness is None:raise EvidenceUnavailable('candidate_required_content_missing')
                             if fetched is not_fetched:
-                                if witness is not None:self.observe('log_repair',stage='repair_logical_calls')
+                                self.observe('log_repair',stage='repair_logical_calls')
                                 tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
                             else:tx=fetched
-                            if witness is not None:
-                                try:
-                                    complete,receipt=authenticate_supplement(join,witness,tx,self.config.identity)
-                                except EvidenceUnavailable as error:
-                                    # Retain the actual failed input for offline
-                                    # review; none of its strings are stdout or
-                                    # permission to complete native coverage.
-                                    failed=dict(native_witness=witness,response=tx,
-                                        observed_websocket_logs=join.early_logs[(slot,sig)][0],
-                                        reason=str(error),complete=False)
-                                    await self.work(lambda s:install(s)._observation(None,
-                                        'native_stream_log_supplement_failed',failed),2)
-                                    raise
-                                await self.work(lambda s:install(s)._observation(None,
-                                    'native_stream_log_supplement',receipt),2)
-                                frame=join.complete_deferred_log(slot,sig,complete,time.time());join_progress.set()
-                                await commit(frame)
-                                while True:
-                                    frame=join.drain()
-                                    if frame is None:break
-                                    join_progress.set();await commit(frame)
-                                authenticated=True
-                                self.observe('log_repair',stage='supplements_authenticated')
-                                return
-                            if not tx or tx['slot']!=slot or tx['meta']['err'] is not None:
+                            if available is None:available=time.time()
+                            if (tx is None and not join.required_log_reads[(slot,sig)]['deferred']):
+                                # Finalized native progress does not prove that
+                                # HTTP indexing is ready. Preserve the original
+                                # ordinary missing-content/reconnect contract.
                                 raise EvidenceUnavailable('candidate_required_content_missing')
-                            await publish_log(slot,sig,tx['meta']['logMessages'])
+                            try:
+                                complete,receipt=authenticate_required_log(join,witness,tx,self.config.identity)
+                            except EvidenceUnavailable as error:
+                                # Preserve the actual failed provider input,
+                                # including when no WS packet ever existed.
+                                observed=join.early_logs.get((slot,sig))
+                                failed=dict(native_witness=witness,response=tx,
+                                    observed_websocket_logs=None if observed is None else observed[0],
+                                    reason=str(error),complete=False)
+                                await self.work(lambda s:install(s)._observation(None,
+                                    'native_stream_log_supplement_failed',failed),2)
+                                raise
+                            await self.work(lambda s:install(s)._observation(None,
+                                'native_stream_log_supplement',dict(receipt,http_result_available_at=available)),2)
+                            # The receipt write yielded to native/WS delivery.
+                            # Recheck its exact witness and any newly observed
+                            # prefix/duplicate before changing the join.
+                            complete,_=authenticate_required_log(join,witness,tx,self.config.identity)
+                            frame=join.complete_required_log(slot,sig,complete,available)
+                            join_progress.set();await commit(frame)
+                            while True:
+                                frame=join.drain()
+                                if frame is None:break
+                                join_progress.set();await commit(frame)
+                            authenticated=True
+                            self.observe('log_repair',stage='supplements_authenticated')
                         finally:
-                            if witness is not None and not authenticated:
+                            if witness is not not_fetched and witness is not None and not authenticated:
                                 self.observe('log_repair',stage='supplements_failed')
+                            if owned_read:join.end_required_log_read(slot,sig)
+                            owned_reads.discard((slot,sig))
                             inflight.discard((slot,sig))
-                    async def log_batch(keys):
+                    async def log_batch(keys,witnesses):
                         nonlocal batch_inflight
                         fetched=False
                         try:
+                            if any(value is None for value in witnesses.values()):
+                                raise EvidenceUnavailable('candidate_required_content_missing')
                             for _ in keys:self.observe('log_repair',stage='repair_logical_calls')
                             values=await self.measured_log_batch([sig for _,sig in keys],2)
-                            fetched=True
+                            available=time.time();fetched=True
                             # Each response still needs its exact current native
                             # witness and original WS prefix/suffix. Ordered frame
                             # publication remains the existing single commit queue.
-                            for (slot,sig),value in zip(keys,values):await one(slot,sig,value)
+                            for (slot,sig),value in zip(keys,values):
+                                await one(slot,sig,value,witnesses[(slot,sig)],available)
                         finally:
                             if not fetched:
                                 for _ in keys:self.observe('log_repair',stage='supplements_failed')
+                            for key in keys:
+                                join.end_required_log_read(*key);owned_reads.discard(key)
                             inflight.difference_update(keys);batch_inflight=False
                     async def block_group(keys,witness,profile):
                         from .solana_candidate_join import authenticated_block_logs
@@ -2736,13 +2753,14 @@ class SelectiveSource:
                         while not self.stop.is_set() and not local_stop.is_set():
                             for task in list(pending):
                                 if task.done():task.result();pending.remove(task)
-                            keys=[]
-                            for key in join.missing_log_keys(max(join.pending,default=tip)):
+                            keys=[];head=min(join.pending,default=None)
+                            live_head=join.head_has_finalized_child()
+                            for key in join.missing_log_keys(head if head is not None else tip):
                                 if key in inflight:continue
                                 deferred=key in join.incomplete_logs
-                                if deferred:
-                                    if batch_inflight or join.deferred_log_witness(*key) is None:continue
-                                elif not (has_checkpoint and not fresh_rolling and key[0]<=tip):continue
+                                if batch_inflight or join.required_log_witness(*key) is None:continue
+                                if not (deferred or live_head
+                                        or has_checkpoint and not fresh_rolling and key[0]<=tip):continue
                                 keys.append(key)
                                 if len(keys)>=max(0,8-len(inflight)):break
                             if len(inflight)>=8:keys=[]
@@ -2751,23 +2769,33 @@ class SelectiveSource:
                             # A truncated packet needs its own exact WS binding;
                             # the existing dense missing-prefix optimization is
                             # unchanged for ordinary old recovery keys.
-                            ordinary=[key for key in keys if key not in join.incomplete_logs]
+                            ordinary=[key for key in keys if key not in join.incomplete_logs
+                                and has_checkpoint and not fresh_rolling and key[0]<=tip]
                             for group,witness in join.block_repair_groups(ordinary,profile,join.clock()):
                                 inflight.update(group);grouped.update(group)
                                 pending.add(asyncio.create_task(block_group(group,witness,profile)))
-                            deferred=[key for key in keys if key in join.incomplete_logs]
-                            if deferred:
-                                inflight.update(deferred);batch_inflight=True
-                                pending.add(asyncio.create_task(log_batch(deferred)))
-                            for key in keys:
-                                if key not in grouped and key not in deferred:
-                                    inflight.add(key);pending.add(asyncio.create_task(one(*key)))
+                            fields=[key for key in keys if key not in grouped]
+                            if fields:
+                                # No await separates selection and ownership.
+                                # WS can settle a field before the task starts;
+                                # this accepted context retains its exact proof
+                                # through that race and bounded recent eviction.
+                                witnesses={}
+                                for key in fields:
+                                    witnesses[key]=join.begin_required_log_read(*key);owned_reads.add(key)
+                                inflight.update(fields);batch_inflight=True
+                                pending.add(asyncio.create_task(log_batch(fields,witnesses)))
                             await asyncio.sleep(.01)
                     finally:
                         # An accepted HTTP result may complete the final native
                         # join. Let its original deadline finish before closing
                         # the commit queue; do not discard it on filter rebuild.
-                        results=await asyncio.gather(*pending,return_exceptions=True)
+                        try:results=await asyncio.gather(*pending,return_exceptions=True)
+                        finally:
+                            # A task cancelled before its first instruction
+                            # cannot run its own finally block.
+                            for key in owned_reads:join.end_required_log_read(*key)
+                            owned_reads.clear()
                         for result in results:
                             if isinstance(result,BaseException):raise result
                 tasks.append(asyncio.create_task(repair_logs()))

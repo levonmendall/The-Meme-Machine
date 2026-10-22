@@ -30,7 +30,7 @@ from meme_machine.solana_selective_history import (
 from meme_machine.solana_selective_source import SelectiveSource, install
 from meme_machine.solana_candidate_join import CandidateTransactionJoin,scope_labels,candidate_commit_size
 from meme_machine.solana_native_evidence import signature
-from meme_machine.solana_stream_log_repair import authenticate_supplement,explicit_truncation,log_input_reason,rebase_log_join
+from meme_machine.solana_stream_log_repair import authenticate_supplement,authenticate_required_log,explicit_truncation,log_input_reason,rebase_log_join
 from meme_machine.yellowstone import geyser_pb2 as pb
 
 
@@ -587,6 +587,199 @@ class StreamFullLogContentTests(unittest.TestCase):
         altered=dict(witness,transaction_index=witness['transaction_index']+1)
         with self.assertRaisesRegex(EvidenceUnavailable,'supplement_identity_unverified'):
             authenticate_supplement(join,altered,fetched,ENDPOINT)
+
+
+    def native_required_join(self,*,extra_missing=0,clock=None,earlier=0):
+        import based58
+        _,fetched,full,_=truncated_transaction();slot=full['slot'];sig=full['transaction']['signatures'][0]
+        scope='program:pump';programs={PROGRAMS['pump']:scope}
+        options={} if clock is None else dict(clock=clock)
+        join=CandidateTransactionJoin(programs,set(),filtered_from_slot=slot-earlier,max_join_seconds=120,**options)
+        for offset in range(extra_missing+1):
+            u=pb.SubscribeUpdate(filters=[scope_labels(programs)[scope]])
+            u.transaction_status.slot=slot;u.transaction_status.index=full['transactionIndex']+offset
+            u.transaction_status.signature=based58.b58decode(sig.encode()) if offset==0 else bytes([offset+1])*64
+            self.assertIsNone(join.feed(u,u.ByteSize(),NOW))
+        u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=slot;m.parent_slot=slot-1
+        m.blockhash='native-hash';m.parent_blockhash='native-parent';m.block_time.timestamp=full['blockTime']
+        m.executed_transaction_count=full['transactionIndex']+extra_missing+1
+        self.assertIsNone(join.feed(u,u.ByteSize(),NOW))
+        u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=slot;u.slot.parent=slot-1;u.slot.status=pb.SLOT_FINALIZED
+        self.assertIsNone(join.feed(u,u.ByteSize(),NOW))
+        return join,fetched,full,join.required_log_witness(slot,sig)
+
+    def test_absent_required_log_uses_native_identity_and_http_availability_without_ws_prefix(self):
+        join,fetched,full,witness=self.native_required_join();slot=full['slot'];sig=full['transaction']['signatures'][0]
+        self.assertIsNone(join.deferred_log_witness(slot,sig));self.assertFalse(join.head_has_finalized_child())
+        before=copy.deepcopy(join.__dict__)
+        logs,receipt=authenticate_required_log(join,witness,fetched,ENDPOINT)
+        self.assertEqual(join.__dict__,before);self.assertIsNone(receipt['observed_websocket_logs'])
+        frame=join.complete_required_log(slot,sig,logs,NOW+3)
+        self.assertEqual(pump_events(frame.log_transactions[0]),pump_events(full))
+        self.assertEqual(frame.observed_at[sig],NOW+3)
+        self.assertEqual(join.early_logs,{});self.assertEqual(join.completed_log_fields,{})
+
+    def test_required_log_authentication_rejects_response_and_stale_witness_without_mutation(self):
+        for field in ('slot','signature','error','time','index','scope','logs','truncation','witness','endpoint'):
+            with self.subTest(field=field):
+                join,fetched,full,witness=self.native_required_join();endpoint=ENDPOINT
+                if field=='slot':fetched['slot']+=1
+                elif field=='signature':fetched['transaction']['signatures'][0]='wrong'
+                elif field=='error':fetched['meta']['err']={'InstructionError':[0,1]}
+                elif field=='time':fetched['blockTime']+=1
+                elif field=='index':fetched['transactionIndex']=full['transactionIndex']+1
+                elif field=='scope':fetched['transaction']['message']['accountKeys']=[];fetched['meta']['loadedAddresses']={}
+                elif field=='logs':fetched['meta']['logMessages']=[None]
+                elif field=='truncation':fetched['meta']['logMessages']=['Log truncated']
+                elif field=='witness':witness=dict(witness,transaction_index=witness['transaction_index']+1)
+                else:endpoint='not-an-endpoint'
+                before=copy.deepcopy(join.__dict__)
+                expected='supplement_incomplete' if field=='truncation' else 'supplement_identity_unverified'
+                with self.assertRaisesRegex(EvidenceUnavailable,expected):
+                    authenticate_required_log(join,witness,fetched,endpoint)
+                self.assertEqual(join.__dict__,before);self.assertIsNone(join.drain())
+
+    def test_absent_head_partial_transfer_and_late_ws_duplicates_share_original_byte_budgets(self):
+        import based58
+        join,fetched,full,witness=self.native_required_join(extra_missing=1)
+        slot=full['slot'];sig=full['transaction']['signatures'][0];future=['x'*32768]
+        bound=len(str(future).encode())
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            join.feed_log(slot+1,'future-signature',future,None,NOW+1)
+            original_bytes=join.pending_bytes
+            logs,_=authenticate_required_log(join,witness,fetched,ENDPOINT)
+            self.assertIsNone(join.complete_required_log(slot,sig,logs,NOW+2))
+            self.assertGreater(join.pending_bytes,original_bytes);self.assertLessEqual(join.pending_bytes,bound)
+            self.assertEqual(join.early_log_bytes,bound);self.assertNotIn((slot,sig),join.early_logs)
+            self.assertIsNone(join.completed_log_fields[(slot,sig)][2])
+            retained=copy.deepcopy(join.completed_log_fields);charged=join.pending_bytes
+            self.assertIsNone(join.feed_log(slot,sig,logs,None,NOW+30))
+            prefix=logs[:4]+['Log truncated'];join.defer_log(slot,sig,prefix,NOW+31)
+            self.assertEqual(join.completed_log_fields,retained);self.assertEqual(join.pending_bytes,charged)
+            self.assertEqual(join.early_log_bytes,bound);self.assertNotIn((slot,sig),join.incomplete_logs)
+            bad=list(prefix);bad[0]='different prefix'
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_content_conflict'):
+                join.defer_log(slot,sig,bad,NOW+32)
+            other=based58.b58encode(bytes([2])*64).decode()
+            frame=join.complete_required_log(slot,other,logs,NOW+4)
+            self.assertEqual(frame.update.block.slot,slot);self.assertEqual(len(frame.log_transactions),2)
+            self.assertEqual(frame.observed_at[sig],NOW+2)
+            self.assertEqual(join.completed_log_fields,{});self.assertEqual(join.pending_bytes,0)
+            self.assertEqual(join.early_logs,{(slot+1,'future-signature'):(future,None,NOW+1)})
+            self.assertEqual(join.early_log_bytes,bound)
+
+    def test_absent_head_oversized_assembled_frame_refuses_before_join_mutation(self):
+        join,fetched,full,witness=self.native_required_join();logs,_=authenticate_required_log(join,witness,fetched,ENDPOINT)
+        before=copy.deepcopy(join.__dict__)
+        with patch('meme_machine.solana_candidate_join.CANDIDATE_COMMIT_BYTES',1):
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_commit_batch_bound'):
+                join.complete_required_log(full['slot'],full['transaction']['signatures'][0],logs,NOW+1)
+        self.assertEqual(join.__dict__,before)
+
+    def test_fitting_http_field_accepts_consistent_late_partial_ws_without_recharging(self):
+        import based58
+        join,fetched,full,witness=self.native_required_join(extra_missing=1)
+        slot=full['slot'];sig=full['transaction']['signatures'][0]
+        logs,_=authenticate_required_log(join,witness,fetched,ENDPOINT)
+        self.assertIsNone(join.complete_required_log(slot,sig,logs,NOW+1))
+        charged=(join.early_log_bytes,join.pending_bytes);retained=copy.deepcopy(join.completed_log_fields)
+        prefix=logs[:4]+['Log truncated'];join.defer_log(slot,sig,prefix,NOW+2)
+        self.assertEqual((join.early_log_bytes,join.pending_bytes),charged)
+        self.assertEqual(join.completed_log_fields,retained);self.assertNotIn((slot,sig),join.incomplete_logs)
+        bad=list(prefix);bad[0]='contradiction'
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_content_conflict'):
+            join.defer_log(slot,sig,bad,NOW+3)
+        other=based58.b58encode(bytes([2])*64).decode()
+        frame=join.complete_required_log(slot,other,logs,NOW+4)
+        self.assertEqual(frame.observed_at[sig],NOW+1)
+        self.assertEqual(join.early_log_bytes,0);self.assertEqual(join.completed_log_fields,{})
+
+    def test_earlier_ready_slot_during_http_does_not_discard_the_accepted_target_field(self):
+        join,fetched,full,witness=self.native_required_join(earlier=2)
+        slot=full['slot'];sig=full['transaction']['signatures'][0]
+        logs,_=authenticate_required_log(join,witness,fetched,ENDPOINT)
+        scope=next(iter(join.programs.values()));other=bytes([2])*64
+        u=pb.SubscribeUpdate(filters=[scope_labels(join.programs)[scope]])
+        u.transaction_status.slot=slot-2;u.transaction_status.index=0;u.transaction_status.signature=other
+        self.assertIsNone(join.feed(u,u.ByteSize(),NOW))
+        for number in (slot-2,slot-1):
+            u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=number;m.parent_slot=number-1
+            m.blockhash='native-parent' if number==slot-1 else str(number)
+            m.parent_blockhash=str(number-1);m.block_time.timestamp=full['blockTime']
+            m.executed_transaction_count=1 if number==slot-2 else 0
+            self.assertIsNone(join.feed(u,u.ByteSize(),NOW))
+            u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=number;u.slot.parent=number-1;u.slot.status=pb.SLOT_FINALIZED
+            self.assertIsNone(join.feed(u,u.ByteSize(),NOW))
+        self.assertEqual(join.feed_log(slot-2,signature(other),[],None,NOW+1).update.block.slot,slot-2)
+        frame=join.complete_required_log(slot,sig,logs,NOW+2)
+        self.assertEqual(frame.update.block.slot,slot-1)
+        self.assertIn((slot,sig),join.early_logs);self.assertNotIn(sig,join.pending[slot]['missing_logs'])
+        target=join.drain();self.assertEqual(target.update.block.slot,slot)
+        self.assertEqual(pump_events(target.log_transactions[0]),pump_events(full))
+        self.assertEqual(target.observed_at[sig],NOW+2)
+
+    def test_accepted_http_duplicate_remains_checkable_after_bounded_recent_witness_expires(self):
+        join,fetched,full,witness=self.native_required_join();slot=full['slot'];sig=full['transaction']['signatures'][0]
+        self.assertEqual(join.begin_required_log_read(slot,sig),witness)
+        frame=join.feed_log(slot,sig,full['meta']['logMessages'],None,NOW+1)
+        self.assertEqual(frame.update.block.slot,slot)
+        for offset in range(1,258):
+            number=slot+offset
+            u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=number;m.parent_slot=number-1
+            m.blockhash=str(number);m.parent_blockhash='native-hash' if offset==1 else str(number-1)
+            m.block_time.timestamp=full['blockTime']+offset;m.executed_transaction_count=0
+            self.assertIsNone(join.feed(u,u.ByteSize(),NOW+1))
+            u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=number;u.slot.parent=number-1;u.slot.status=pb.SLOT_FINALIZED
+            self.assertEqual(join.feed(u,u.ByteSize(),NOW+1).update.block.slot,number)
+        self.assertNotIn(slot,join.recent);self.assertNotIn((slot,sig),join.recent_logs)
+        completed=join.completed;logs,_=authenticate_required_log(join,witness,fetched,ENDPOINT)
+        self.assertIsNone(join.complete_required_log(slot,sig,logs,NOW+2));self.assertEqual(join.completed,completed)
+        bad=copy.deepcopy(fetched);bad['meta']['logMessages'][0]='conflicting completed content'
+        with self.assertRaisesRegex(EvidenceUnavailable,'supplement_identity_unverified'):
+            authenticate_required_log(join,witness,bad,ENDPOINT)
+        join.end_required_log_read(slot,sig);self.assertFalse(join.required_log_reads)
+        with self.assertRaisesRegex(EvidenceUnavailable,'supplement_identity_unverified'):
+            authenticate_required_log(join,witness,fetched,ENDPOINT)
+
+    def test_required_read_ownership_stays_eight_and_original_join_lease_is_not_refreshed(self):
+        import based58
+        clock=[100.];join,_,full,_=self.native_required_join(extra_missing=8,clock=lambda:clock[0])
+        slot=full['slot'];signatures=[full['transaction']['signatures'][0]]+[
+            based58.b58encode(bytes([n])*64).decode() for n in range(2,10)]
+        for sig in signatures[:8]:join.begin_required_log_read(slot,sig)
+        before=copy.deepcopy(join.required_log_reads)
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+            join.begin_required_log_read(slot,signatures[8])
+        self.assertEqual(join.required_log_reads,before)
+        join.end_required_log_read(slot,signatures[0]);join.begin_required_log_read(slot,signatures[8])
+        self.assertEqual(len(join.required_log_reads),8);clock[0]=221.
+        with self.assertRaisesRegex(EvidenceUnavailable,'yellowstone_incomplete_status_census'):
+            join.required_log_witness(slot,signatures[8])
+        self.assertEqual(join.pending[slot]['started'],100.)
+
+    def test_shared_partial_log_check_preserves_archive_negative_attribution_and_precedence(self):
+        from meme_machine.solana_selective_history import validate_log_supplement_fields
+        cases=('original_log_shape','fetched_log_shape','fetched_log_line','fetched_log_truncation',
+            'marker_count','prefix','retained_suffix','line_before_truncation','truncation_before_line')
+        for check in cases:
+            with self.subTest(check=check):
+                original,fetched,_,_=truncated_transaction()
+                if check=='original_log_shape':original['meta']['logMessages']=[];fetched['meta']['logMessages']=[None]
+                elif check=='fetched_log_shape':fetched['meta']['logMessages']=None
+                elif check=='fetched_log_line':fetched['meta']['logMessages']=[None]
+                elif check=='fetched_log_truncation':fetched['meta']['logMessages']=['Log truncated']
+                elif check=='marker_count':original['meta']['logMessages']=['no marker']
+                elif check=='prefix':fetched['meta']['logMessages'][0]='conflict';original['meta']['logMessages'].append('missing suffix')
+                elif check=='retained_suffix':original['meta']['logMessages'].append('missing suffix')
+                elif check=='line_before_truncation':fetched['meta']['logMessages']=[None,'Log truncated']
+                else:fetched['meta']['logMessages']=['Log truncated',None]
+                expected={'line_before_truncation':'fetched_log_line','truncation_before_line':'fetched_log_truncation'}.get(check,check)
+                before=copy.deepcopy((original,fetched));errors=[]
+                for call in (lambda:validate_log_supplement_fields(original['meta']['logMessages'],fetched['meta']['logMessages']),
+                        lambda:join_archive_log_supplement(original,fetched,endpoint_identity=ENDPOINT)):
+                    with self.assertRaisesRegex(EvidenceUnavailable,'archive_log_supplement_identity_unverified') as caught:call()
+                    errors.append(caught.exception.archive_log_failure_check)
+                self.assertEqual(errors,[expected,expected]);self.assertEqual((original,fetched),before)
 
 
 def truncated_transaction(family='pump'):

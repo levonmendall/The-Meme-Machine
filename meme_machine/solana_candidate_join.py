@@ -125,6 +125,11 @@ class CandidateTransactionJoin:
         # budget. Their original prefixes remain in early_logs until the whole
         # slot passes the ordinary frame checks. This is not another allowance.
         self.completed_log_fields={}
+        self.completed_log_native_bytes=0
+        # Only accepted physical repairs extend their exact duplicate check.
+        # At most eight witnesses/checksums survive until those reads settle;
+        # no full response or extra global replay horizon is retained here.
+        self.required_log_reads={}
         self.recent_logs={}
         self.recent_incomplete_logs={}
 
@@ -153,11 +158,15 @@ class CandidateTransactionJoin:
         key=(slot,sig);prior=self.early_logs.get(key)
         if slot<self.filtered_from_slot:return None
         if slot<=self.completed:
-            checksum=self.recent_logs.get(key)
+            checksum=self.required_log_checksum(slot,sig)
             if checksum==digest([logs,error]):return None
             raise EvidenceUnavailable('candidate_late_log_content')
         if prior is not None:
             if prior[:2]!=fact[:2]:raise EvidenceUnavailable('candidate_log_content_conflict')
+            return self.drain()
+        retained=self.completed_log_fields.get(key)
+        if retained is not None and retained[2] is None:
+            if retained[0][:2]!=fact[:2]:raise EvidenceUnavailable('candidate_log_content_conflict')
             return self.drain()
         size=len(str(logs).encode())
         if len(self.early_logs)>=32768 or self.early_log_bytes+size>MAX_PENDING_BYTES:
@@ -179,6 +188,13 @@ class CandidateTransactionJoin:
         if self.recent_incomplete_logs.get(key)==digest([logs,None]):return
         if slot<=self.completed:raise EvidenceUnavailable('candidate_late_log_content')
         old=self.early_logs.get(key)
+        retained=self.completed_log_fields.get(key)
+        if retained is not None and retained[2] is None:
+            from .solana_selective_history import validate_log_supplement_fields
+            try:validate_log_supplement_fields(logs,retained[0][0])
+            except EvidenceUnavailable:raise EvidenceUnavailable('candidate_log_content_conflict') from None
+            self.recent_incomplete_logs[key]=digest([logs,None])
+            return
         if old is not None:
             if key not in self.incomplete_logs or old[:2]!=(logs,None):
                 raise EvidenceUnavailable('candidate_log_content_conflict')
@@ -241,6 +257,7 @@ class CandidateTransactionJoin:
             if self.pending_bytes+size>MAX_PENDING_BYTES:
                 raise EvidenceUnavailable('candidate_log_buffer_pressure')
             self.completed_log_fields[key]=(fact,size,prefix)
+            self.completed_log_native_bytes+=size
             self.pending_bytes+=size;self.peak_bytes=max(self.peak_bytes,self.pending_bytes)
             pending['missing_logs'].discard(sig)
             return None
@@ -254,6 +271,55 @@ class CandidateTransactionJoin:
         pending=self.pending.get(slot)
         if pending is not None:pending['missing_logs'].discard(sig)
         return self._finish_drain(plan) if plan is not None else None
+
+    def complete_required_log(self,slot,sig,logs,seen):
+        """Install an authenticated native field without inventing a WS prefix.
+
+        A whole head can transfer atomically at the log waterline. A partial
+        head uses only the existing native pending-byte allowance, exactly as
+        authenticated truncated completions do. All old frame checks precede
+        retirement, and duplicate observations never refresh availability.
+        """
+        key=(slot,sig)
+        if key in self.incomplete_logs:return self.complete_deferred_log(slot,sig,logs,seen)
+        if key in self.early_logs or slot<=self.completed:return self.feed_log(slot,sig,logs,None,seen)
+        if (not isinstance(logs,list) or any(not isinstance(line,str)
+                or 'truncat' in line.lower() for line in logs)):
+            raise EvidenceUnavailable('incomplete_finalized_logs')
+        if self.required_log_witness(slot,sig) is None:
+            raise EvidenceUnavailable('candidate_required_content_missing')
+        fact=(list(logs),None,seen);retained=self.completed_log_fields.get(key)
+        if retained is not None:
+            if retained[0][:2]!=fact[:2]:raise EvidenceUnavailable('candidate_log_content_conflict')
+            return self.drain()
+        complete_bytes=len(str(logs).encode())
+        fits=len(self.early_logs)<32768 and self.early_log_bytes+complete_bytes<=MAX_PENDING_BYTES
+        if complete_bytes>MAX_PENDING_BYTES:
+            raise EvidenceUnavailable('candidate_log_buffer_pressure')
+        if not fits and slot!=min(self.pending,default=None):
+            raise EvidenceUnavailable('candidate_log_buffer_pressure')
+        plan=self._prepare_drain((key,fact),partial=True)
+        transfers=(plan is not None and plan[3] is not None
+            and any(consumed[0]==key for consumed in plan[4]))
+        if transfers:return self._finish_drain(plan)
+        if fits:
+            self.early_logs[key]=fact;self.early_log_bytes+=complete_bytes
+            # The array is charged to the log budget and shared by reference.
+            # Its zero native charge records HTTP provenance for late partial
+            # WS duplicates without retaining a second body or fake prefix.
+            self.completed_log_fields[key]=(fact,0,None)
+        else:
+            if plan is None:raise EvidenceUnavailable('candidate_log_buffer_pressure')
+            pending=self.pending[slot]
+            index=next(index for index in pending['log_required'] if pending['signature_text'][index]==sig)
+            size=len(canonical(_log_transaction(slot,index,pending['meta'],sig,fact)).encode())
+            if self.pending_bytes+size>MAX_PENDING_BYTES:
+                raise EvidenceUnavailable('candidate_log_buffer_pressure')
+            self.completed_log_fields[key]=(fact,size,None)
+            self.completed_log_native_bytes+=size
+            self.pending_bytes+=size;self.peak_bytes=max(self.peak_bytes,self.pending_bytes)
+        self.pending[slot]['missing_logs'].discard(sig)
+        return self._finish_drain(plan) if plan is not None and plan[3] is not None else None
 
     def hold_complete_log(self,slot,sig,logs):
         """Coalesce a complete WS duplicate while its existing repair settles.
@@ -276,8 +342,25 @@ class CandidateTransactionJoin:
     def deferred_log_witness(self,slot,sig):
         """Independent finalized status/meta needed before HTTP supplementation."""
         if (slot,sig) not in self.incomplete_logs:return None
+        return self.required_log_witness(slot,sig)
+
+    def required_log_witness(self,slot,sig,*,include_completed=False):
+        """A required successful identity, independent of WS packet presence.
+
+        An accepted HTTP read may race a complete WS field. The bounded native
+        duplicate horizon can authenticate that result, but cannot republish it.
+        Neither a scheduling hint nor a transaction response supplies its order.
+        """
         s=self.pending.get(slot)
+        if s is None and include_completed:s=self.recent.get(slot)
+        if s is None and include_completed and slot<=self.completed:
+            read=self.required_log_reads.get((slot,sig))
+            if read is not None and read['completed'] is not None:
+                import json
+                return json.loads(read['witness'])
         if s is None or s['meta'] is None or s['finality'] is None:return None
+        if slot in self.pending and self.clock()-s['started']>self.max_join_seconds:
+            raise EvidenceUnavailable('yellowstone_incomplete_status_census')
         meta=s['meta']
         if s['finality']!=meta.parent_slot or not meta.HasField('block_time'):
             raise EvidenceUnavailable('yellowstone_finalized_block_shape')
@@ -290,6 +373,42 @@ class CandidateTransactionJoin:
                 parent_slot=meta.parent_slot,parent_block_hash=meta.parent_blockhash,
                 scopes=list(fact[3]),bank_id=fact[4])
         return None
+
+    def begin_required_log_read(self,slot,sig):
+        """Own an exact native witness until its accepted repair terminates."""
+        key=(slot,sig);witness=self.required_log_witness(slot,sig)
+        if witness is None:raise EvidenceUnavailable('candidate_required_content_missing')
+        if key in self.required_log_reads or len(self.required_log_reads)>=8:
+            raise EvidenceUnavailable('candidate_log_buffer_pressure')
+        self.required_log_reads[key]=dict(witness=canonical(witness),completed=None,
+            deferred=key in self.incomplete_logs)
+        return witness
+
+    def end_required_log_read(self,slot,sig):
+        self.required_log_reads.pop((slot,sig),None)
+
+    def required_log_checksum(self,slot,sig):
+        key=(slot,sig);checksum=self.recent_logs.get(key)
+        if checksum is None and slot<=self.completed:
+            read=self.required_log_reads.get(key)
+            if read is not None:checksum=read['completed']
+        return checksum
+
+    def head_has_finalized_child(self):
+        """Progress hint for missing live fields; never interval coverage.
+
+        Wait for the next linked finalized native block before supplementing a
+        wholly absent WS field. Explicit truncations need no such grace. This
+        avoids treating every status that precedes its WS packet as a repair.
+        """
+        head=min(self.pending,default=None)
+        if head is None:return False
+        meta=self.pending[head]['meta']
+        if meta is None:return False
+        return any(slot>head and child['meta'] is not None
+            and child['finality']==head and child['meta'].parent_slot==head
+            and child['meta'].parent_blockhash==meta.blockhash
+            for slot,child in self.pending.items())
 
     def feed(self,update,size,seen):
         now=self.clock()
@@ -323,7 +442,7 @@ class CandidateTransactionJoin:
                         fact=(bytes(item.signature),item.is_vote,bytes(item.err.err) if item.HasField('err') else None,scopes,item.bank_id)
                         if old['statuses'].get(item.index)==fact:return None
             raise EvidenceUnavailable('yellowstone_late_census_content')
-        if self.completed_log_fields and self.pending_bytes+size>MAX_PENDING_BYTES:
+        if self.completed_log_native_bytes and self.pending_bytes+size>MAX_PENDING_BYTES:
             # Retained authenticated completions have already reserved these
             # bytes. A native arrival cannot overwrite that reservation, even
             # on the terminal capacity-failure path.
@@ -437,7 +556,9 @@ class CandidateTransactionJoin:
             if replacement is not None and replacement[0]==key:return replacement[1]
             retained=self.completed_log_fields.get(key)
             if retained is not None:
-                if retained[2]!=digest(self.early_logs[key][:2]):
+                original=self.early_logs.get(key)
+                if ((retained[2] is None and original is not None and original!=retained[0])
+                        or retained[2] is not None and (original is None or retained[2]!=digest(original[:2]))):
                     raise EvidenceUnavailable('candidate_log_content_conflict')
                 return retained[0]
             if key[1] in s['missing_logs']:return None
@@ -490,8 +611,8 @@ class CandidateTransactionJoin:
         candidate_commit_size(result)
         consumed=[]
         for index in log_required:
-            key=(slot,signature_text[index]);old=self.early_logs[key];complete=log_at(index)
-            consumed.append((key,digest([complete[0],complete[1]]),len(str(old[0]).encode())))
+            key=(slot,signature_text[index]);old=self.early_logs.get(key);complete=log_at(index)
+            consumed.append((key,digest([complete[0],complete[1]]),0 if old is None else len(str(old[0]).encode())))
         return slot,s,signature_text,result,consumed
 
     def _finish_drain(self,plan,*,repair=None):
@@ -504,14 +625,18 @@ class CandidateTransactionJoin:
             self.recent_incomplete_logs[key]=prefix;s['missing_logs'].discard(key[1])
         consumed_logs=[]
         for key,checksum,size in consumed:
-            self.early_logs.pop(key)
+            self.early_logs.pop(key,None)
             retained=self.completed_log_fields.pop(key,None)
             if retained is not None:
                 self.pending_bytes-=retained[1]
-                self.incomplete_logs.remove(key);self.deferred_complete_logs.pop(key,None)
-                self.recent_incomplete_logs[key]=retained[2]
+                self.completed_log_native_bytes-=retained[1]
+                if retained[2] is not None:
+                    self.incomplete_logs.remove(key);self.deferred_complete_logs.pop(key,None)
+                    self.recent_incomplete_logs[key]=retained[2]
                 s['missing_logs'].discard(key[1])
             self.recent_logs[key]=checksum
+            read=self.required_log_reads.get(key)
+            if read is not None:read['completed']=checksum
             consumed_logs.append(key)
             self.early_log_bytes-=size
         s['signature_text']=signature_text
