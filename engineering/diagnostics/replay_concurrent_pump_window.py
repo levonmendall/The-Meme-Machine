@@ -29,6 +29,91 @@ MAX_BATCH_BYTES = 16 * 1024**2
 ARRIVAL_BATCHES = 2
 STORE_FIELDS = ('canonical_native', 'canonical_discovery', 'canonical_delivery',
                 'candidate_history', 'qualification_observations', 'qualification_candidates')
+CANDIDATE_COLUMNS = ('lane', 'candidate', 'surface', 'first_observed', 'last_observed',
+                     'decision_deadline', 'body', 'hash')
+CANDIDATE_METADATA = ('source', 'creator', 'pool', 'structural_scout', 'recoverable',
+                      'provider_promotion', 'evidence_state', 'volume_quality')
+MAX_CANDIDATE_DETAILS = 16
+MAX_CANDIDATE_DIFFERENCE_BYTES = 64 * 1024
+
+
+def candidate_difference_report(directory):
+    """Bounded diagnosis of quiescent stores; every original comparison stays strict.
+
+    Candidate identities and metadata values leave this function only as hashes.
+    Values are shown only for fixed public surface names and integer timestamps.
+    """
+    import sqlite3
+    from meme_machine.runtime.journal import digest
+    def load(name):
+        path = directory/name/'history.sqlite'
+        db = sqlite3.connect(path.as_uri()+'?mode=ro', uri=True, timeout=0, isolation_level=None)
+        try:
+            db.execute('PRAGMA query_only=ON'); db.execute('BEGIN')
+            rows = {}
+            for row in db.execute('SELECT '+','.join(CANDIDATE_COLUMNS)+' FROM candidates ORDER BY lane,candidate'):
+                body = json.loads(row[6])
+                original.need(digest(body) == row[7] and original.sha(row[6].encode()) == row[7],
+                              'concurrent_candidate_body_hash')
+                original.need(set(body) == set(CANDIDATE_COLUMNS[:6]) | {'metadata'} and
+                    all(body[key] == row[index] for index, key in enumerate(CANDIDATE_COLUMNS[:6])) and
+                    type(body['metadata']) is dict, 'concurrent_candidate_body_columns')
+                rows[row[:2]] = (row, body)
+            return rows
+        finally:
+            try:db.rollback()
+            finally:db.close()
+    before, after = load('serial-control'), load('concurrent')
+    columns = Counter(); body_fields = Counter(); metadata_fields = Counter()
+    differing = unknown_metadata = 0; details = []
+    for key in sorted(before.keys() | after.keys()):
+        left, right = before.get(key), after.get(key)
+        if left == right:continue
+        differing += 1
+        changed = [name for index, name in enumerate(CANDIDATE_COLUMNS)
+                   if left is None or right is None or left[0][index] != right[0][index]]
+        fields = [name for name in (*CANDIDATE_COLUMNS[:6], 'metadata')
+                  if left is None or right is None or left[1][name] != right[1][name]]
+        lm = {} if left is None else left[1]['metadata']; rm = {} if right is None else right[1]['metadata']
+        metadata = [name for name in lm.keys() | rm.keys()
+                    if (name in lm, lm.get(name)) != (name in rm, rm.get(name))]
+        known = sorted(name for name in metadata if name in CANDIDATE_METADATA)
+        unknown = len(metadata) - len(known)
+        columns.update(changed); body_fields.update(fields); metadata_fields.update(known); unknown_metadata += unknown
+        if len(details) == MAX_CANDIDATE_DETAILS:continue
+        def value_hash(value, name):
+            return None if value is None else original.sha(original.canonical(value[0][CANDIDATE_COLUMNS.index(name)]))
+        safe = {}
+        for name in ('surface', 'first_observed', 'last_observed', 'decision_deadline'):
+            if name not in changed:continue
+            values = []
+            for value in (left, right):
+                item = None if value is None else value[0][CANDIDATE_COLUMNS.index(name)]
+                if name == 'surface':
+                    item = item if item in ('pump', 'pump.fun', 'pumpswap', 'meteora', 'meteora-dlmm', None) else 'other'
+                else:original.need(item is None or type(item) is int, 'concurrent_candidate_timestamp')
+                values.append(item)
+            safe[name] = values
+        details.append(dict(candidate_key_sha256=original.sha(original.canonical(key)),
+            present=[left is not None, right is not None], different_columns=changed,
+            column_value_sha256={name:[value_hash(left, name), value_hash(right, name)] for name in changed},
+            safe_values=safe, different_body_fields=fields, different_metadata_fields=known,
+            unknown_metadata_fields_differing=unknown,
+            metadata_value_sha256={name:[original.sha(original.canonical([name in values, values.get(name)]))
+                for values in (lm, rm)] for name in known}))
+    report = dict(schema='bounded-candidate-state-difference-v1', rows=[len(before), len(after)],
+        differing_candidate_keys=differing, column_difference_counts={name:columns[name] for name in CANDIDATE_COLUMNS},
+        body_field_difference_counts={name:body_fields[name] for name in (*CANDIDATE_COLUMNS[:6], 'metadata')},
+        metadata_field_difference_counts={name:metadata_fields[name] for name in CANDIDATE_METADATA},
+        unknown_metadata_fields_differing=unknown_metadata, details=details,
+        detail_limit=MAX_CANDIDATE_DETAILS, byte_limit=MAX_CANDIDATE_DIFFERENCE_BYTES,
+        truncated=len(details) < differing, candidate_bodies_authenticated=True,
+        scope='closed_quiescent_private_stores_read_only_outside_timed_arms_not_comparison_normalization')
+    while len(original.canonical(report)) > MAX_CANDIDATE_DIFFERENCE_BYTES and details:
+        details.pop(); report['truncated'] = True
+    original.need(len(original.canonical(report)) <= MAX_CANDIDATE_DIFFERENCE_BYTES,
+                  'concurrent_candidate_difference_bound')
+    return report
 
 
 def production_capabilities(work):
@@ -486,6 +571,7 @@ def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
                         ('delivery_before_intake_finished', 'observed_before_intake_finished',
                          'intake_turns_without_qualification_drain'))
         return dict(schema=SCHEMA, **comparison, concurrency_exercised=exercised,
+            candidate_state_difference=candidate_difference_report(directory),
             engineering_validation_passed=comparison['coherent'] and exercised and
                 all(run['distinct_pipeline_threads'] for run in runs),
             source=parcel.manifest['source'], source_manifest_sha256=parcel.manifest_fingerprint[1],

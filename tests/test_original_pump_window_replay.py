@@ -567,6 +567,63 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         changed = deepcopy(arm); changed['store_fingerprints']['unknown'] = 'unreviewed'
         self.assertFalse(concurrent.compare_arms(arm, changed)['coherent'])
 
+    def test_candidate_difference_projection_authenticates_real_rows_and_bounds_private_details(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        for name, reverse in (('serial-control', False), ('concurrent', True)):
+            directory = self.root/name; directory.mkdir()
+            history = CandidateHistory(directory/'history.sqlite')
+            try:
+                for index in range(18):
+                    observations = [('pump', 100, dict(source='same', creator='private-creator')),
+                                    ('pump.fun', 101, dict(pool='private-pool'))]
+                    for surface, at, metadata in reversed(observations) if reverse else observations:
+                        history.observe('pump', 'private-candidate-'+str(index), surface=surface,
+                                        observed_at=at, metadata=metadata)
+                history.observe('pump', 'private-identical', surface='pump.fun', observed_at=100)
+            finally:history.close()
+        result = concurrent.candidate_difference_report(self.root)
+        self.assertEqual(result['rows'], [19, 19])
+        self.assertEqual(result['differing_candidate_keys'], 18)
+        self.assertEqual(len(result['details']), 16); self.assertTrue(result['truncated'])
+        self.assertEqual({key:value for key,value in result['column_difference_counts'].items() if value},
+                         dict(surface=18, body=18, hash=18))
+        self.assertEqual({key:value for key,value in result['body_field_difference_counts'].items() if value},
+                         dict(surface=18))
+        self.assertFalse(any(result['metadata_field_difference_counts'].values()))
+        for row in result['details']:
+            self.assertEqual(row['different_columns'], ['surface', 'body', 'hash'])
+            self.assertEqual(row['safe_values'], {'surface':['pump.fun', 'pump']})
+            self.assertEqual(row['different_metadata_fields'], [])
+            self.assertRegex(row['candidate_key_sha256'], '^[0-9a-f]{64}$')
+        raw = original.canonical(result)
+        self.assertLessEqual(len(raw), concurrent.MAX_CANDIDATE_DIFFERENCE_BYTES)
+        self.assertNotIn(b'private-', raw)
+        self.assertTrue(result['candidate_bodies_authenticated'])
+
+    def test_candidate_difference_projection_hashes_metadata_and_refuses_corrupt_bodies(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        for name, value in (('serial-control', 'private-left'), ('concurrent', 'private-right')):
+            directory = self.root/name; directory.mkdir()
+            history = CandidateHistory(directory/'history.sqlite')
+            try:
+                history.observe('pump', 'private-mint', surface='pump.fun', observed_at=100,
+                    metadata={'creator':value, 'private-unknown-field':value})
+            finally:history.close()
+        result = concurrent.candidate_difference_report(self.root)
+        self.assertEqual(result['differing_candidate_keys'], 1)
+        self.assertEqual(result['metadata_field_difference_counts']['creator'], 1)
+        self.assertEqual(result['unknown_metadata_fields_differing'], 1)
+        detail = result['details'][0]
+        self.assertEqual(detail['different_columns'], ['body', 'hash'])
+        self.assertEqual(detail['different_metadata_fields'], ['creator'])
+        self.assertEqual(detail['safe_values'], {})
+        self.assertNotEqual(*detail['metadata_value_sha256']['creator'])
+        self.assertNotIn(b'private-', original.canonical(result))
+        with sqlite3.connect(self.root/'concurrent/history.sqlite') as db:
+            db.execute('UPDATE candidates SET hash=?', ('0'*64,))
+        with self.assertRaisesRegex(ValueError, 'concurrent_candidate_body_hash'):
+            concurrent.candidate_difference_report(self.root)
+
     def test_cohort_order_and_authentication_are_checked_before_private_stores(self):
         parcel = CapturedParcel()
         parcel.inputs[1]['sequence'] = parcel.inputs[0]['sequence']
