@@ -231,6 +231,65 @@ class LogRepairSourceBatchTests(unittest.IsolatedAsyncioTestCase):
 
 
 class RepairLogOccupancyTests(unittest.IsolatedAsyncioTestCase):
+    async def test_native_only_http_retention_admits_exact_ws_duplicates_before_and_after_wait(self):
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        from meme_machine.solana_stream_log_repair import authenticate_required_log
+        for already_waiting in (False,True):
+            for partial in (False,True):
+                with self.subTest(already_waiting=already_waiting,partial=partial):
+                    case=captured_logs.StreamFullLogContentTests()
+                    join,fetched,full,witness=case.native_required_join(extra_missing=1)
+                    slot=full['slot'];sig=full['transaction']['signatures'][0]
+                    logs,_=authenticate_required_log(join,witness,fetched,'a'*64)
+                    packet=logs[:4]+['Log truncated'] if partial else list(logs)
+                    future=['x'*32768];bound=len(str(future).encode())+8
+                    progress=asyncio.Event();stop=asyncio.Event();waiting=None;unrelated=None
+                    with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound), \
+                            patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+                        join.feed_log(slot+1,'existing-future',future,None,captured_logs.NOW)
+                        try:
+                            if already_waiting:
+                                waiting=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,slot,sig,packet))
+                                await asyncio.sleep(.01);self.assertFalse(waiting.done())
+                            self.assertIsNone(join.complete_required_log(slot,sig,logs,captured_logs.NOW+1))
+                            self.assertNotIn((slot,sig),join.early_logs)
+                            self.assertIn((slot,sig),join.completed_log_fields)
+                            self.assertGreater(join.completed_log_native_bytes,0)
+                            self.assertNotIn(sig,join.pending[slot]['missing_logs'])
+                            before=(deepcopy(join.early_logs),join.early_log_bytes,join.pending_bytes,
+                                deepcopy(join.completed_log_fields),set(join.pending[slot]['missing_logs']))
+                            if waiting is None:
+                                waiting=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,slot,sig,packet))
+                            progress.set();await asyncio.wait_for(waiting,.5)
+                            self.assertEqual((join.early_logs,join.early_log_bytes,join.pending_bytes,
+                                join.completed_log_fields,join.pending[slot]['missing_logs']),before)
+                            unrelated=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,
+                                slot+2,'unrelated-field',[]))
+                            await asyncio.sleep(0);self.assertFalse(unrelated.done())
+                            if partial:join.defer_log(slot,sig,packet,captured_logs.NOW+2)
+                            else:self.assertIsNone(join.feed_log(slot,sig,packet,None,captured_logs.NOW+2))
+                            bad=list(packet);bad[0]='contradictory existing field'
+                            await asyncio.wait_for(wait_candidate_log_space(join,progress,stop,stop,slot,sig,bad),.5)
+                            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_content_conflict'):
+                                if partial:join.defer_log(slot,sig,bad,captured_logs.NOW+3)
+                                else:join.feed_log(slot,sig,bad,None,captured_logs.NOW+3)
+                            self.assertEqual((join.early_log_bytes,join.pending_bytes),before[1:3])
+                            self.assertEqual(join.completed_log_fields,before[3]);self.assertIsNone(join.drain())
+                            # The duplicate no longer pins the receiver. A small
+                            # independently required next field fits the original
+                            # hard headroom and completes the same ordered head.
+                            other=signature(bytes([2])*64)
+                            await asyncio.wait_for(wait_candidate_log_space(join,progress,stop,stop,slot,other,[]),.5)
+                            frame=join.feed_log(slot,other,[],None,captured_logs.NOW+4)
+                            self.assertEqual(frame.update.block.slot,slot)
+                            self.assertEqual(frame.observed_at[sig],captured_logs.NOW+1)
+                            self.assertEqual(join.completed_log_fields,{})
+                            self.assertEqual(join.completed_log_native_bytes,0);self.assertEqual(join.pending_bytes,0)
+                            self.assertEqual(join.early_log_bytes,len(str(future).encode()))
+                        finally:
+                            stop.set();progress.set()
+                            await asyncio.gather(*[task for task in (waiting,unrelated) if task is not None],return_exceptions=True)
+
     def pressured(self):
         case=captured_logs.StreamFullLogContentTests()
         join,original,fetched,full,witness=case.joined()

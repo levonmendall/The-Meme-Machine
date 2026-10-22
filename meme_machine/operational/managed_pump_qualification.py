@@ -21,6 +21,51 @@ SCHEMA = 'managed-pump-qualification-v1'
 PAGE = 64
 EVIDENCE_SECONDS = 25
 
+# Exact codes already accepted by the installed primary/sealed projections.
+# Never derive a reason from an exception class, prefix, URL or free text.
+QUALIFICATION_FAILURE_REASONS = frozenset((
+    'evidence_deadline_before_transport',
+    'evidence_requires_offline_archive_restore',
+    'evidence_time_boundary_unavailable',
+    'invalid_query_window',
+    'local_evidence_query_bound',
+    'query_bound',
+    'unresolved_evidence_gap',
+))
+
+
+def _failure_reason(error):
+    args = error.args
+    return (args[0] if len(args) == 1 and type(args[0]) is str
+            and args[0] in QUALIFICATION_FAILURE_REASONS else None)
+
+
+def qualification_failures(db, stages):
+    """Bounded counters, including incomplete observations predating accounting.
+
+    The observation cursor and classified counters commit together. Existing
+    incomplete observations and unsupported errors remain unclassified without
+    reading their bodies or pretending they had a known provider/coverage cause.
+    The projections retain the unknown occurrences under their existing
+    unclassified counters, rather than treating this literal as a safe reason.
+    """
+    incomplete = stages.get('native_evidence_incomplete', 0)
+    rows = []
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND "
+                  "name='qualification_failure_counts'").fetchone():
+        rows = db.execute('SELECT reason,occurrences FROM qualification_failure_counts '
+                          'LIMIT ?', (len(QUALIFICATION_FAILURE_REASONS) + 1,)).fetchall()
+    if (len(rows) > len(QUALIFICATION_FAILURE_REASONS)
+            or any(reason not in QUALIFICATION_FAILURE_REASONS or type(count) is not int
+                   or count <= 0 for reason, count in rows)
+            or sum(count for _, count in rows) > incomplete):
+        raise ValueError('managed_pump_qualification_failure_counts_corrupt')
+    result = {'qualification:' + reason: count for reason, count in rows}
+    unknown = incomplete - sum(result.values())
+    if unknown:
+        result['qualification:unclassified_native_failure'] = unknown
+    return result
+
 
 def _canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
@@ -225,7 +270,11 @@ class QualificationReader:
                     CREATE INDEX IF NOT EXISTS observation_full ON observations(full_complete);
                     CREATE TABLE IF NOT EXISTS candidate_state(
                       mint TEXT PRIMARY KEY,last_evaluated INTEGER NOT NULL);
-                    ''')
+                    CREATE TABLE IF NOT EXISTS qualification_failure_counts(
+                      reason TEXT PRIMARY KEY CHECK(reason IN (%s)),occurrences INTEGER NOT NULL
+                      CHECK(typeof(occurrences)='integer' AND occurrences>0));
+                    ''' % ','.join("'" + reason + "'"
+                                   for reason in sorted(QUALIFICATION_FAILURE_REASONS)))
                 reference = self.target if isinstance(self.target, FreshReferenceSizing) else None
                 identity_value = dict(schema=SCHEMA,
                     generation=self.config.generation,
@@ -480,8 +529,11 @@ class QualificationReader:
                 raise
             if not isinstance(error, (ValueError, EvidenceUnavailable, Unavailable)):
                 raise
-            # Provider/IPC exceptions may contain URLs or credentials. Retain
-            # their class only; provider usage/failure journals own the detail.
+            # Provider/IPC exceptions may contain URLs or credentials. Only an
+            # exact existing safe code may accompany the original class.
+            reason = _failure_reason(error)
+            if reason is not None:
+                observed['failure_reason'] = reason
             return dict(observed, stage='native_evidence_incomplete',
                         failure_type=type(error).__name__), now
 
@@ -531,6 +583,13 @@ class QualificationReader:
                     (row[0], identity, mint, record['slot'], encoded,
                      hashlib.sha256(encoded.encode()).hexdigest(), observed['stage'],
                      int(observed['full_qualification_complete'])))
+                reason = observed.get('failure_reason')
+                if reason is not None:
+                    if (observed['stage'] != 'native_evidence_incomplete'
+                            or reason not in QUALIFICATION_FAILURE_REASONS):
+                        raise ValueError('managed_pump_qualification_failure_counts_corrupt')
+                    self.db.execute('INSERT INTO qualification_failure_counts VALUES(?,1) '
+                        'ON CONFLICT(reason) DO UPDATE SET occurrences=occurrences+1', (reason,))
                 if evaluated is not None:
                     self.db.execute('INSERT OR REPLACE INTO candidate_state VALUES(?,?)',
                                     (mint, evaluated))
@@ -551,6 +610,7 @@ class QualificationReader:
         return dict(schema=SCHEMA, incoming_native_events=incoming,
             durably_observed_native_events=completed, native_event_backlog=incoming-completed,
             latest_source_sequence=latest, durable_sequence=cursor, stages=stages,
+            failures=qualification_failures(self.db, stages),
             full_qualifications=full, full_qualification_proven=False,
             qualification_scope='pump_current_late_curve',
             postgraduation_and_survivor_qualification_proven=False,

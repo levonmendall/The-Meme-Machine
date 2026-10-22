@@ -74,12 +74,36 @@ def defer_busy_consumer(function):
     return attempt
 
 
+def record_recipients(db,row,*,rolling,limit=None):
+    """The original ordered routing query, shared with an optional RO preview."""
+    sql='''SELECT DISTINCT family,
+        substr(coverage_scope,length('candidate:'||family||':')+1),market_address
+        FROM evidence_bindings WHERE canonical_scope=? AND market_address IN ('''+','.join('?' for _ in row.addresses)+')'
+    args=(row.scope,*row.addresses)
+    if limit is not None:sql+=' LIMIT ?';args=(*args,limit)
+    recipients=db.execute(sql,args).fetchall()
+    if rolling and row.scope==FAMILIES['pump'] and row.kind=='event':
+        mint=row.payload['event']['mint']
+        if not any(family=='pump' and market==mint for family,_,market in recipients):
+            recipients.append(('pump',mint,mint))
+    return recipients
+
+
+def outbox_hashes(family,address,kind,raw):
+    identity=hashlib.sha256(('['+','.join(canonical(v) for v in (family,address,kind))+','+raw+']').encode()).hexdigest()
+    return identity,hashlib.sha256(raw.encode()).hexdigest()
+
+
 class CandidateLifecycle:
     def __init__(self,history,*,candidate_path=None):
         self.history=history;self.writer=history.writer;self.db=history.db;self.clock=history.clock
         self.path=Path(candidate_path or os.environ.get('MM_SOLANA_CANDIDATE_HISTORY_DB') or (
             self.writer.path.parent/'solana-candidate-history.sqlite'))
         if str(self.path)==str(self.writer.path):raise EvidenceUnavailable('candidate_history_store_must_be_separate')
+        try:
+            source=self.writer.path.stat()
+            self._outbox_source_identity=(source.st_dev,source.st_ino)
+        except OSError:self._outbox_source_identity=None
         self.db.executescript(SCHEMA)
         if 'priority' not in {r[1] for r in self.db.execute('PRAGMA table_info(candidate_history_outbox)')}:
             self.db.execute('ALTER TABLE candidate_history_outbox ADD COLUMN priority INTEGER NOT NULL DEFAULT 3')
@@ -103,13 +127,13 @@ class CandidateLifecycle:
     def emit(self,family,address,kind,body,*,at=None,_selection=None):
         return self.emit_raw(family,address,kind,canonical(body),at=at,_selection=_selection)
 
-    def emit_raw(self,family,address,kind,raw,*,at=None,_selection=None):
+    def emit_raw(self,family,address,kind,raw,*,at=None,_selection=None,_prepared=None):
         """Reuse exact already-canonical bytes; event/receipt identities unchanged."""
         require_active(family)
         at=self.clock() if at is None else at
         # These are the exact original canonical bytes, including the entire
         # economic record. Serialize once for its body, checksum and receipt ID.
-        identity=hashlib.sha256(('['+','.join(canonical(v) for v in (family,address,kind))+','+raw+']').encode()).hexdigest()
+        identity,checksum=outbox_hashes(family,address,kind,raw) if _prepared is None else _prepared
         priority=0 if kind=='canonical' else 1 if kind=='promotion' else 3
         if priority==3 and _selection is not None:priority=_selection.priority(family,address)
         elif priority==3:
@@ -117,7 +141,7 @@ class CandidateLifecycle:
             pinned=self.db.execute('SELECT 1 FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 AND s.address=? AND s.scope=? LIMIT 1',(address,FAMILIES[family])).fetchone()
             if active or pinned:priority=2
         inserted=self.db.execute('INSERT OR IGNORE INTO candidate_history_outbox(id,family,address,kind,body,hash,created,consumed,priority) VALUES(?,?,?,?,?,?,?,NULL,?)',
-            (identity,family,address,kind,raw,hashlib.sha256(raw.encode()).hexdigest(),at,priority)).rowcount
+            (identity,family,address,kind,raw,checksum,at,priority)).rowcount
         if inserted:
             from .solana_history_notifications import changed
             changed(self.history,publication=False,urgent_delivery=priority<=1)
@@ -215,27 +239,32 @@ class CandidateLifecycle:
             self.emit(family,address,'demoted',dict(reason=reason,at=self.clock(),recoverable=True))
 
     @measured('owner.history_outbox')
-    def queue_records(self,rows):
+    def queue_records(self,rows,*,prepared=None):
         """Called inside the canonical ingestion transaction."""
+        from .solana_economic_preparation import PreparedOutboxRecord
+        products={p.record.identity:p for p in prepared or () if type(p) is PreparedOutboxRecord}
+        generation=None
+        if products:
+            from .solana_history_delivery import generation as source_generation
+            try:
+                generation=source_generation(self)
+                if generation[2:]!=self._outbox_source_identity:generation=None
+            except (OSError,sqlite3.Error):pass # Optional reuse; original inline path still owns all guards.
         for row in rows:
-            recipients=self.db.execute('''SELECT DISTINCT family,
-                substr(coverage_scope,length('candidate:'||family||':')+1),market_address
-                FROM evidence_bindings WHERE canonical_scope=? AND market_address IN ('''+','.join('?' for _ in row.addresses)+')',
-                (row.scope,*row.addresses)).fetchall()
-            if (hasattr(self.history,'rolling') and row.scope==FAMILIES['pump']
-                    and row.kind=='event'):
-                # The global native discovery cursor includes trades whose
-                # mint was created before this source generation. A binding is
-                # evidence of a known creation/curve identity, not admission to
-                # durable history. Waiting for that absent binding strands the
-                # first discovery row and every later consumer input forever.
-                # Reuse this exact decoded event's mint and the existing
-                # outbox/delivery writer. It grants no creation, coverage,
-                # prospect, financial authority or new provider work.
-                mint=row.payload['event']['mint']
-                if not any(family=='pump' and market==mint
-                           for family,_,market in recipients):
-                    recipients.append(('pump',mint,mint))
+            recipients=record_recipients(self.db,row,rolling=hasattr(self.history,'rolling'))
+            product=products.get(row.identity)
+            if (product is not None and product.record is row and generation is not None
+                    and product.generation==generation and product.recipients==tuple(recipients)
+                    and len(product.identities)==len(recipients)
+                    and getattr(self,'delivery_separated',False) and hasattr(self.history,'rolling')):
+                stored=self.db.execute('SELECT body,first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()
+                if (stored is not None and stored[0]==product.canonical_raw
+                        and type(stored[1]) is type(product.available) and stored[1]==product.available):
+                    for (family,address,market),identity in zip(recipients,product.identities):
+                        if market in row.addresses:
+                            self.emit_raw(family,address,'canonical',product.envelope,
+                                _prepared=(identity,product.checksum))
+                    continue
             for family,address,market in recipients:
                 if market not in row.addresses:continue
                 # Preserve the original first availability on duplicate delivery.
@@ -312,7 +341,17 @@ class CandidateLifecycle:
                     bind=bindings[(family,address)]
                     candidate=address if not bind else bind[0]
                     if kind=='scout':
-                        shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
+                        surface='meteora-dlmm' if family=='meteora' else family
+                        if family=='pump':
+                            # A locator may wait behind canonical economics.
+                            # Preserve the established economic surface while
+                            # retaining every structural field and timestamp.
+                            # Genuine promotion/reactivation keeps its separate
+                            # precedence and original decision window below.
+                            prior=shared.candidate(lane,candidate)
+                            if prior is not None and prior['surface'] in ('pump.fun','pumpswap'):
+                                surface=prior['surface']
+                        shared.observe(lane,candidate,surface=surface,
                             observed_at=int(at),metadata=dict(structural_scout=body['fields'],recoverable=True))
                     elif kind=='canonical':
                         r=body['record']
@@ -598,6 +637,7 @@ class CandidateLifecycle:
             # status/read/settlement runs in bounded slices off-owner.
             if not getattr(self,'_consumer_refresh_requested',False):
                 self._consumer_refresh_requested=True
+                self._consumer_refresh_token=getattr(self,'_consumer_refresh_token',0)+1
                 from .solana_history_notifications import changed
                 changed(self.history,publication=False,urgent_delivery=False)
             return

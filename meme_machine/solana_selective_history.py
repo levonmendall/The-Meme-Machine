@@ -196,7 +196,29 @@ def _archive_log_join(original,fetched,endpoint_identity):
         check='fetched_index'
         if 'transactionIndex' in fetched and (type(fetched['transactionIndex']) is not int
                 or fetched['transactionIndex']!=index):raise KeyError()
-        check='original_log_shape'
+        validate_log_supplement_fields(logs,complete)
+    except (KeyError,TypeError,ValueError) as cause:
+        if (type(cause) is EvidenceUnavailable
+                and getattr(cause,'archive_log_failure_check',None) in ARCHIVE_LOG_FAILURE_CHECKS):raise
+        error=EvidenceUnavailable('archive_log_supplement_identity_unverified')
+        error.archive_log_failure_check=check
+        raise error from None
+    # Preserve every original economic/provider field except the separately
+    # authenticated missing log suffix. Its genuine native index is unchanged.
+    tx=json.loads(canonical(original));tx['meta']['logMessages']=list(complete)
+    return tx
+
+
+def validate_log_supplement_fields(logs,complete):
+    """The existing prefix/suffix check, without transaction/source authority.
+
+    This can refuse a later truncated WS duplicate of an already authenticated
+    native HTTP field without fabricating a transaction envelope or retaining
+    another full RPC response. Validation and rejection precedence are shared
+    with the original archive supplement authenticator.
+    """
+    check='original_log_shape'
+    try:
         if (not isinstance(logs,list) or not logs
                 or any(not isinstance(line,str) for line in logs)):raise KeyError()
         check='fetched_log_shape'
@@ -227,10 +249,6 @@ def _archive_log_join(original,fetched,endpoint_identity):
         error=EvidenceUnavailable('archive_log_supplement_identity_unverified')
         error.archive_log_failure_check=check
         raise error from None
-    # Preserve every original economic/provider field except the separately
-    # authenticated missing log suffix. Its genuine native index is unchanged.
-    tx=json.loads(canonical(original));tx['meta']['logMessages']=list(complete)
-    return tx
 
 def join_archive_log_supplement(original,fetched,*,endpoint_identity):
     _archive_log_join(original,fetched,endpoint_identity)
@@ -672,7 +690,7 @@ class SelectiveHistory:
         return result
 
     @measured('owner.economic_ingest')
-    def ingest(self,rows,*,restored=None,timing=None,prepared_serialization=None):
+    def ingest(self,rows,*,restored=None,timing=None,prepared_serialization=None,prepared_outbox=None):
         """One identity; a bounded shared cache permits late scoped backfill.
 
         The global hot-retention floor remains monotonic. It cannot prevent an
@@ -796,7 +814,8 @@ class SelectiveHistory:
                     self.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
             with candidate_phase(timing,'delivery_outbox'):
                 self._queue_events(rows)
-                if hasattr(self,'lifecycle'):self.lifecycle.queue_records(rows)
+                if hasattr(self,'lifecycle'):
+                    self.lifecycle.queue_records(rows,prepared=prepared_outbox if stored_fresh else None)
             # Retain the owner's same physical storage reservation and the
             # explicit file cap for offline/bounded synthetic stores.
             with candidate_phase(timing,'ingest_setup'):
