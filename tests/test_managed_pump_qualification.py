@@ -642,6 +642,125 @@ class QualificationTests(unittest.TestCase):
             self.addCleanup(changed.close);changed._open()
 
 
+    def test_safe_failure_count_commits_once_and_survives_replay_and_restart(self):
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        canonical, _ = self.admitted()
+        reason = 'evidence_deadline_before_transport'
+        self.worker.provider.snapshot.side_effect = EvidenceUnavailable(reason)
+        statements = []
+        self.worker.db.set_trace_callback(statements.append)
+        try:
+            result, observed, full = self.evaluate_admitted(canonical)
+        finally:
+            self.worker.db.set_trace_callback(None)
+        expected = {'qualification:' + reason: 1}
+        self.assertEqual(observed['failure_reason'], reason)
+        self.assertEqual(result['failures'], expected)
+        self.assertEqual(result['stages'], {'native_evidence_incomplete': 1})
+        self.assertEqual(result['full_qualifications'], 0)
+        full.assert_not_called()
+        self.assertEqual(sum(sql == 'BEGIN IMMEDIATE' for sql in statements), 1)
+        self.assertEqual(sum(sql == 'COMMIT' for sql in statements), 1)
+        with self.discovery(canonical):
+            self.assertEqual(self.worker.step()['failures'], expected)
+        self.assertEqual(managed.pump_snapshot(self.config)['failures'], expected)
+        target = self.worker.target
+        self.worker.close()
+        self.worker = qualification.QualificationReader(self.config,
+            decision_target=target, clock=lambda: 1000)
+        self.addCleanup(self.worker.close)
+        self.assertTrue(self.worker._open())
+        with self.discovery(canonical):
+            restarted = self.worker.step()
+        self.assertEqual(restarted['failures'], expected)
+        self.assertEqual(restarted['durably_observed_native_events'], 1)
+        self.assertEqual(self.worker.db.execute(
+            'SELECT reason,occurrences FROM qualification_failure_counts').fetchall(), [(reason, 1)])
+
+    def test_failure_counter_rolls_back_with_its_observation_and_cursor(self):
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        canonical, _ = self.admitted()
+        reason = 'evidence_deadline_before_transport'
+        self.worker.provider.snapshot.side_effect = EvidenceUnavailable(reason)
+        self.worker.db.execute('CREATE TEMP TRIGGER fail_state BEFORE INSERT ON candidate_state '
+            "BEGIN SELECT RAISE(ABORT,'qualification_state_fault'); END")
+        with self.assertRaisesRegex(sqlite3.IntegrityError, 'qualification_state_fault'):
+            self.evaluate_admitted(canonical)
+        self.assertEqual(self.worker.db.execute('SELECT count(*) FROM observations').fetchone()[0], 0)
+        self.assertEqual(self.worker.db.execute(
+            'SELECT count(*) FROM qualification_failure_counts').fetchone()[0], 0)
+        self.assertEqual(self.worker.snapshot()['failures'], {})
+        self.worker.db.execute('DROP TRIGGER fail_state')
+        result, _, _ = self.evaluate_admitted(canonical)
+        self.assertEqual(result['failures'], {'qualification:' + reason: 1})
+        self.assertEqual(result['durable_sequence'], 1)
+
+    def test_unknown_oracle_failure_remains_unclassified_without_secret_text_or_backfill(self):
+        from meme_machine.runtime.usd_valuation import ValuationUnavailable
+        secret = 'native_USD_value_missing_or_stale?api_key=private-secret'
+        canonical, _ = self.admitted(fail=ValuationUnavailable(secret))
+        result, observed, _ = self.evaluate_admitted(canonical)
+        expected = {'qualification:unclassified_native_failure': 1}
+        self.assertEqual(result['failures'], expected)
+        self.assertNotIn('failure_reason', observed)
+        self.assertEqual(result['stages'], {'native_evidence_incomplete': 1})
+        self.assertEqual(self.worker.db.execute(
+            'SELECT count(*) FROM qualification_failure_counts').fetchone()[0], 0)
+        self.assertNotIn(secret, json.dumps((result, observed, managed.pump_snapshot(self.config))))
+        # This is the predecessor observation schema: no counter table and no
+        # safe code in its body. Upgrade must not invent a historical cause.
+        self.worker.db.execute('DROP TABLE qualification_failure_counts')
+        self.assertEqual(managed.pump_snapshot(self.config)['failures'], expected)
+        target = self.worker.target
+        self.worker.close()
+        self.worker = qualification.QualificationReader(self.config,
+            decision_target=target, clock=lambda: 1000)
+        self.addCleanup(self.worker.close)
+        self.assertTrue(self.worker._open())
+        with self.discovery(canonical):
+            restarted = self.worker.step()
+        self.assertEqual(restarted['failures'], expected)
+        self.assertEqual(restarted['processed_this_turn'], 0)
+
+    def test_only_exact_supported_codes_are_classified_and_conflicts_still_escape(self):
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable, EvidenceConflict
+        self.admitted()
+        record = self.worker._history_event('mint', 'pump-source:native-event')
+        reason = 'query_bound'
+        errors = (EvidenceUnavailable(reason), EvidenceUnavailable(reason + ':private-secret'),
+            EvidenceUnavailable(reason, 'private-secret'),
+            ValueError('native_USD_value_missing_or_stale'), KeyError(reason), TypeError(reason),
+            ArithmeticError(reason))
+        for index, error in enumerate(errors):
+            with self.subTest(error=type(error).__name__, index=index), \
+                    patch.object(self.worker.plane, 'pump_events', side_effect=error):
+                observed, _ = self.worker._evaluate(None, record)
+                self.assertEqual(observed['stage'], 'native_evidence_incomplete')
+                self.assertEqual(observed.get('failure_reason'), reason if index == 0 else None)
+                self.assertFalse(observed['full_qualification_complete'])
+                self.assertNotIn('private-secret', json.dumps(observed))
+        for error in (EvidenceConflict('unresolved_evidence_gap'), RuntimeError('private-secret')):
+            with self.subTest(error=type(error).__name__), \
+                    patch.object(self.worker.plane, 'pump_events', side_effect=error), \
+                    self.assertRaises(type(error)):
+                self.worker._evaluate(None, record)
+
+    def test_failure_vocabulary_is_storage_bounded_and_overcount_fails_closed(self):
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        canonical, _ = self.admitted()
+        reason = 'evidence_deadline_before_transport'
+        self.worker.provider.snapshot.side_effect = EvidenceUnavailable(reason)
+        self.evaluate_admitted(canonical)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.worker.db.execute('INSERT INTO qualification_failure_counts VALUES(?,1)',
+                                   ('private-secret',))
+        self.worker.db.execute('UPDATE qualification_failure_counts SET occurrences=2')
+        with self.assertRaisesRegex(ValueError, '^managed_pump_qualification_failure_counts_corrupt$'):
+            self.worker.snapshot()
+        with self.assertRaisesRegex(ValueError, '^managed_pump_qualification_failure_counts_corrupt$'):
+            managed.pump_snapshot(self.config)
+
+
 class FreshSizingTests(unittest.TestCase):
     def test_actual_native_oracle_decoder_refreshes_conversion_and_keeps_original_expiry(self):
         from meme_machine.runtime.usd_valuation import NativeValueReader

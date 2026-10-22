@@ -302,6 +302,8 @@ def pump_snapshot(config, *, driver=None):
             if _has_tables(db, ('observations',)):
                 completed, cursor = db.execute('SELECT count(*),max(sequence) FROM observations').fetchone()
                 stages = dict(db.execute('SELECT stage,count(*) FROM observations GROUP BY stage'))
+                from .managed_pump_qualification import qualification_failures
+                result['failures'] = qualification_failures(db, stages)
                 result['qualification'] = dict(durably_observed_native_events=completed,
                     durable_sequence=cursor, stages=stages,
                     full_qualification_proven=False,
@@ -619,8 +621,10 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                 await asyncio.gather(sampler, return_exceptions=True)
         if drain_callback is not None:
             drain_callback()
-        return dict(identity=identity, snapshot=pump_snapshot(config, driver=driver),
+        snapshot = pump_snapshot(config, driver=driver)
+        return dict(identity=identity, snapshot=snapshot,
                     replay=replay_pump(config),
+                    failures=snapshot.get('failures', {}),
                     qualification_worker=qualification_metrics,
                     scope='native_acquisition_decoding_canonical_candidate_history_delivery_current_prospect_readside',
                     economic_strategy_evaluation=False, financial_authority=False)

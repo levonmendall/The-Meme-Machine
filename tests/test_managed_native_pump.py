@@ -637,5 +637,64 @@ class ManagedPumpTests(unittest.TestCase):
         asyncio.run(scenario())
 
 
+    def test_qualification_failures_reach_final_lane_result_and_snapshot(self):
+        from meme_machine.operational import managed_pump_qualification as qualification
+        expected = {'qualification:evidence_time_boundary_unavailable': 1,
+                    'qualification:unclassified_native_failure': 1}
+        async def scenario():
+            stop, ready = asyncio.Event(), asyncio.Event()
+            rpc = SimpleNamespace(validate_network=Mock())
+            driver = SimpleNamespace(pipeline_metrics={}, drain_snapshot=lambda: {})
+            async def serve(path, endpoint, **kwargs):
+                from meme_machine.solana_evidence_service import ServiceState
+                from meme_machine.solana_selective_source import install
+                state = ServiceState(path, managed.AlchemyEndpoint.parse(endpoint))
+                install(state)
+                with state.writer.db:
+                    for sequence in (1, 2):
+                        state.writer.db.execute('INSERT INTO candidate_outbox VALUES(?,?,?,?,?)',
+                            (sequence, 'identity-' + str(sequence), 'program:pump', 10, 1000))
+                ready.set()
+                try:
+                    await stop.wait()
+                finally:
+                    state.writer.close()
+            async def observe(config, stop, *, publish, decision_target):
+                await ready.wait()
+                worker = qualification.QualificationReader(config, clock=lambda: 1000)
+                try:
+                    self.assertTrue(worker._open())
+                    with worker.db:
+                        worker.db.execute('BEGIN IMMEDIATE')
+                        for sequence in (1, 2):
+                            observed = dict(stage='native_evidence_incomplete',
+                                failure_type='EvidenceUnavailable', full_qualification_complete=False,
+                                financial_authority=False)
+                            if sequence == 1:
+                                observed['failure_reason'] = 'evidence_time_boundary_unavailable'
+                            body = qualification._canonical(observed)
+                            worker.db.execute('INSERT INTO observations VALUES(?,?,?,?,?,?,?,?)',
+                                (sequence, 'identity-' + str(sequence), 'mint', 10, body,
+                                 hashlib.sha256(body.encode()).hexdigest(), 'native_evidence_incomplete', 0))
+                        worker.db.execute('INSERT INTO qualification_failure_counts VALUES(?,1)',
+                            ('evidence_time_boundary_unavailable',))
+                    publish(worker.snapshot())
+                finally:
+                    worker.close()
+                    stop.set()
+            with patch.object(managed, 'production_components', return_value=(rpc, driver, serve)), \
+                    patch.object(qualification, 'read_qualifications', side_effect=observe):
+                result = await managed.run_pump(self.config, stop)
+            self.assertEqual(result['failures'], expected)
+            self.assertEqual(result['snapshot']['failures'], expected)
+            self.assertEqual(result['qualification_worker']['failures'], expected)
+            self.assertEqual(result['snapshot']['qualification']['stages'],
+                             {'native_evidence_incomplete': 2})
+            self.assertFalse(result['financial_authority'])
+            self.assertEqual(result['snapshot']['history']['funding'], 0)
+            self.assertEqual(result['snapshot']['history']['decisions'], 0)
+        asyncio.run(scenario())
+
+
 if __name__ == '__main__':
     unittest.main()
