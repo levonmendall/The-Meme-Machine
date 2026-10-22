@@ -179,6 +179,119 @@ class ClosureTests(unittest.TestCase):
             self.assertEqual(shared.candidate('pump','mint'),before)
             self.assertEqual(shared.events('pump','mint'),events)
 
+    def test_pump_scout_order_and_batch_partition_preserve_native_candidate_events_and_receipts(self):
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        from meme_machine.solana_selective_history import PROGRAMS
+        native=[prepare_economic_record(row).record for tx in copy.deepcopy(FIXTURE['pump']) for row in economic_records(
+            'pump',PROGRAMS['pump'],tx,endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_stream')]
+        creation=next(row for row in native if row.payload['event']['event_type']=='create')
+        mint=creation.payload['event']['mint']
+        trades=[row for row in native if row.payload['event']['event_type']=='trade'
+                and row.payload['event']['mint']==mint][:2]
+        self.assertTrue(trades)
+        records=sorted((creation,*trades),key=lambda row:(row.slot,row.transaction_index,row.event_index))
+        fields=dict(complete=False,development_upper_bps=9000,activity=False)
+        def facts(history):
+            with closing(CandidateHistory(history.lifecycle.path)) as shared:
+                return dict(candidate=shared.candidate('pump',mint),events=shared.events('pump',mint),
+                    rows=shared.db.execute('SELECT * FROM candidates ORDER BY lane,candidate').fetchall(),
+                    receipts=shared.db.execute('SELECT * FROM source_receipts ORDER BY id').fetchall())
+        results=[]
+        for order in ('before','after','queued'):
+            for limit in (1,64):
+                with self.subTest(scout=order,batch=limit):
+                    directory=Path(self.tmp.name)/(order+'-'+str(limit));directory.mkdir()
+                    path=directory/'canonical.sqlite';state,history=state_at(path)
+                    try:
+                        def flush():
+                            while history.lifecycle.flush(limit=limit):pass
+                        def scout():
+                            history.observe('pump',mint,slot=max(row.slot for row in records)+1,
+                                signature='',seen=NOW,fields=fields)
+                        if order=='before':
+                            scout();flush();self.assertEqual(facts(history)['candidate']['surface'],'pump')
+                        with state.writer.transaction():
+                            for row in records:
+                                history.rolling.store(row)
+                                history.lifecycle.emit('pump',mint,'canonical',dict(record=row.body(),available=NOW))
+                        if order=='after':flush()
+                        if order!='before':scout()
+                        flush();result=facts(history)
+                        self.assertEqual(result['candidate']['surface'],'pump.fun')
+                        self.assertEqual(result['candidate']['metadata']['structural_scout'],fields)
+                        self.assertTrue(result['candidate']['metadata']['recoverable'])
+                        self.assertEqual([row['payload'] for row in result['events']],
+                            [dict(row.payload['event'],_economic_order=row.transaction_index,available_time=int(NOW))
+                             for row in records])
+                        self.assertEqual(len(result['receipts']),len(records)+1)
+                        self.assertEqual(history.db.execute('SELECT count(*) FROM candidate_history_outbox '
+                            'WHERE consumed IS NULL').fetchone(),(0,))
+                        state.writer.close();state=None
+                        state,history=state_at(path)
+                        self.assertEqual(history.lifecycle.flush(limit=limit),0)
+                        self.assertEqual(facts(history),result)
+                        results.append(result)
+                    finally:
+                        if state is not None:state.writer.close()
+        self.assertTrue(all(result==results[0] for result in results))
+
+    def test_pump_migration_survives_late_scout_restart_and_later_ordinary_trade(self):
+        from meme_machine.solana_evidence_plane import FinalizedRecord
+        records=[FinalizedRecord('surface-'+kind,'program:pump',100+index,'sig-'+kind,'program',
+            ('mint',),int(NOW)-2+index,dict(event=dict(mint='mint',event_type=kind,
+                market_time=int(NOW)-2+index,**(dict(pool='pool') if kind=='migration' else {}))),
+            'alchemy_finalized_stream','a'*64,NOW,transaction_index=index,event_index=0)
+            for index,kind in enumerate(('migration','trade'))]
+        def facts():
+            with closing(CandidateHistory(self.life.path)) as shared:
+                return dict(candidate=shared.candidate('pump','mint'),events=shared.events('pump','mint'),
+                    receipts=shared.db.execute('SELECT * FROM source_receipts ORDER BY id').fetchall())
+        with self.state.writer.transaction():
+            self.h.rolling.store(records[0])
+            self.life.emit('pump','mint','canonical',dict(record=records[0].body(),available=NOW))
+        while self.life.flush():pass
+        before=facts();self.assertEqual(before['candidate']['surface'],'pumpswap')
+        self.h.observe('pump','mint',slot=101,signature='',seen=NOW+1,fields=dict(complete=True))
+        while self.life.flush():pass
+        after_scout=facts();self.assertEqual(after_scout['candidate']['surface'],'pumpswap')
+        self.assertEqual(after_scout['events'],before['events'])
+        self.assertEqual(after_scout['candidate']['metadata']['pool'],'pool')
+        self.assertEqual(after_scout['candidate']['metadata']['structural_scout'],dict(complete=True))
+        self.restart();self.assertEqual(facts(),after_scout)
+        with self.state.writer.transaction():
+            self.h.rolling.store(records[1])
+            self.life.emit('pump','mint','canonical',dict(record=records[1].body(),available=NOW))
+        while self.life.flush(limit=1):pass
+        final=facts();self.assertEqual(final['candidate']['surface'],'pumpswap')
+        self.assertEqual([row['kind'] for row in final['events']],['pump_migration','pump_trade'])
+        self.assertEqual(len(final['receipts']),3)
+        self.assertEqual(final['events'][0],before['events'][0])
+        self.restart();self.assertEqual(facts(),final);self.assertEqual(self.life.flush(),0)
+
+    def test_standalone_scout_surfaces_stay_generic_and_corrupt_prior_cannot_ack(self):
+        pump_fields=dict(complete=False,development_upper_bps=9000)
+        meteora_fields=dict(wsol_pair_locator=True)
+        self.h.observe('pump','mint',slot=100,signature='',seen=NOW,fields=pump_fields)
+        self.h.observe('meteora','pool',slot=100,signature='',seen=NOW,fields=meteora_fields)
+        while self.life.flush(limit=1):pass
+        with closing(CandidateHistory(self.life.path)) as shared:
+            before=[shared.candidate('pump','mint'),shared.candidate('meteora','pool')]
+            self.assertEqual([row['surface'] for row in before],['pump','meteora-dlmm'])
+            self.assertEqual([row['metadata']['structural_scout'] for row in before],[pump_fields,meteora_fields])
+            receipts=shared.db.execute('SELECT * FROM source_receipts ORDER BY id').fetchall()
+            checksum=shared.db.execute("SELECT hash FROM candidates WHERE lane='pump' AND candidate='mint'").fetchone()[0]
+        self.restart()
+        with closing(CandidateHistory(self.life.path)) as shared:
+            self.assertEqual([shared.candidate('pump','mint'),shared.candidate('meteora','pool')],before)
+            with shared.transaction():shared.db.execute("UPDATE candidates SET hash='bad' WHERE lane='pump' AND candidate='mint'")
+        self.h.observe('pump','mint',slot=101,signature='',seen=NOW+1,fields=dict(complete=True))
+        with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):self.life.flush()
+        self.assertEqual(self.h.db.execute('SELECT count(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone(),(1,))
+        with closing(CandidateHistory(self.life.path)) as shared:
+            self.assertEqual(shared.db.execute('SELECT * FROM source_receipts ORDER BY id').fetchall(),receipts)
+            with shared.transaction():shared.db.execute("UPDATE candidates SET hash=? WHERE lane='pump' AND candidate='mint'",(checksum,))
+            self.assertEqual(shared.candidate('pump','mint'),before[0])
+
     def test_development_selection_keeps_original_order_unknowns_and_live_changes(self):
         def original(minimum,limit):
             return self.h.db.execute('''SELECT address FROM market_observations m WHERE family='pump'

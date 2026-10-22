@@ -312,7 +312,17 @@ class CandidateLifecycle:
                     bind=bindings[(family,address)]
                     candidate=address if not bind else bind[0]
                     if kind=='scout':
-                        shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
+                        surface='meteora-dlmm' if family=='meteora' else family
+                        if family=='pump':
+                            # A locator may wait behind canonical economics.
+                            # Preserve the established economic surface while
+                            # retaining every structural field and timestamp.
+                            # Genuine promotion/reactivation keeps its separate
+                            # precedence and original decision window below.
+                            prior=shared.candidate(lane,candidate)
+                            if prior is not None and prior['surface'] in ('pump.fun','pumpswap'):
+                                surface=prior['surface']
+                        shared.observe(lane,candidate,surface=surface,
                             observed_at=int(at),metadata=dict(structural_scout=body['fields'],recoverable=True))
                     elif kind=='canonical':
                         r=body['record']
