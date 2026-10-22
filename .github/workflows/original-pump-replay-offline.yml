@@ -1,6 +1,12 @@
 name: Original Pump market replay focused offline checks
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Fixed isolated engineering check group; neither is a release gate
+        type: choice
+        options: [replay, native-content]
+        default: replay
   pull_request:
     paths:
       - 'engineering/diagnostics/replay_original_pump_window.py'
@@ -24,6 +30,7 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install -r requirements.txt
       - name: Check actual pipeline replay and unchanged runtime integrity offline
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.scope != 'native-content' }}
         env:
           PYTHONDONTWRITEBYTECODE: '1'
         run: |
@@ -31,4 +38,15 @@ jobs:
             tests.test_original_pump_window_replay \
             tests.test_publication_accounting_turn \
             tests.test_solana_history_separation \
+            tests.test_managed_capacity_source_guard --verbose
+      - name: Check bounded native content and managed storage offline (not release acceptance)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope == 'native-content' }}
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python -m operational.tests OPERATIONAL --modules \
+            tests.test_managed_log_repair_batches \
+            tests.test_archive_full_log_content \
+            tests.test_solana_source_drain \
+            tests.test_managed_native_pons \
             tests.test_managed_capacity_source_guard --verbose
