@@ -3692,7 +3692,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                 (b'if item is None:',b'if False:')),
         }
         for relative,(before,after) in CANONICAL_COLD_DELTAS.items():
-            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
                 relative+':active exact canonical cold-path repair')
             prior=subprocess.check_output(['git','show',CANONICAL_COLD_REFERENCE+':'+relative],cwd=ROOT)

@@ -21,6 +21,7 @@ MANIFEST=ROOT/'tests/fixtures/managed_capacity_source_delta.json'
 MANIFEST_SHA256='@@MANIFEST_SHA256@@'
 MODIFIED=@@MODIFIED@@
 ADDED=@@ADDED@@
+TEST_CALLERS=@@TEST_CALLERS@@
 GUARD='tests/test_native_audit_source_guard.py'
 READ_GUARD='tests/test_robinhood_usd_valuation.py'
 PROOF_INPUTS=('engineering/diagnostics/build_managed_capacity_source_proof.py',
@@ -42,6 +43,7 @@ def manifest(test):
     test.assertEqual((row['base'],row['base_tree'],row['implementation'],row['implementation_tree']),
         (BASE,BASE_TREE,IMPLEMENTATION,IMPLEMENTATION_TREE))
     test.assertEqual(set(row['files']),set(MODIFIED+ADDED))
+    test.assertEqual(row['test_callers'],TEST_CALLERS)
     test.assertEqual(row['guard']['path'],GUARD)
     test.assertEqual(row['read_guard']['path'],READ_GUARD)
     test.assertEqual(set(row['proof_inputs']),set(PROOF_INPUTS))
@@ -54,6 +56,7 @@ def manifest(test):
 
 def capacity_predecessor(test,path,current):
     if path==READ_GUARD:return read_guard_predecessor(test,current)
+    if path in TEST_CALLERS:return caller_predecessor(test,path,current)
     if path not in MODIFIED:return current
     row=manifest(test)['files'][path]
     text=type(current) is str
@@ -69,6 +72,25 @@ def capacity_predecessor(test,path,current):
         left,right=nodes(before),nodes(raw)
         test.assertEqual(sorted(k for k in left.keys()|right.keys() if left.get(k)!=right.get(k)),
                          row['changed_nodes'],path+':explicit changed AST nodes')
+    return before.decode() if text else before
+
+
+def caller_predecessor(test,path,current,*,require_successor=False):
+    test.assertIn(path,TEST_CALLERS,'only the separately cataloged exact test caller')
+    row=manifest(test)['test_callers'][path]
+    text=type(current) is str
+    test.assertIn(type(current),(bytes,str))
+    raw=current.encode() if text else current
+    before=git('show',BASE+':'+path)
+    test.assertEqual((len(before),checksum(before)),(row['before_bytes'],row['before_sha256']))
+    if require_successor or raw!=before:
+        test.assertEqual((len(raw),checksum(raw)),(row['after_bytes'],row['after_sha256']),
+            path+':complete exact reviewed test caller')
+        test.assertEqual(raw,git('show',IMPLEMENTATION+':'+path))
+        from engineering.diagnostics.build_managed_capacity_source_proof import nodes
+        left,right=nodes(before),nodes(raw)
+        test.assertEqual(sorted(k for k in left.keys()|right.keys() if left.get(k)!=right.get(k)),
+                         row['changed_nodes'],path+':explicit test caller AST delta')
     return before.decode() if text else before
 
 
@@ -121,6 +143,8 @@ def active_runtime(test):
         test.assertEqual((len(body),checksum(body)),(facts['after_bytes'],facts['after_sha256']),path)
         test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))
         if path in MODIFIED:capacity_predecessor(test,path,body)
+    for path in TEST_CALLERS:
+        caller_predecessor(test,path,(ROOT/path).read_bytes(),require_successor=True)
     guard_predecessor(test,(ROOT/GUARD).read_bytes())
     read_guard_predecessor(test,(ROOT/READ_GUARD).read_bytes(),require_successor=True)
     return row
@@ -196,3 +220,27 @@ class ManagedCapacitySourceGuard(unittest.TestCase):
             with self.assertRaises(AssertionError):capacity_predecessor(self,READ_GUARD,bad)
         with self.assertRaises(AssertionError):
             read_guard_predecessor(self,before,require_successor=True)
+
+    def test_exact_external_test_caller_preserves_every_original_method_and_rejects_unknown_bytes(self):
+        from engineering.diagnostics.build_managed_capacity_source_proof import nodes
+        self.assertEqual(set(TEST_CALLERS),{'tests/test_solana_history_separation.py'})
+        for path in TEST_CALLERS:
+            before=git('show',BASE+':'+path);body=(ROOT/path).read_bytes()
+            self.assertEqual(caller_predecessor(self,path,body,require_successor=True),before)
+            self.assertEqual(capacity_predecessor(self,path,before),before)
+            self.assertEqual(capacity_predecessor(self,path,body.decode()),before.decode())
+            self.assertEqual(capacity_predecessor(self,path,before.decode()),before.decode())
+            left,right=nodes(before),nodes(body)
+            methods={name:value for name,value in left.items() if '.' in name
+                and not name.endswith('.__layout__') and '__statement_' not in name}
+            self.assertTrue(methods)
+            for name,value in methods.items():
+                self.assertEqual(right.get(name),value,path+':original method '+name)
+            for bad in (b'',body[:-1],body+b'\n# unknown caller bytes\n',
+                    body.replace(b'assertEqual',b'assertNotEqual',1),(ROOT/GUARD).read_bytes()):
+                with self.subTest(path=path),self.assertRaises(AssertionError):
+                    capacity_predecessor(self,path,bad)
+            with self.assertRaises(AssertionError):
+                caller_predecessor(self,path,before,require_successor=True)
+        with self.assertRaises(AssertionError):
+            caller_predecessor(self,'tests/unknown_external_caller.py',b'unknown')

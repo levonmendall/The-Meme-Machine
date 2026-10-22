@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = '83c3716aefc21d59780db64beb8681e772ac628c'
 GUARD = 'tests/test_native_audit_source_guard.py'
 READ_GUARD = 'tests/test_robinhood_usd_valuation.py'
+TEST_CALLERS = ('tests/test_solana_history_separation.py',)
 PROOF_INPUTS = ('engineering/diagnostics/build_managed_capacity_source_proof.py',
                 'engineering/diagnostics/managed_capacity_source_guard.template.txt')
 
@@ -75,6 +76,16 @@ def main():
         else:
             added.append(name)
         files[name] = row
+    test_callers = {}
+    for name in TEST_CALLERS:
+        before = git('show', BASE + ':' + name)
+        after = git('show', implementation + ':' + name)
+        if (ROOT/name).read_bytes() != after:
+            raise ValueError('commit_test_caller_before_proof')
+        left, right = nodes(before), nodes(after)
+        test_callers[name] = dict(before_bytes=len(before), before_sha256=sha(before),
+            after_bytes=len(after), after_sha256=sha(after),
+            changed_nodes=sorted(k for k in left.keys() | right.keys() if left.get(k) != right.get(k)))
     before_guard = git('show', BASE + ':' + GUARD)
     changes = [
         (b'import ast\n', b'from tests.test_managed_capacity_source_guard import (capacity_predecessor, capacity_active_delta, capacity_native_delta)\nimport ast\n'),
@@ -97,6 +108,8 @@ def main():
     (ROOT / GUARD).write_bytes(after_guard)
     before_read_guard = git('show', BASE + ':' + READ_GUARD)
     read_changes = [
+        (b"            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+         b"            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n"),
         (b"        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n"
          b"            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())\n",
          b"        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n"
@@ -124,6 +137,7 @@ def main():
         base_tree=git('rev-parse', BASE + '^{tree}').decode().strip(),
         implementation=implementation,
         implementation_tree=git('rev-parse', implementation + '^{tree}').decode().strip(), files=files,
+        test_callers=test_callers,
         guard=dict(path=GUARD, before_sha256=sha(before_guard), after_sha256=sha(after_guard),
             changes=[dict(before=a.decode(), after=b.decode()) for a, b in changes]),
         read_guard=dict(path=READ_GUARD,
@@ -138,7 +152,7 @@ def main():
     source=template.replace('@@MANIFEST_SHA256@@', sha(body)).replace(
         '@@IMPLEMENTATION@@', implementation).replace('@@IMPLEMENTATION_TREE@@',
         proof['implementation_tree']).replace('@@MODIFIED@@', repr(tuple(modified))).replace(
-        '@@ADDED@@', repr(tuple(added)))
+        '@@ADDED@@', repr(tuple(added))).replace('@@TEST_CALLERS@@', repr(test_callers))
     if '@@' in source:
         raise ValueError('unfilled_source_proof')
     (ROOT/'tests/test_managed_capacity_source_guard.py').write_text(source)

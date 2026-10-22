@@ -1,5 +1,10 @@
 """Disposable public-API tests for the engineering-only logical replay command."""
 from copy import deepcopy
+import asyncio
+import hashlib
+import json
+import sys
+import threading
 from collections import Counter
 from pathlib import Path
 import os
@@ -9,6 +14,8 @@ import unittest
 from unittest.mock import patch
 
 from engineering.diagnostics import replay_original_pump_window as replay
+from engineering.diagnostics import replay_original_pump_window as original
+from engineering.diagnostics import replay_concurrent_pump_window as concurrent
 from meme_machine.solana_economic_preparation import prepare_economic_record
 from meme_machine.solana_selective_history import PROGRAMS, economic_records
 from tests.test_solana_selective_evidence import FIXTURE
@@ -77,8 +84,20 @@ class OriginalWindowReplayTests(unittest.TestCase):
         self.assertFalse(result['throughput_readiness_proven'])
         hashes = {r['semantic_sha256'] for r in result['runs']}
         self.assertEqual(len(hashes), 1)
+        self.assertEqual([r['implementation'] for r in result['architecture_runs']],
+                         ['owner_optimized', 'optimized', 'optimized', 'owner_optimized'])
+        for row in result['architecture_runs']:
+            self.assertEqual(row['qualification_implementation'], 'optimized')
+            self.assertEqual(row['semantic_sha256'], result['runs'][0]['semantic_sha256'])
+            self.assertEqual(row['history_semantic_sha256'], result['runs'][0]['history_semantic_sha256'])
+            self.assertEqual(row['history_state_sha256'], result['runs'][0]['history_state_sha256'])
+            self.assertTrue(row['reader_restart_verified'])
+            self.assertFalse(row['publication_thread_handoff_exercised'])
         counts = []
         for row in result['runs']:
+            self.assertEqual(row['publication_implementation'],
+                'owner_capture' if row['implementation'] == 'reference' else 'readonly_capture_actor')
+            self.assertFalse(row['publication_thread_handoff_exercised'])
             self.assertEqual(row['initial']['durably_observed_native_events'], 0)
             self.assertEqual(row['initial']['native_event_backlog'], 1)
             self.assertEqual(row['completed'], {'warmup': 1, 'measured': len(parcel.measured)})
@@ -129,6 +148,17 @@ class OriginalWindowReplayTests(unittest.TestCase):
         self.assertFalse(mismatch['same_semantics']); self.assertFalse(mismatch['timing_comparison_available'])
         self.assertEqual(mismatch['unprofiled_timing'], {})
         self.assertIn('history_state_sha256', mismatch['arms'][3]['differing_fields'])
+        self.assertTrue(comparison['architecture_comparison_available'])
+        self.assertEqual(len(comparison['arms']), 10)
+        changed = deepcopy(result); changed['architecture_runs'][1]['history_state_sha256']['source_receipts'] = '0'*64
+        mismatch = replay.compare_reports(result, changed)
+        self.assertFalse(mismatch['same_semantics']); self.assertFalse(mismatch['timing_comparison_available'])
+        self.assertIn('history_state_sha256', mismatch['arms'][7]['differing_fields'])
+        legacy = deepcopy(result); del legacy['architecture_runs']
+        compatible = replay.compare_reports(legacy, result)
+        self.assertTrue(compatible['same_semantics'])
+        self.assertFalse(compatible['architecture_comparison_available'])
+        self.assertEqual(len(compatible['arms']), 6)
         changed = deepcopy(result); changed['input_parcel_sha256'] = '0'*64
         with self.assertRaisesRegex(ValueError, 'comparison_input_or_scope_mismatch'):
             replay.compare_reports(result, changed)
@@ -167,6 +197,12 @@ class OriginalWindowReplayTests(unittest.TestCase):
         self.assertFalse(any(row['bucket'] == 'trace_INSERT' for row in rows))
 
     def test_external_commit_before_ack_replays_original_outbox_without_duplicates(self):
+        self._external_commit_before_ack(actor=False)
+
+    def test_read_actor_commit_before_ack_reconstructs_from_durable_outbox(self):
+        self._external_commit_before_ack(actor=True)
+
+    def _external_commit_before_ack(self, *, actor):
         from meme_machine.solana_evidence_plane import EvidenceWriter
         from meme_machine.solana_evidence_service import FinalizedFence
         from meme_machine.solana_selective_history import SelectiveHistory
@@ -184,7 +220,7 @@ class OriginalWindowReplayTests(unittest.TestCase):
         history.lifecycle = life = CandidateLifecycle(history, candidate_path=self.root/'history.sqlite')
         history.rolling = RollingHistory(history); life.delivery_separated = True
         history.ingest([prepare_economic_record(row)])
-        result = replay.publish(life, interrupt_before_ack=True)
+        result = replay.publish(life, actor_state={} if actor else None, interrupt_before_ack=True)
         self.assertGreater(result['outbox_rows'], 0)
         self.assertIsNone(history.db.execute(
             'SELECT 1 FROM candidate_history_outbox WHERE consumed IS NULL').fetchone())
@@ -324,6 +360,365 @@ class OriginalWindowReplayTests(unittest.TestCase):
             raw = replay.canonical(changed); (directory/'manifest.json').write_bytes(raw)
             with self.subTest(case=case), self.assertRaises(ValueError):
                 replay.Parcel(directory, replay.sha(raw))
+
+
+class ConcurrentWindowReplayTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name).resolve()
+
+    def test_real_owner_actor_and_qualifier_overlap_preserve_all_semantics_and_restart(self):
+        parcel = CapturedParcel()
+        switch_interval = sys.getswitchinterval()
+        # The public cohort has no oracle/quote/concentration input. No real
+        # provider may be constructed to fill that missing evidence.
+        with patch('meme_machine.operational.managed_pump_qualification.MarketSnapshotProvider',
+                   side_effect=AssertionError('no_provider_construction')):
+            result = concurrent.benchmark(parcel, self.root/'concurrent', batch=1, rate=5, seconds=30)
+        self.assertTrue(result['engineering_validation_passed'])
+        self.assertTrue(result['coherent']); self.assertTrue(result['concurrency_exercised'])
+        self.assertEqual(result['semantic_fields'], list(original.SEMANTIC_FIELDS))
+        self.assertEqual(len(result['semantic_fields']), 22)
+        self.assertEqual(result['different_semantic_fields'], [])
+        self.assertEqual(result['different_stores'], [])
+        self.assertTrue(parcel.checked)
+        self.assertTrue(result['production_admission_and_owner_policy'])
+        self.assertEqual(result['owner_thread_fairness_seconds'], .0005)
+        self.assertEqual(sys.getswitchinterval(), switch_interval)
+        self.assertEqual(result['input_provenance'], 'public_fixture')
+        self.assertTrue(result['publication_thread_handoff_exercised'])
+        self.assertFalse(result['actor_capture_service_cpu_separately_measured'])
+        self.assertFalse(result['financial_authority'])
+        self.assertFalse(result['throughput_readiness_proven'])
+        self.assertFalse(result['full_qualification_proven'])
+        self.assertEqual(result['quote_inputs'], 'unavailable_no_synthetic_quotes')
+        self.assertEqual(result['context_rows_imported_as_state'], 0)
+        left, right = result['runs']
+        self.assertEqual(left['store_fingerprints'], right['store_fingerprints'])
+        self.assertEqual(len(left['store_fingerprints']), 6)
+        for row in result['runs']:
+            self.assertTrue(row['distinct_pipeline_threads'])
+            self.assertTrue(row['production_work_capabilities']['candidate_delivery_capture_actor'])
+            self.assertIsInstance(row['production_work_capabilities']['candidate_delivery_publication_handoff'], bool)
+            self.assertTrue(row['reader_restart_verified'])
+            self.assertTrue(row['owner_actor_restart_verified'])
+            self.assertEqual(row['initial']['native_event_backlog'], len(parcel.warmup))
+            self.assertEqual(row['final']['native_event_backlog'], 0)
+            self.assertEqual(row['completed'], {'warmup':len(parcel.warmup), 'measured':len(parcel.measured)})
+            self.assertEqual(row['provider_requests'], 0)
+            self.assertGreater(row['owner_counters']['owner.stage.candidate_delivery_ack.calls'], 0)
+            self.assertNotIn('owner.stage.candidate_delivery_capture.calls', row['owner_counters'])
+            self.assertEqual(row['counters']['offered_measured_events'], len(parcel.measured))
+            self.assertEqual(row['counters']['admitted_measured_events'], len(parcel.measured))
+            self.assertLessEqual(row['counters']['arrival_queue_peak_batches'], concurrent.ARRIVAL_BATCHES)
+        self.assertGreater(right['counters']['delivery_before_intake_finished'], 0)
+        self.assertGreater(right['counters']['observed_before_intake_finished'], 0)
+        self.assertGreater(right['counters']['intake_turns_without_qualification_drain'], 0)
+        self.assertEqual(left['counters'].get('intake_turns_without_qualification_drain', 0), 0)
+
+    def test_completion_waits_for_real_alias_outbox_acks_after_all_native_observations(self):
+        from meme_machine.operational.managed_pump_qualification import QualificationReader
+        from meme_machine.runtime.evidence_worker import owner_thread_fairness
+        from meme_machine.solana_history_delivery import CaptureActor
+        from meme_machine.solana_native_evidence import pubkey
+        from meme_machine.solana_selective_history import SelectiveHistory
+        from meme_machine.solana_selective_source import SelectiveSource
+        from tests.test_publication_accounting_turn import OwnedWork
+        parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 1)
+        identities = {item['identity'] for item in parcel.inputs}
+        mint = next(iter(records.values()))[0].record.payload['event']['mint']
+        native_ingest, native_capture = SelectiveHistory.ingest, CaptureActor.capture
+        native_delivery, native_step = SelectiveSource.candidate_history_delivery, QualificationReader.step
+        native_work = OwnedWork.__call__
+        seeded = set(); outbox_counts = {}; captured_ids = set(); held = threading.Event()
+        release = threading.Event(); sources = []; probes = []; turns = [0]; delivery_pulses = [0]; signals = {}
+
+        def ingest(history, rows, *args, **kwargs):
+            path = str(history.writer.path)
+            if path not in seeded:
+                # Independent authentic binding scopes each owe their own
+                # receipt for the same mint. aliases= would share one scope
+                # and queue_records would correctly deduplicate those names.
+                for index in range(64):
+                    address = pubkey(hashlib.sha256(('completion-alias-'+str(index)).encode()).digest())
+                    history.bind('pump', address, market_address=mint)
+                seeded.add(path)
+            answer = native_ingest(history, rows, *args, **kwargs)
+            outbox_counts[path] = history.db.execute("SELECT count(*) FROM candidate_history_outbox "
+                "WHERE kind='canonical'").fetchone()[0]
+            return answer
+
+        def capture(actor, *args, **kwargs):
+            snapshot = native_capture(actor, *args, **kwargs)
+            if Path(actor.context.canonical_path).parent.name != 'concurrent' or snapshot is None:return snapshot
+            already_visible = identities <= captured_ids
+            canonical_rows = [row for row in snapshot['rows'] if row[3] == 'canonical']
+            captured_ids.update(json.loads(row[4])['record']['identity'] for row in canonical_rows)
+            if already_visible and canonical_rows and not held.is_set():
+                # The preceding pages have completed real FULL delivery/ACK.
+                # Hold a later alias page after its read transaction is closed,
+                # before accepting another physical delivery that cancellation
+                # cleanup would otherwise finish and ACK for the old harness.
+                held.set()
+                if not release.wait(20):raise RuntimeError('test_alias_capture_release_deadline')
+            return snapshot
+
+        async def delivery(source):
+            if Path(source.canonical_path).parent.name == 'concurrent':
+                sources.append(source)
+                native_observer = source.observer
+                def observe(kind, values):
+                    native_observer(kind, values)
+                    if kind == 'history_delivery_timing':delivery_pulses[0] += 1
+                source.observer = observe
+            return await native_delivery(source)
+
+        def step(reader):
+            answer = native_step(reader)
+            if reader.config.root.name == 'concurrent':
+                turns[0] += 1
+                if answer['durably_observed_native_events'] == len(parcel.inputs):
+                    signals['loop'].call_soon_threadsafe(signals['observed'].set)
+            return answer
+
+        async def work(value, function, *args, **kwargs):
+            before = delivery_pulses[0]
+            answer = await native_work(value, function, *args, **kwargs)
+            if getattr(function, '__name__', None) == 'pending_outbox' and sources:
+                probes.append((answer, before))
+                if answer:signals['pending'].set()
+            return answer
+
+        async def scenario():
+            signals.update(loop=asyncio.get_running_loop(), observed=asyncio.Event(), pending=asyncio.Event())
+            left = await concurrent.run_arm(parcel, records, batches, self.root/'serial-control',
+                concurrent=False, rate=5, seconds=30)
+            task = asyncio.create_task(concurrent.run_arm(parcel, records, batches, self.root/'concurrent',
+                concurrent=True, rate=5, seconds=30))
+            waits = []
+            async def until(predicate):
+                while not predicate():
+                    if task.done():task.result()
+                    await asyncio.sleep(.001)
+            try:
+                await asyncio.wait_for(until(lambda: held.is_set() and signals['observed'].is_set()), 10)
+                waits = [asyncio.create_task(signals['pending'].wait()), asyncio.create_task(sources[-1].stop.wait())]
+                await asyncio.wait_for(asyncio.wait([task, *waits], return_when=asyncio.FIRST_COMPLETED), 10)
+                if task.done():task.result()
+                self.assertTrue(signals['pending'].is_set())
+                self.assertFalse(sources[-1].stop.is_set())
+                # An ACK racing the initial owner read legitimately schedules
+                # one more read. While capture is held, the last delivery pulse
+                # is fixed. Wait for a probe entered after that pulse was already
+                # observed and cleared, rather than assuming the first one was.
+                await asyncio.wait_for(until(lambda: probes and probes[-1][1] == delivery_pulses[0]), 5)
+                self.assertTrue(all(answer for answer, _ in probes))
+                checked = len(probes); pulses = delivery_pulses[0]
+                # Several actual empty qualification turns pulse changed while
+                # the alias capture is held. They must not poll the owner.
+                target = turns[0] + 3
+                await asyncio.wait_for(until(lambda: turns[0] >= target), 5)
+                self.assertEqual(delivery_pulses[0], pulses)
+                self.assertEqual(len(probes), checked)
+                release.set()
+                right = await asyncio.wait_for(asyncio.shield(task), 10)
+            finally:
+                release.set()
+                for wait in waits:wait.cancel()
+                if not task.done():task.cancel()
+                await asyncio.gather(task, *waits, return_exceptions=True)
+            comparison = concurrent.compare_arms(left, right)
+            self.assertTrue(comparison['coherent'])
+            self.assertEqual(comparison['different_semantic_fields'], [])
+            self.assertEqual(comparison['different_stores'], [])
+            self.assertEqual(len(comparison['semantic_fields']), 22)
+            self.assertEqual(len(right['store_fingerprints']), 6)
+            for row in (left, right):
+                self.assertTrue(row['reader_restart_verified']); self.assertTrue(row['owner_actor_restart_verified'])
+                self.assertEqual(row['final']['native_event_backlog'], 0)
+                self.assertGreaterEqual(row['counters']['completion_outbox_checks'], 1)
+                self.assertLessEqual(row['counters']['completion_outbox_checks'], row['counters']['delivery_batches'] + 1)
+            self.assertGreater(right['counters']['completion_outbox_waits'], 0)
+            self.assertTrue(probes[-1][0] is False)
+            self.assertTrue(all(count > 64 * len(parcel.inputs) for count in outbox_counts.values()))
+
+        old_umask = os.umask(0o077)
+        try:
+            with replay.no_network(), owner_thread_fairness(), patch.object(SelectiveHistory, 'ingest', ingest), \
+                    patch.object(CaptureActor, 'capture', capture), patch.object(SelectiveSource, 'candidate_history_delivery', delivery), \
+                    patch.object(QualificationReader, 'step', step), patch.object(OwnedWork, '__call__', work):
+                asyncio.run(scenario())
+        finally:os.umask(old_umask)
+
+    def test_every_original_semantic_field_is_required_and_mutation_fails(self):
+        arm = {key: ['retained', key] for key in original.SEMANTIC_FIELDS}
+        arm['store_fingerprints'] = {key:'original' for key in concurrent.STORE_FIELDS}
+        self.assertTrue(concurrent.compare_arms(arm, deepcopy(arm))['coherent'])
+        for key in original.SEMANTIC_FIELDS:
+            with self.subTest(field=key):
+                changed = deepcopy(arm); changed[key].append('mutated')
+                result = concurrent.compare_arms(arm, changed)
+                self.assertFalse(result['coherent']); self.assertEqual(result['different_semantic_fields'], [key])
+                del changed[key]
+                self.assertFalse(concurrent.compare_arms(arm, changed)['coherent'])
+        changed = deepcopy(arm); changed['store_fingerprints']['canonical_native'] = 'mutated'
+        self.assertEqual(concurrent.compare_arms(arm, changed)['different_stores'], ['canonical_native'])
+        changed = deepcopy(arm); changed['store_fingerprints']['unknown'] = 'unreviewed'
+        self.assertFalse(concurrent.compare_arms(arm, changed)['coherent'])
+
+    def test_candidate_difference_projection_authenticates_real_rows_and_bounds_private_details(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        for name, reverse in (('serial-control', False), ('concurrent', True)):
+            directory = self.root/name; directory.mkdir()
+            history = CandidateHistory(directory/'history.sqlite')
+            try:
+                for index in range(18):
+                    observations = [('pump', 100, dict(source='same', creator='private-creator')),
+                                    ('pump.fun', 101, dict(pool='private-pool'))]
+                    for surface, at, metadata in reversed(observations) if reverse else observations:
+                        history.observe('pump', 'private-candidate-'+str(index), surface=surface,
+                                        observed_at=at, metadata=metadata)
+                history.observe('pump', 'private-identical', surface='pump.fun', observed_at=100)
+            finally:history.close()
+        result = concurrent.candidate_difference_report(self.root)
+        self.assertEqual(result['rows'], [19, 19])
+        self.assertEqual(result['differing_candidate_keys'], 18)
+        self.assertEqual(len(result['details']), 16); self.assertTrue(result['truncated'])
+        self.assertEqual({key:value for key,value in result['column_difference_counts'].items() if value},
+                         dict(surface=18, body=18, hash=18))
+        self.assertEqual({key:value for key,value in result['body_field_difference_counts'].items() if value},
+                         dict(surface=18))
+        self.assertFalse(any(result['metadata_field_difference_counts'].values()))
+        for row in result['details']:
+            self.assertEqual(row['different_columns'], ['surface', 'body', 'hash'])
+            self.assertEqual(row['safe_values'], {'surface':['pump.fun', 'pump']})
+            self.assertEqual(row['different_metadata_fields'], [])
+            self.assertRegex(row['candidate_key_sha256'], '^[0-9a-f]{64}$')
+        raw = original.canonical(result)
+        self.assertLessEqual(len(raw), concurrent.MAX_CANDIDATE_DIFFERENCE_BYTES)
+        self.assertNotIn(b'private-', raw)
+        self.assertTrue(result['candidate_bodies_authenticated'])
+
+    def test_candidate_difference_projection_hashes_metadata_and_refuses_corrupt_bodies(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        for name, value in (('serial-control', 'private-left'), ('concurrent', 'private-right')):
+            directory = self.root/name; directory.mkdir()
+            history = CandidateHistory(directory/'history.sqlite')
+            try:
+                history.observe('pump', 'private-mint', surface='pump.fun', observed_at=100,
+                    metadata={'creator':value, 'private-unknown-field':value})
+            finally:history.close()
+        result = concurrent.candidate_difference_report(self.root)
+        self.assertEqual(result['differing_candidate_keys'], 1)
+        self.assertEqual(result['metadata_field_difference_counts']['creator'], 1)
+        self.assertEqual(result['unknown_metadata_fields_differing'], 1)
+        detail = result['details'][0]
+        self.assertEqual(detail['different_columns'], ['body', 'hash'])
+        self.assertEqual(detail['different_metadata_fields'], ['creator'])
+        self.assertEqual(detail['safe_values'], {})
+        self.assertNotEqual(*detail['metadata_value_sha256']['creator'])
+        self.assertNotIn(b'private-', original.canonical(result))
+        with sqlite3.connect(self.root/'concurrent/history.sqlite') as db:
+            db.execute('UPDATE candidates SET hash=?', ('0'*64,))
+        with self.assertRaisesRegex(ValueError, 'concurrent_candidate_body_hash'):
+            concurrent.candidate_difference_report(self.root)
+
+    def test_cohort_order_and_authentication_are_checked_before_private_stores(self):
+        parcel = CapturedParcel()
+        parcel.inputs[1]['sequence'] = parcel.inputs[0]['sequence']
+        with self.assertRaisesRegex(ValueError, 'concurrent_cohort_order'):
+            concurrent.benchmark(parcel, self.root/'rejected', seconds=1)
+        self.assertFalse((self.root/'rejected').exists())
+        parcel = CapturedParcel()
+        record = parcel.records[parcel.inputs[1]['identity']]
+        parcel.inputs[1]['first_seen'] = record.observed_at + 1
+        with self.assertRaisesRegex(ValueError, 'concurrent_normalized_identity'):
+            concurrent.benchmark(parcel, self.root/'rejected-auth', seconds=1)
+        self.assertFalse((self.root/'rejected-auth').exists())
+
+    def test_arrival_batch_and_deadline_limits_reject_unbounded_options(self):
+        for batch, rate, seconds in ((0, 10, 1), (65, 10, 1), (1, 0, 1),
+                                     (1, float('inf'), 1), (1, 1, 0), (1, 1, 1801)):
+            with self.subTest(batch=batch, rate=rate, seconds=seconds), self.assertRaises(ValueError):
+                concurrent.limits(batch, rate, seconds)
+
+    def test_repeated_cancellation_of_either_physical_reader_open_closes_returned_handles(self):
+        from meme_machine.operational.managed_pump_qualification import QualificationReader
+        native_open, native_close = QualificationReader._open, QualificationReader.close
+        for blocked_open in (1, 2):
+            with self.subTest(open=blocked_open):
+                opened = threading.Event(); release = threading.Event()
+                opening_threads = []; closed = []
+                def held(reader):
+                    fresh = reader.db is None
+                    result = native_open(reader)
+                    if fresh and result:
+                        opening_threads.append(threading.get_ident())
+                        if len(opening_threads) == blocked_open:
+                            opened.set()
+                            if not release.wait(10):raise RuntimeError('test_reader_open_release_deadline')
+                    return result
+                def close(reader):
+                    closed.append(threading.get_ident())
+                    return native_close(reader)
+                async def scenario():
+                    parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 1)
+                    task = asyncio.create_task(concurrent.run_arm(parcel, records, batches,
+                        self.root/('reader-cancel-'+str(blocked_open)), concurrent=True, rate=5, seconds=20))
+                    try:
+                        async def entered():
+                            while not opened.is_set():
+                                if task.done():task.result()
+                                await asyncio.sleep(.001)
+                        await asyncio.wait_for(entered(), 10)
+                        task.cancel(); await asyncio.sleep(0); task.cancel(); release.set()
+                        with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task, 10)
+                    finally:
+                        release.set()
+                        if not task.done():task.cancel()
+                        await asyncio.gather(task, return_exceptions=True)
+                old_umask = os.umask(0o077)
+                try:
+                    with replay.no_network(), patch.object(QualificationReader, '_open', held), patch.object(QualificationReader, 'close', close):
+                        asyncio.run(scenario())
+                finally:os.umask(old_umask)
+                self.assertEqual(len(opening_threads), blocked_open)
+                self.assertEqual(closed, opening_threads)
+
+    def test_repeated_cancellation_joins_native_owner_initialization_before_close(self):
+        from meme_machine.solana_evidence_plane import EvidenceWriter
+        native_init, native_close = EvidenceWriter.__init__, EvidenceWriter.close
+        entered = threading.Event(); release = threading.Event(); initialized = []; closed = []
+        def held(writer, *args, **kwargs):
+            native_init(writer, *args, **kwargs)
+            initialized.append(threading.get_ident()); entered.set()
+            if not release.wait(10):raise RuntimeError('test_owner_ready_release_deadline')
+        def close(writer):
+            closed.append(threading.get_ident()); return native_close(writer)
+        async def scenario():
+            parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 1)
+            task = asyncio.create_task(concurrent.run_arm(parcel, records, batches,
+                self.root/'owner-ready-cancel', concurrent=True, rate=5, seconds=20))
+            try:
+                async def opened():
+                    while not entered.is_set():
+                        if task.done():task.result()
+                        await asyncio.sleep(.001)
+                await asyncio.wait_for(opened(), 10)
+                task.cancel(); await asyncio.sleep(0); task.cancel(); release.set()
+                with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task, 10)
+            finally:
+                release.set()
+                if not task.done():task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        old_umask = os.umask(0o077)
+        try:
+            with replay.no_network(), patch.object(EvidenceWriter, '__init__', held), patch.object(EvidenceWriter, 'close', close):
+                asyncio.run(scenario())
+        finally:os.umask(old_umask)
+        self.assertEqual(len(initialized), 1)
+        self.assertEqual(closed, initialized)
 
 
 if __name__ == '__main__':

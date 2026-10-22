@@ -330,8 +330,18 @@ class ManagedPonsLane:
         require(not self.closed, 'closed')
         if self.cancel():
             raise InterruptedError('managed_pons_cancelled')
-        require(sum(p.stat().st_size for p in self.root.iterdir() if p.is_file())
-                <= MAX_STORAGE_BYTES, 'storage_bound')
+        total = 0
+        for path in self.root.iterdir():
+            try:
+                info = path.stat()
+            except FileNotFoundError:
+                # SQLite may retire a sidecar after directory enumeration.
+                # One metadata read avoids is_file()/stat() racing each other;
+                # disappearance alone is not a provider or storage failure.
+                continue
+            if stat.S_ISREG(info.st_mode):
+                total += info.st_size
+        require(total <= MAX_STORAGE_BYTES, 'storage_bound')
 
     def _discovery(self):
         from meme_machine.lanes.pons.provider_topology import configured_discovery_rpc

@@ -24,7 +24,7 @@ from .solana_candidate_join import (
     CANDIDATE_COMMIT_BYTES,candidate_commit_size,
 )
 from .solana_stream_log_repair import (
-    explicit_truncation,log_input_reason,rebase_log_join,authenticate_supplement,FATAL_REPAIR_REASONS,
+    explicit_truncation,log_input_reason,rebase_log_join,authenticate_required_log,FATAL_REPAIR_REASONS,
 )
 from .solana_candidate_phases import CandidatePhases,DEVELOPMENT_PHASES,phase as candidate_phase
 from .runtime.operation_costs import operation,measured
@@ -290,7 +290,7 @@ def skipped_prefix(history,scope,frame):
         method='native_finalized_parent_proves_no_block_in_replay_prefix',native_order=True)
     history.lifecycle.defer_proof(IntervalProof(scope,lo,b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,frame.seen))
 
-def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None,timing=None):
+def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None,timing=None,defer_fanout=False):
     with candidate_phase(timing,'validate'):
         history=install(state);b=frame.update.block;seen=frame.seen
         if prepared is not None:
@@ -327,8 +327,9 @@ def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None
                             if previous and previous.body()!=row.body():raise EvidenceUnavailable('candidate_economic_content_conflict')
                             rows[row.identity]=row
         material=rows if prepared is not None else rows.values()
-        if timing is None:history.ingest(material)
-        else:history.ingest(material,timing=timing)
+        options=dict(defer_fanout=True) if defer_fanout else {}
+        if timing is None:history.ingest(material,**options)
+        else:history.ingest(material,timing=timing,**options)
         with candidate_phase(timing,'coverage_receipt'):
             for scope,census in censuses.items():
                 old=state.writer.db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
@@ -355,11 +356,12 @@ def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None
     if publish:history.lifecycle.publish()
 
 
-def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None):
+def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None,defer_fanout=False):
     """The original ordered frames, under one atomic durable owner command."""
     if not 0<len(frames)<=CANDIDATE_COMMIT_BATCH:
         raise EvidenceUnavailable('candidate_commit_batch_bound')
     history=install(state)
+    from .solana_derived_fanout import FanoutBackpressure
     if prepared is not None and (grouped or len(prepared)!=len(frames)):
         raise EvidenceUnavailable('candidate_preparation_batch_shape')
     try:
@@ -368,7 +370,11 @@ def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publis
             for index,frame in enumerate(frames):
                 if grouped:commit_rolling_group(state,frame,addresses,session,publish=False)
                 else:commit_candidates(state,frame,addresses,session,publish=False,
-                    prepared=None if prepared is None else prepared[index],timing=timing)
+                    prepared=None if prepared is None else prepared[index],timing=timing,defer_fanout=defer_fanout)
+    except FanoutBackpressure:
+        # The original frame reservation remains owned by its producer. This
+        # pre-admission pressure rolls back atomically and creates no false gap.
+        raise
     except Exception:
         # A discontinuity inside the enclosing batch rolls back with it.
         # Retain its unavailable interval outside that rollback, before retry.
@@ -389,7 +395,8 @@ async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
     actual native status can use the original full byte/count bound. Every wake
     rechecks that identity so native delivery can release a waiting WS packet.
     """
-    if slot<join.filtered_from_slot or slot<=join.completed or (slot,sig) in join.early_logs:return
+    if (slot<join.filtered_from_slot or slot<=join.completed
+            or (slot,sig) in join.early_logs or (slot,sig) in join.completed_log_fields):return
     size=len(str(logs).encode())
     if size>MAX_PENDING_BYTES:raise EvidenceUnavailable('candidate_log_buffer_pressure')
     started=join.clock()
@@ -397,7 +404,8 @@ async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
         # A native/HTTP callback may have consumed this slot or installed the
         # same key while this WS packet waited. Its original late/duplicate
         # validator must run next without reserving these bytes twice.
-        if slot<join.filtered_from_slot or slot<=join.completed or (slot,sig) in join.early_logs:return
+        if (slot<join.filtered_from_slot or slot<=join.completed
+                or (slot,sig) in join.early_logs or (slot,sig) in join.completed_log_fields):return
         if len(join.early_logs)<32768 and join.early_log_bytes+size<=MAX_PENDING_BYTES//2:return
         pending=join.pending.get(slot)
         required=bool(pending is not None and sig in pending['missing_logs']
@@ -571,6 +579,9 @@ def source_work(work,stop,observe=None):
                 retries+=1
                 await asyncio.sleep(min(.2,.01*2**min(retries-1,5)))
     resumable.candidate_delivery_continuation=getattr(work,'candidate_delivery_continuation',False) is True
+    resumable.candidate_delivery_capture_actor=getattr(work,'candidate_delivery_capture_actor',False) is True
+    resumable.candidate_delivery_publication_handoff=getattr(work,'candidate_delivery_publication_handoff',False) is True
+    resumable.candidate_delivery_fanout=getattr(work,'candidate_delivery_fanout',False) is True
     return resumable
 
 
@@ -594,10 +605,13 @@ class SelectiveSource:
         self.control_committed_market_time=None
         self.acquisition_plan_lock=asyncio.Lock();self.acquisition_idle_until=0
         self.preparation_lock=asyncio.Lock();self.archive_preparation_lock=asyncio.Lock()
-        from .solana_history_notifications import WorkPulse
+        from .solana_history_notifications import WorkPulse,ProofPublicationHandoff
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
+        self.proof_publication_handoff=ProofPublicationHandoff()
         self.archive_preparation_wakeup=WorkPulse()
+        self.fanout_wakeup=WorkPulse();self.fanout_space=WorkPulse();self.fanout_done=asyncio.Event()
         self.delivery_urgent=WorkPulse();self.delivery_revision=0
+        self.delivery_capture_context=None;self.delivery_owner_hint=None
         self.source_drain=dict(state='RUNNING',terminal=False,source_pid=os.getpid(),run_identity=uuid.uuid4().hex,
             started_at_monotonic=time.monotonic(),terminal_at_monotonic=None,accepted_handlers=0,
             settled_handlers=0,closed_sessions=0,preserved_partial_sessions=0,
@@ -665,7 +679,18 @@ class SelectiveSource:
             self.handlers.fail(number,exc);raise
         else:self.handlers.finish(number)
 
-    def history_changed(self,*,publication=True,delivery=True,urgent_delivery=True):
+    def _history_delivery_hint(self,hint):
+        current=getattr(self,'delivery_owner_hint',None)
+        if current is not None:
+            if hint.revision<current.revision:return
+            # ACK feedback can clear a request after its own commit callback
+            # queued the same revision. That older true value cannot undo EOF.
+            if (hint.revision==current.revision and hint.refresh_token==current.refresh_token
+                    and not current.refresh_requested and hint.refresh_requested):return
+        self.delivery_owner_hint=hint
+
+    def history_changed(self,*,publication=True,delivery=True,urgent_delivery=True,delivery_hint=None):
+        if delivery_hint is not None:self._history_delivery_hint(delivery_hint)
         if publication:self.history_wakeup.notify()
         if delivery:
             self.delivery_revision=getattr(self,'delivery_revision',0)+1
@@ -892,26 +917,42 @@ class SelectiveSource:
                         else:del self.pending_delivery[key]
 
     async def publish_history(self):
-        seen=-1;retry_at=None
+        seen=-1;retry_at=None;prefer_exact=True
         try:
             while not self.stop.is_set():
+                retries=[at for at in (retry_at,self.proof_publication_handoff.retry_at) if at is not None]
                 seen=await self.history_wakeup.wait(seen,self.stop,
-                    delay=None if retry_at is None else max(0,retry_at-time.monotonic()))
+                    delay=None if not retries else max(0,max(retries)-time.monotonic()))
                 if self.stop.is_set():break
+                # New work can pulse while SQLite's existing busy backoff is
+                # active. Keep that same retry deadline instead of turning a
+                # retained normal cursor into immediate repeated owner turns.
+                if retry_at is not None and time.monotonic()<retry_at:continue
+                # An ACKed batch can proceed to the next consumer capture
+                # independently of publication's next owner admission. Alternate
+                # exact handoffs with the ordinary fixed-horizon scan so neither
+                # new consumer work nor older recovery proofs can starve it.
+                identities=(self.proof_publication_handoff.take() if prefer_exact else None)
+                prefer_exact=identities is None
                 ready=time.monotonic();timing={}
                 def publish(s):
                     timing['owner_claim_monotonic']=time.monotonic()
                     h=install(s);timing['publication_started_monotonic']=time.monotonic()
-                    h.lifecycle.publish()
+                    if identities is None:h.lifecycle.publish()
+                    else:h.lifecycle.publish(proof_ids=identities)
                     timing['publication_finished_monotonic']=time.monotonic()
                     timing['publication_finished_wall']=time.time()
-                    startup=h.startup.advance()
+                    startup=h.startup.advance() if identities is None else None
                     return (bool(getattr(h.lifecycle,'_proof_publication_cursor',None)),startup,
                         getattr(h.lifecycle,'_consumer_retry_at',None),getattr(h.lifecycle,'_published_count',0))
                 more,startup,retry_at,published=await self.flush_delivery(publish)
+                if identities is not None:
+                    if retry_at is None:self.proof_publication_handoff.complete(identities)
+                    else:self.proof_publication_handoff.retry_at=retry_at
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
-                if more:self.history_wakeup.notify() # Drain one fixed durable horizon, then sleep.
+                if retry_at is None and (identities is not None or more or self.proof_publication_handoff.ready()):
+                    self.history_wakeup.notify()
                 if published:self.history_changed(publication=False) # Revalidate context changed by actual publication.
         finally:
             await self.flush_delivery()
@@ -960,7 +1001,7 @@ class SelectiveSource:
                 for _ in batch:queue.task_done()
 
     async def candidate_commits(self,queue,addresses,session,*,rolling=False,grouped=False,priority=2,producer_done=None):
-        native_announced=False
+        native_announced=False;loop=asyncio.get_running_loop()
         while producer_done is not None or not self.stop.is_set() or queue.count:
             rows=await queue.batch(producer_done)
             if not rows:return
@@ -1022,12 +1063,35 @@ class SelectiveSource:
             claimed=[];finished_wall=[]
             def durable(state):
                 claimed.append(time.monotonic())
+                deferred=getattr(self.work,'candidate_delivery_fanout',False) is True
+                history=install(state) if deferred else None
+                before=getattr(history,'_fanout_intake_revision',0)
                 commit_candidate_batch(state,frames,addresses,session,
-                    grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases)
+                    grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases,
+                    defer_fanout=deferred)
+                if deferred and getattr(history,'_fanout_intake_revision',0)!=before and not loop.is_closed():
+                    # Only newly frozen native work wakes this consumer. Post
+                    # after FULL and inside the accepted owner callback so a
+                    # cancelled async producer cannot lose a durable wakeup.
+                    loop.call_soon_threadsafe(self.fanout_wakeup.notify)
                 if rolling and not native_announced:
                     install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
                 claimed.append(time.monotonic());finished_wall.append(time.time())
-            await self.work(durable,priority,label='source_commit',component='candidate')
+            from .solana_derived_fanout import FanoutBackpressure
+            while True:
+                space=self.fanout_space.epoch
+                try:
+                    await self.work(durable,priority,label='source_commit',component='candidate')
+                    break
+                except FanoutBackpressure:
+                    # Keep the same prepared evidence and eight-frame/byte
+                    # reservation. The mandatory derived consumer can continue
+                    # while source producers finish their accepted shutdown.
+                    worker=getattr(self,'fanout_task',None)
+                    if worker is None or worker.done():
+                        if worker is not None:worker.result()
+                        raise EvidenceUnavailable('candidate_fanout_worker_unavailable')
+                    await self.fanout_space.wait(space,self.fanout_done)
             for frame,_,ready,ready_wall in rows:
                 self.observe('evidence_timing',plane='rolling' if rolling else 'candidate',session=session,slot=frame.update.block.slot,
                     native_last_receipt_wall=frame.seen,
@@ -1385,11 +1449,24 @@ class SelectiveSource:
                 self.observation_drain_boundary=begin_source_observation(state,self.retained_source_drain,
                     self.drain_snapshot(),handler_boundary=self.retained_handler_recovery)
             h=install(state)
+            from .solana_derived_fanout import pending_counts
+            if (pending_counts(h.lifecycle)[0] and
+                    getattr(work,'candidate_delivery_fanout',False) is not True):
+                raise EvidenceUnavailable('candidate_fanout_executor_required')
             from .solana_history_notifications import install as notifications
-            notifications(h,loop,self.history_changed)
+            actor=getattr(work,'candidate_delivery_capture_actor',False) is True
+            notifications(h,loop,self.history_changed,capture_hints=actor)
             if not position_only():h.startup.begin()
+            if actor:
+                from .solana_history_delivery import capture_context
+                from .solana_history_notifications import delivery_hint
+                return str(state.writer.path),capture_context(h.lifecycle),delivery_hint(h)
             return str(state.writer.path)
-        self.canonical_path=await work(boot,0)
+        booted=await work(boot,0)
+        if getattr(work,'candidate_delivery_capture_actor',False) is True:
+            self.canonical_path,self.delivery_capture_context,hint=booted
+            self._history_delivery_hint(hint)
+        else:self.canonical_path=booted
         from .solana_history_work import enabled as separated_history
         self.history_separated=separated_history()
         if separated_history() and not callable(getattr(getattr(self,'historical_executor',None),'submit',None)):
@@ -1429,7 +1506,11 @@ class SelectiveSource:
             if census is not None:background.append(census)
             if not operational():producers.append(asyncio.create_task(self.activity_manager(channel)))
             consumers=[self.control_commit_task,scout_commit]
-            tasks=[*producers,*consumers,*background,stop_task];primary=None
+            fanout=getattr(work,'candidate_delivery_fanout',False) is True
+            self.fanout_task=asyncio.create_task(self.derived_fanout()) if fanout else None
+            if self.fanout_task is not None:background_failure_watch=[self.fanout_task]
+            else:background_failure_watch=[]
+            tasks=[*producers,*consumers,*background,*background_failure_watch,stop_task];primary=None
             try:
                 remaining=set(tasks)
                 while not stop.is_set():
@@ -1477,11 +1558,17 @@ class SelectiveSource:
                             except BaseException as exc:failures.append(exc)
                         results=await asyncio.gather(*consumers,return_exceptions=True)
                         failures.extend(result for result in results if isinstance(result,BaseException))
+                        self.fanout_done.set();self.fanout_wakeup.notify()
+                        if self.fanout_task is not None:
+                            result=await asyncio.gather(self.fanout_task,return_exceptions=True)
+                            failures.extend(r for r in result if isinstance(r,BaseException)
+                                and not isinstance(r,asyncio.CancelledError))
                         await self.flush_delivery();await self.flush_diagnostics()
                         if failures:raise failures[0]
                     except BaseException as exc:
                         drain_error=exc
                     finally:
+                        self.fanout_done.set();self.fanout_wakeup.notify();self.fanout_space.notify()
                         remaining=[*tasks,*self.optional_stops]
                         for task in remaining:
                             if not task.done():task.cancel()
@@ -1501,7 +1588,10 @@ class SelectiveSource:
                                 assert_source_drain_boundary(state,self.retained_source_drain,
                                     handler_boundary=self.retained_handler_recovery)
                                 preserve_handlers(state,self.handlers,unresolved,None)
-                                body['pending_history']=h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0]
+                                from .solana_derived_fanout import pending_counts
+                                fanout_count,fanout_bytes,fanout_outputs=pending_counts(h.lifecycle)
+                                body['pending_fanout_count']=fanout_count;body['pending_fanout_bytes']=fanout_bytes
+                                body['pending_history']=h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL AND id NOT GLOB 'fanout:*'").fetchone()[0]+fanout_outputs
                                 body['pending_proofs']=h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0]
                                 publish_source_drain(state,self.retained_source_drain,body,
                                     handler_boundary=self.retained_handler_recovery,
@@ -1764,24 +1854,95 @@ class SelectiveSource:
                     job,reason,**diagnostic),2,label='history_apply')
                 await asyncio.sleep(.1)
 
+    async def derived_fanout(self):
+        """One existing preparation slot; owner waits never hold that slot.
+
+        This mandatory consumer survives stop until accepted source frames
+        finish. Unprepared obligations are durable and may resume on restart;
+        a physical preparation is always joined before this task terminates.
+        """
+        try:
+            from .solana_derived_fanout import prepare,apply
+            context=getattr(self,'delivery_capture_context',None)
+            if context is None:raise EvidenceUnavailable('candidate_delivery_capture_seed_required')
+            seen=-1
+            while True:
+                seen=await self.fanout_wakeup.wait(seen,self.fanout_done)
+                seen=self.fanout_wakeup.epoch
+                # The original FIFO lock protects only accepted physical native
+                # preparation. A bounded fanout shares it fairly, then releases it
+                # BEFORE any owner admission, mutation or retry wait.
+                try:
+                    async with self.preparation_lock:
+                        future=asyncio.wrap_future(self.preparation_executor.submit(prepare,
+                            context.canonical_path,context.endpoint_identity,context.source_identity))
+                        try:prepared=await asyncio.shield(future)
+                        except asyncio.CancelledError:
+                            while not future.done():
+                                try:await asyncio.shield(future)
+                                except asyncio.CancelledError:continue
+                                except BaseException:break
+                            if not future.cancelled():future.exception()
+                            raise
+                except sqlite3.OperationalError as exc:
+                    if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+                    # Retain the durable page and original shutdown deadline. A
+                    # wakeup never bypasses SQLite's existing bounded backoff.
+                    await asyncio.sleep(.1);self.fanout_wakeup.notify();continue
+                if prepared is None:
+                    # Producers closed is not consumer completion. Only a coherent
+                    # empty read after all accepted intakes have settled can exit.
+                    if self.fanout_done.is_set():return
+                    continue
+                accepted=await self.work(lambda state:apply(install(state).lifecycle,prepared),2,
+                    label='source_commit')
+                if accepted:self.fanout_space.notify()
+                else:
+                    # Fresh binding/source changes reject only this transform.
+                    # The original recipients and obligation remain for reprepare.
+                    await asyncio.sleep(.01)
+                self.fanout_wakeup.notify()
+        finally:
+            # Wake a producer retaining its original reservation if this
+            # mandatory consumer fails; it must observe failure, never wait
+            # forever for capacity which can no longer be released.
+            self.fanout_space.notify()
+
     async def _complete_history_delivery(self,snapshot,result,*,continuation=None):
-        """ACK then publish this exact durable proof batch, in separate turns.
+        """ACK then schedule this exact durable proof batch, in separate turns.
 
         The background proof cursor may have passed the batch while its
         independent consumer FULL-committed. Revisit its pending identities,
         never its untrusted result as completeness. Keep an owner admission
         between ACK and proof publication so protective work can still win.
         """
-        from .solana_history_delivery import acknowledge
+        from .solana_history_delivery import acknowledge,acknowledge_actor
         snapshot['proof_publication_changed']=False
         options={}
         if (continuation is not None and getattr(self.work,'candidate_delivery_continuation',False) is True
                 and len(snapshot['rows'])==64 and not snapshot.get('publication_ids',snapshot['proofs'])):
             options['continuation']=continuation
-        accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
-            label='candidate_delivery_ack',**options)
+        if snapshot.get('capture_actor'):
+            feedback=await self.work(lambda state:acknowledge_actor(install(state).lifecycle,snapshot,result),2,
+                label='candidate_delivery_ack')
+            snapshot['capture_ack']=feedback
+            self._history_delivery_hint(feedback.hint)
+            accepted=feedback.accepted
+        else:
+            accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
+                label='candidate_delivery_ack',**options)
         identities=tuple(snapshot.get('publication_ids',[proof['identity'] for proof in snapshot['proofs']]))
         if accepted and identities:
+            if (snapshot.get('capture_actor') and
+                    getattr(self.work,'candidate_delivery_publication_handoff',False) is True):
+                # These are hints to already-durable pending proofs. The
+                # independently scheduled publisher still authenticates current
+                # binding/gaps/receipts after its own accounting fence. A full
+                # mailbox applies bounded backpressure, never drops evidence.
+                self.history_wakeup.notify()
+                await self.proof_publication_handoff.offer(identities,self.stop)
+                self.history_wakeup.notify()
+                return accepted
             # Retain the same accounting-before-publication fence as the
             # background publisher. ACK alone does not flush native delivery.
             def publish_exact(state):
@@ -1793,6 +1954,8 @@ class SelectiveSource:
 
     async def candidate_history_delivery(self):
         """Mandatory bounded consumer work, independent of optional history."""
+        if getattr(self.work,'candidate_delivery_capture_actor',False) is True:
+            return await self._candidate_history_capture_actor()
         from .solana_history_delivery import capture,deliver,acknowledge
         failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None;carried=None
         while not self.stop.is_set():
@@ -1879,6 +2042,102 @@ class SelectiveSource:
                 await asyncio.sleep(min(2,.1*2**min(failures-1,5)))
                 self.delivery_wakeup.notify()
             except (RuntimeError,MemoryError) as exc:
+                failures+=1
+                await self.work(lambda state:install(state)._observation(None,'candidate_delivery_unavailable',
+                    dict(complete=False,failures=failures,reason=type(exc).__name__)),2)
+                await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
+                self.delivery_wakeup.notify()
+
+    async def _candidate_history_capture_actor(self):
+        """Canonical read capture and consumer writes share the existing thread.
+
+        The read transaction closes before any consumer FULL write. Every ACK
+        and proof publication still enters the sole canonical owner normally.
+        """
+        from .solana_history_delivery import CaptureActor,deliver,acknowledge_actor
+        context=getattr(self,'delivery_capture_context',None)
+        if context is None or getattr(self,'delivery_owner_hint',None) is None:
+            raise EvidenceUnavailable('candidate_delivery_capture_seed_required')
+        actor=CaptureActor(context)
+        failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None;previous=None
+        while not self.stop.is_set():
+            seen=await self.delivery_wakeup.wait(seen,self.stop,
+                delay=None if deadline is None else max(0,deadline-time.time()))
+            if time.monotonic()<not_before:
+                await self.delivery_urgent.wait(urgent_seen,self.stop,delay=not_before-time.monotonic())
+            # Preserve these pre-submit epochs. A commit callback arriving while
+            # the reader runs must wake another capture, even after an empty one.
+            seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
+            if self.stop.is_set():break
+            hint=self.delivery_owner_hint
+            future=asyncio.wrap_future(self.delivery_executor.submit(actor.capture,hint,previous))
+            try:snapshot=await asyncio.shield(future)
+            except asyncio.CancelledError:
+                # A physical read must release its transaction before owner
+                # teardown. It has no external write requiring a canonical ACK.
+                # Match native preparation's terminal drain: repeated cancels
+                # cannot orphan it, and a later read error cannot replace this
+                # original cancellation. No new shutdown grace is introduced.
+                while not future.done():
+                    try:await asyncio.shield(future)
+                    except asyncio.CancelledError:continue
+                    except BaseException:break
+                if not future.cancelled():future.exception()
+                raise
+            previous=None
+            if snapshot is None:
+                deadline=None;continue
+            deadline=snapshot.get('proof_deadline')
+            cancel_cleanup=None
+            try:
+                consumer_work=bool(snapshot['rows'] or snapshot['proofs'] or snapshot['refresh'])
+                if consumer_work:
+                    future=asyncio.wrap_future(self.delivery_executor.submit(deliver,snapshot))
+                    try:result=await asyncio.shield(future)
+                    except asyncio.CancelledError:
+                        # Preserve accepted FULL delivery -> fresh owner ACK ->
+                        # cancellation in one owned cleanup. Coordinator cancel
+                        # cannot split its physical commit from its owner ACK.
+                        async def finish_delivery():
+                            result=await future
+                            return await self.work(lambda state:acknowledge_actor(install(state).lifecycle,snapshot,result),2,
+                                label='candidate_delivery_ack')
+                        cancel_cleanup=asyncio.create_task(finish_delivery())
+                        while not cancel_cleanup.done():
+                            try:await asyncio.shield(cancel_cleanup)
+                            except asyncio.CancelledError:continue
+                            except BaseException:break
+                        # FULL/ACK failures remain real failures; successful
+                        # cleanup returns the original cancel without publishing.
+                        cancel_cleanup.result()
+                        raise
+                else:result=dict(acknowledgements=[],refreshed=[])
+                try:accepted=await self._complete_history_delivery(snapshot,result)
+                finally:
+                    if 'capture_ack' in snapshot:previous=(snapshot,snapshot['capture_ack'])
+                if snapshot.get('proof_publication_changed'):self.history_changed(publication=False)
+                if consumer_work:self.observe('history_delivery_timing',**result['metrics'])
+                not_before=0 if len(snapshot['rows'])==64 else time.monotonic()+.1
+                publication=bool(snapshot.get('publication_ids',snapshot['proofs'])) or not accepted
+                more=bool(snapshot.get('proof_scan',{}).get('more'))
+                refresh=snapshot.get('refresh_scan');feedback=snapshot['capture_ack']
+                refresh_more=bool(refresh and (not refresh['finished'] or not feedback.refresh_cleared))
+                if publication:self.history_wakeup.notify()
+                if consumer_work or more or refresh_more or not accepted:self.delivery_wakeup.notify()
+                # Refresh retries retain the original nonurgent cadence. A busy
+                # stream cannot turn conservative EOF rejection into idle spin.
+                if publication or more or not accepted:self.delivery_urgent.notify()
+                failures=0
+            except sqlite3.OperationalError as exc:
+                if cancel_cleanup is not None:raise
+                if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+                failures+=1
+                await self.work(lambda state:install(state)._observation(None,'candidate_consumer_write_busy',
+                    dict(complete=False,failures=failures,off_owner=True)),2)
+                await asyncio.sleep(min(2,.1*2**min(failures-1,5)))
+                self.delivery_wakeup.notify()
+            except (RuntimeError,MemoryError) as exc:
+                if cancel_cleanup is not None:raise
                 failures+=1
                 await self.work(lambda state:install(state)._observation(None,'candidate_delivery_unavailable',
                     dict(complete=False,failures=failures,reason=type(exc).__name__)),2)
@@ -2329,7 +2588,7 @@ class SelectiveSource:
                 self.observe_join('rolling' if rolling else 'candidate',join,session,candidate_queue)
                 await commit(frame)
             except EvidenceUnavailable as exc:
-                diagnostic=dict(reason=str(exc),addresses=len(addresses),pending_slots=len(join.pending),
+                diagnostic=dict(reason=getattr(exc,'join_capacity_reason',str(exc)),addresses=len(addresses),pending_slots=len(join.pending),
                     pending_bytes=join.pending_bytes,missing_logs=sum(1 for slot,item in join.pending.items()
                         for index,fact in item['statuses'].items() if fact[2] is None and not join.full_scopes.intersection(fact[3])
                         and (slot,signature(fact[0])) not in join.early_logs),
@@ -2490,10 +2749,22 @@ class SelectiveSource:
                     token=next_token
             if rolling:
                 async def repair_logs():
-                    # Independent native identities determine the exact missing
-                    # field. This exception fetches bodies only for the recovery
-                    # prefix unavailable from a new WS, never every promotion.
-                    inflight=set();batch_inflight=False
+                    # Content acquisition can look ahead of a blocked head;
+                    # only the original ordered join may retire a native slot.
+                    # Each of at most eight read contexts owns at most one
+                    # existing16MiB serialized provider response until terminal.
+                    # This bounds retained inputs, not Python decoded-object RSS.
+                    inflight=set();owned_reads=set();batch_inflight=False;first_failure=[]
+                    def fail_session(error):
+                        if not first_failure and not isinstance(error,asyncio.CancelledError):first_failure.append(error)
+                        session_stop.set()
+                    def release_read(key,context):
+                        # A terminal member can release before its batch's other
+                        # members. Old batch cleanup must never remove a newer
+                        # read of that same still-missing native identity.
+                        if context is not None and join.required_log_reads.get(key) is context:
+                            join.end_required_log_read(*key)
+                            owned_reads.discard(key);inflight.discard(key)
                     async def publish_log(slot,sig,logs):
                         await self.work(lambda s:install(s)._observation(None,'selective_missing_field',dict(signature=sig,slot=slot,field='logMessages',reason='RECOVERY_GAP')),2)
                         frame=join.feed_log(slot,sig,logs,None,time.time());join_progress.set()
@@ -2503,60 +2774,140 @@ class SelectiveSource:
                             if frame is None:break
                             join_progress.set();await commit(frame)
                     not_fetched=object()
-                    async def one(slot,sig,fetched=not_fetched):
-                        witness=None;authenticated=False
+                    async def one(slot,sig,fetched=not_fetched,witness=not_fetched,available=None):
+                        authenticated=False;retained=False;context=None
                         try:
-                            witness=join.deferred_log_witness(slot,sig)
+                            if witness is not_fetched:
+                                pending_slot=join.pending.get(slot)
+                                if pending_slot is None or sig not in pending_slot['missing_logs']:return
+                                witness=join.begin_required_log_read(slot,sig)
+                                owned_reads.add((slot,sig))
+                            if witness is None:raise EvidenceUnavailable('candidate_required_content_missing')
+                            context=join.required_log_reads[(slot,sig)]
                             if fetched is not_fetched:
-                                if witness is not None:self.observe('log_repair',stage='repair_logical_calls')
+                                self.observe('log_repair',stage='repair_logical_calls')
                                 tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
                             else:tx=fetched
-                            if witness is not None:
-                                try:
-                                    complete,receipt=authenticate_supplement(join,witness,tx,self.config.identity)
-                                except EvidenceUnavailable as error:
-                                    # Retain the actual failed input for offline
-                                    # review; none of its strings are stdout or
-                                    # permission to complete native coverage.
-                                    failed=dict(native_witness=witness,response=tx,
-                                        observed_websocket_logs=join.early_logs[(slot,sig)][0],
-                                        reason=str(error),complete=False)
-                                    await self.work(lambda s:install(s)._observation(None,
-                                        'native_stream_log_supplement_failed',failed),2)
-                                    raise
-                                await self.work(lambda s:install(s)._observation(None,
-                                    'native_stream_log_supplement',receipt),2)
-                                frame=join.complete_deferred_log(slot,sig,complete,time.time());join_progress.set()
-                                await commit(frame)
-                                while True:
-                                    frame=join.drain()
-                                    if frame is None:break
-                                    join_progress.set();await commit(frame)
-                                authenticated=True
-                                self.observe('log_repair',stage='supplements_authenticated')
-                                return
-                            if not tx or tx['slot']!=slot or tx['meta']['err'] is not None:
+                            if available is None:available=time.time()
+                            if (tx is None and not join.required_log_reads[(slot,sig)]['deferred']):
+                                # Finalized native progress does not prove that
+                                # HTTP indexing is ready. Preserve the original
+                                # ordinary missing-content/reconnect contract.
                                 raise EvidenceUnavailable('candidate_required_content_missing')
-                            await publish_log(slot,sig,tx['meta']['logMessages'])
+                            try:
+                                complete,receipt=authenticate_required_log(join,witness,tx,self.config.identity)
+                            except EvidenceUnavailable as error:
+                                # Preserve the actual failed provider input,
+                                # including when no WS packet ever existed.
+                                observed=join.early_logs.get((slot,sig))
+                                failed=dict(native_witness=witness,response=tx,
+                                    observed_websocket_logs=None if observed is None else observed[0],
+                                    reason=str(error),complete=False)
+                                await self.work(lambda s:install(s)._observation(None,
+                                    'native_stream_log_supplement_failed',failed),2)
+                                raise
+                            await self.work(lambda s:install(s)._observation(None,
+                                'native_stream_log_supplement',dict(receipt,http_result_available_at=available)),2)
+                            # Future content remains inside its accepted read
+                            # context when the original log reservoir is full.
+                            # It never borrows the head's native-byte fallback,
+                            # drops its original HTTP availability or renews the
+                            # head-start deadline. The durable input receipt and
+                            # normal disconnect gap preserve an unfinished field.
+                            waiting=False
+                            while not join.required_log_can_fit(slot,sig,complete):
+                                if not waiting:
+                                    waiting=True
+                                    await self.work(lambda s:install(s)._observation(None,
+                                        'selective_missing_field',dict(signature=sig,slot=slot,
+                                            field='logMessages',reason='RECOVERY_GAP',
+                                            http_result_available_at=available,
+                                            authenticated_content_retained=True)),2)
+                                if self.stop.is_set() or local_stop.is_set():
+                                    retained=True;return
+                                state=join.pending.get(slot)
+                                if state is None or join.clock()-state['started']>=join.max_join_seconds:
+                                    raise EvidenceUnavailable('yellowstone_incomplete_status_census')
+                                join_progress.clear()
+                                if join.required_log_can_fit(slot,sig,complete):break
+                                try:await asyncio.wait_for(join_progress.wait(),.05)
+                                except TimeoutError:pass
+                            # The receipt write yielded to native/WS delivery.
+                            # Capacity waits can yield too. Recheck the exact
+                            # witness and new WS prefix before changing the join.
+                            complete,_=authenticate_required_log(join,witness,tx,self.config.identity)
+                            frame=join.complete_required_log(slot,sig,complete,available)
+                            join_progress.set();await commit(frame)
+                            while True:
+                                frame=join.drain()
+                                if frame is None:break
+                                join_progress.set();await commit(frame)
+                            authenticated=True
+                            self.observe('log_repair',stage='supplements_authenticated')
+                        except BaseException as error:
+                            # Make an authentication/admission failure visible
+                            # before waiting for other prepared responses. Stop
+                            # intake so their capacity waits can retain original
+                            # evidence rather than hide this cause until expiry.
+                            fail_session(error)
+                            raise
                         finally:
-                            if witness is not None and not authenticated:
+                            if witness is not not_fetched and witness is not None and not authenticated and not retained:
                                 self.observe('log_repair',stage='supplements_failed')
-                            inflight.discard((slot,sig))
-                    async def log_batch(keys):
+                            release_read((slot,sig),context)
+                    async def log_batch(keys,witnesses,*,legacy=False):
                         nonlocal batch_inflight
-                        fetched=False
+                        fetched=False;members=[];member_group=None;cleanup_deadline=None
+                        def owned_deadline():
+                            nonlocal cleanup_deadline
+                            if cleanup_deadline is None:cleanup_deadline=self.shutdown_deadline()
+                            return cleanup_deadline
+                        contexts={key:join.required_log_reads.get(key) for key in keys}
                         try:
+                            if any(value is None for value in witnesses.values()):
+                                raise EvidenceUnavailable('candidate_required_content_missing')
                             for _ in keys:self.observe('log_repair',stage='repair_logical_calls')
                             values=await self.measured_log_batch([sig for _,sig in keys],2)
-                            fetched=True
+                            available=time.time();fetched=True
+                            # Physical fetch admission ends here, not after a
+                            # slow owner's receipt/canonical commit. Key/result
+                            # ownership remains in inflight until every member
+                            # terminates, including accepted cancellation cleanup.
                             # Each response still needs its exact current native
                             # witness and original WS prefix/suffix. Ordered frame
                             # publication remains the existing single commit queue.
-                            for (slot,sig),value in zip(keys,values):await one(slot,sig,value)
+                            if legacy:
+                                for index,(slot,sig) in enumerate(keys):
+                                    member=one(slot,sig,values[index],witnesses[(slot,sig)],available)
+                                    values[index]=None
+                                    await member
+                            else:
+                                members=[asyncio.create_task(one(slot,sig,value,witnesses[(slot,sig)],available))
+                                    for (slot,sig),value in zip(keys,values)]
+                                # Transfer every response to its exact accepted
+                                # member before yielding. This parent must not
+                                # keep completed siblings alive after their read
+                                # contexts permit the next bounded acquisition.
+                                values=None
+                                member_group=asyncio.gather(*members,return_exceptions=True)
+                                try:results=await asyncio.shield(member_group)
+                                except asyncio.CancelledError:
+                                    results=await finish_owned(member_group,owned_deadline())
+                                    for result in results:
+                                        if isinstance(result,BaseException) and not isinstance(result,asyncio.CancelledError):raise result
+                                    raise
+                                for result in results:
+                                    if isinstance(result,BaseException):raise result
                         finally:
+                            # Never cancel a sibling's already accepted result
+                            # because another response failed. Each original
+                            # context must settle or retain its recovery input.
+                            if member_group is not None and not member_group.done():
+                                await finish_owned(member_group,owned_deadline())
                             if not fetched:
                                 for _ in keys:self.observe('log_repair',stage='supplements_failed')
-                            inflight.difference_update(keys);batch_inflight=False
+                            for key,context in contexts.items():release_read(key,context)
+                            if legacy:batch_inflight=False
                     async def block_group(keys,witness,profile):
                         from .solana_candidate_join import authenticated_block_logs
                         try:
@@ -2581,38 +2932,55 @@ class SelectiveSource:
                         while not self.stop.is_set() and not local_stop.is_set():
                             for task in list(pending):
                                 if task.done():task.result();pending.remove(task)
-                            keys=[]
-                            for key in join.missing_log_keys(max(join.pending,default=tip)):
-                                if key in inflight:continue
-                                deferred=key in join.incomplete_logs
-                                if deferred:
-                                    if batch_inflight or join.deferred_log_witness(*key) is None:continue
-                                elif not (has_checkpoint and not fresh_rolling and key[0]<=tip):continue
-                                keys.append(key)
-                                if len(keys)>=max(0,8-len(inflight)):break
-                            if len(inflight)>=8:keys=[]
+                            head=min(join.pending,default=None)
+                            old_head=has_checkpoint and not fresh_rolling and head is not None and head<=tip
+                            if old_head:
+                                # Historical checkpoint recovery retains the
+                                # original oldest-only dense/scalar contract.
+                                keys=[] if batch_inflight else [key for key in
+                                    join.missing_log_keys(head,exclude=inflight,limit=max(0,8-len(inflight)))
+                                    if join.required_log_witness(*key) is not None]
+                            else:
+                                keys=list(join.live_log_repair_keys(inflight))
                             profile=getattr(self.rpc,'block_repair_profile',None)
                             grouped=set()
                             # A truncated packet needs its own exact WS binding;
                             # the existing dense missing-prefix optimization is
                             # unchanged for ordinary old recovery keys.
-                            ordinary=[key for key in keys if key not in join.incomplete_logs]
+                            ordinary=[key for key in keys if key not in join.incomplete_logs
+                                and has_checkpoint and not fresh_rolling and key[0]<=tip]
                             for group,witness in join.block_repair_groups(ordinary,profile,join.clock()):
                                 inflight.update(group);grouped.update(group)
                                 pending.add(asyncio.create_task(block_group(group,witness,profile)))
-                            deferred=[key for key in keys if key in join.incomplete_logs]
-                            if deferred:
-                                inflight.update(deferred);batch_inflight=True
-                                pending.add(asyncio.create_task(log_batch(deferred)))
-                            for key in keys:
-                                if key not in grouped and key not in deferred:
-                                    inflight.add(key);pending.add(asyncio.create_task(one(*key)))
+                            fields=[key for key in keys if key not in grouped]
+                            if fields:
+                                # No await separates selection and ownership.
+                                # WS can settle a field before the task starts;
+                                # this accepted context retains its exact proof
+                                # through that race and bounded recent eviction.
+                                witnesses={}
+                                for key in fields:
+                                    witnesses[key]=join.begin_required_log_read(*key);owned_reads.add(key)
+                                inflight.update(fields)
+                                legacy=all(has_checkpoint and not fresh_rolling and key[0]<=tip for key in fields)
+                                if legacy:batch_inflight=True
+                                pending.add(asyncio.create_task(log_batch(fields,witnesses,legacy=legacy)))
                             await asyncio.sleep(.01)
+                    except BaseException as error:
+                        fail_session(error);raise
                     finally:
                         # An accepted HTTP result may complete the final native
                         # join. Let its original deadline finish before closing
                         # the commit queue; do not discard it on filter rebuild.
-                        results=await asyncio.gather(*pending,return_exceptions=True)
+                        try:
+                            cleanup=asyncio.gather(*pending,return_exceptions=True)
+                            results=await finish_owned(cleanup,self.shutdown_deadline())
+                        finally:
+                            # A task cancelled before its first instruction
+                            # cannot run its own finally block.
+                            for key in owned_reads:join.end_required_log_read(*key)
+                            owned_reads.clear()
+                        if first_failure:raise first_failure[0]
                         for result in results:
                             if isinstance(result,BaseException):raise result
                 tasks.append(asyncio.create_task(repair_logs()))

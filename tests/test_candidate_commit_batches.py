@@ -785,6 +785,176 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.h.db.in_transaction)
 
 
+    async def test_deferred_fanout_preserves_exact_outbox_full_ack_and_restart(self):
+        from meme_machine.solana_derived_fanout import prepare,apply
+        from meme_machine.solana_history_delivery import capture_context,capture,deliver,acknowledge
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        other,h=state_at(Path(self.tmp.name)/'inline-fanout.sqlite')
+        self.addCleanup(other.writer.close)
+        frames=[frame(slot) for slot in range(100,104)]
+        self.h.lifecycle.delivery_separated=True;h.lifecycle.delivery_separated=True
+        commit_candidate_batch(other,frames,self.addresses,'fanout-session',publish=False)
+        commit_candidate_batch(self.state,frames,self.addresses,'fanout-session',publish=False,defer_fanout=True)
+        expected=self.snapshot(h);actual=self.snapshot(self.h)
+        self.assertTrue(expected['candidate_history_outbox'])
+        reserved=[row for row in actual['candidate_history_outbox'] if row[0].startswith('fanout:')]
+        self.assertTrue(reserved)
+        # Real creation adoption emits its original scout metadata before the
+        # canonical fanout boundary. Preserve it rather than demanding zero.
+        self.assertEqual([row for row in actual['candidate_history_outbox'] if not row[0].startswith('fanout:')],
+            [row for row in expected['candidate_history_outbox'] if row[3]!='canonical'])
+        self.assertEqual(len(reserved),sum(row[3]=='canonical' for row in expected['candidate_history_outbox']))
+        self.assertEqual({k:v for k,v in actual.items() if k!='candidate_history_outbox'},
+            {k:v for k,v in expected.items() if k!='candidate_history_outbox'})
+        pending=self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall()
+        self.assertTrue(pending)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        # Restart after the canonical FULL commit, before any derived output.
+        # Neither replay of the same input nor restart may invent an ACK.
+        path=self.state.writer.path;self.state.writer.close();self.state,self.h=state_at(path)
+        self.addCleanup(self.state.writer.close);self.h.lifecycle.delivery_separated=True
+        self.assertEqual(self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall(),pending)
+        commit_candidate_batch(self.state,frames,self.addresses,'fanout-session',publish=False,defer_fanout=True)
+        self.assertEqual(self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall(),pending)
+        context=capture_context(self.h.lifecycle)
+        while (product:=prepare(context.canonical_path,context.endpoint_identity,context.source_identity)) is not None:
+            self.assertTrue(apply(self.h.lifecycle,product))
+        self.assertEqual(self.snapshot(self.h),expected)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],0)
+        # Exercise the same separated consumer FULL and fresh canonical ACK on
+        # both paths. Compare decoded authenticated economics, not DB paths.
+        observations=[]
+        for history in (h,self.h):
+            life=history.lifecycle;snapshot=capture(life)
+            self.assertTrue(snapshot['rows']);result=deliver(snapshot)
+            self.assertEqual(history.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],len(snapshot['rows']))
+            self.assertTrue(acknowledge(life,snapshot,result))
+            self.assertEqual(history.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],0)
+            with closing(CandidateHistory(life.path,clock=lambda:NOW)) as shared:
+                keys=shared.db.execute('SELECT DISTINCT lane,candidate FROM canonical_event_refs ORDER BY lane,candidate').fetchall()
+                observations.append([(key,list(shared.events(*key))) for key in keys])
+        self.assertTrue(observations[0]);self.assertEqual(*observations)
+        self.assertEqual(self.snapshot(self.h),self.snapshot(h))
+
+    async def test_deferred_intake_releases_eight_frame_reservation_before_slow_preparation(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from meme_machine.solana_derived_fanout import prepare
+        from meme_machine.solana_history_delivery import capture_context
+        from meme_machine.solana_history_notifications import install as notifications
+        source=SelectiveSource(SimpleNamespace(credential='offline',identity='a'*64),None)
+        source.stop=asyncio.Event();source.batched=True;source.history_separated=True
+        source.delivery_capture_context=capture_context(self.h.lifecycle)
+        self.h.lifecycle.delivery_separated=True
+        async def work(fn,priority,**options):return fn(self.state)
+        work.candidate_delivery_fanout=True;source.work=work
+        notifications(self.h,asyncio.get_running_loop(),source.history_changed)
+        entered=threading.Event();release=threading.Event();pool=ThreadPoolExecutor(max_workers=1)
+        source.preparation_executor=pool
+        def slow(*args):
+            product=prepare(*args)
+            if product is not None:
+                entered.set()
+                if not release.wait(3):raise AssertionError('offline-fanout-test-release-missing')
+            return product
+        queue=CandidateCommitQueue();done=asyncio.Event();done.set()
+        for slot in range(100,108):await queue.put(frame(slot))
+        consumer=None
+        try:
+            with patch('meme_machine.solana_derived_fanout.prepare',side_effect=slow):
+                consumer=source.fanout_task=asyncio.create_task(source.derived_fanout())
+                await asyncio.wait_for(source.candidate_commits(queue,self.addresses,'slow-fanout',producer_done=done),2)
+                self.assertTrue(await asyncio.to_thread(entered.wait,2))
+                self.assertEqual((queue.count,queue.bytes),(0,0))
+                self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM canonical_evidence').fetchone()[0],0)
+                self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],0)
+                self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='canonical' AND id NOT GLOB 'fanout:*'").fetchone()[0],0)
+                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+                # New native frame admission and an unrelated owner transaction
+                # can progress while derived CPU preparation holds no owner or
+                # canonical read transaction. This is not claimed as throughput.
+                for slot in range(108,116):await asyncio.wait_for(queue.put(frame(slot)),1)
+                self.assertEqual(queue.count,CANDIDATE_COMMIT_BATCH)
+                with self.state.writer.transaction():
+                    self.h.db.execute("INSERT INTO service_health VALUES('fanout-owner-progress','1')")
+                self.assertEqual(self.h.db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0],0)
+                release.set();source.fanout_done.set();source.fanout_wakeup.notify()
+                await asyncio.wait_for(consumer,2)
+        finally:
+            release.set();source.fanout_done.set();source.fanout_wakeup.notify()
+            if consumer is not None and not consumer.done():consumer.cancel()
+            if consumer is not None:await asyncio.gather(consumer,return_exceptions=True)
+            pool.shutdown(wait=True)
+
+    async def test_deferred_fanout_keeps_original_per_candidate_dispatch_order(self):
+        from meme_machine.solana_derived_fanout import prepare,apply
+        from meme_machine.solana_history_delivery import capture_context,capture
+        other,h=state_at(Path(self.tmp.name)/'inline-dispatch.sqlite')
+        self.addCleanup(other.writer.close)
+        for state,history,deferred in ((other,h,False),(self.state,self.h,True)):
+            history.lifecycle.delivery_separated=True
+            commit_candidate_batch(state,[frame(100)],self.addresses,'dispatch-session',publish=False,defer_fanout=deferred)
+            mint=history.db.execute("SELECT json_extract(body,'$.payload.event.mint') FROM canonical_evidence WHERE kind='event' LIMIT 1").fetchone()[0]
+            # These are scheduling messages through the actual original emit
+            # interface, not fabricated economic inputs or qualification proof.
+            history.lifecycle.emit('pump',mint,'scout',dict(fields=dict(test='same-recipient')))
+            history.lifecycle.emit('pump','unrelated-recipient','scout',dict(fields=dict(test='independent')))
+        held=capture(self.h.lifecycle)
+        self.assertEqual([(row[2],row[3]) for row in held['rows']],[('unrelated-recipient','scout')])
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        context=capture_context(self.h.lifecycle)
+        while (product:=prepare(context.canonical_path,context.endpoint_identity,context.source_identity)) is not None:
+            self.assertTrue(apply(self.h.lifecycle,product))
+        self.assertEqual(self.snapshot(self.h),self.snapshot(h))
+        self.assertEqual(capture(self.h.lifecycle)['rows'],capture(h.lifecycle)['rows'])
+
+    async def test_deferred_capacity_rolls_back_whole_frame_batch_without_false_gap(self):
+        from meme_machine.solana_derived_fanout import FanoutBackpressure
+        other,h=state_at(Path(self.tmp.name)/'fanout-capacity-reference.sqlite')
+        self.addCleanup(other.writer.close)
+        commit_candidate_batch(other,[frame(100)],self.addresses,'bounded-fanout',publish=False)
+        expected=h.db.execute('SELECT COUNT(*) FROM canonical_evidence').fetchone()[0]
+        self.assertGreater(expected,0)
+        before=self.snapshot(self.h)
+        with patch('meme_machine.solana_derived_fanout.MAX_RECORDS',expected):
+            with self.assertRaises(FanoutBackpressure):
+                commit_candidate_batch(self.state,[frame(100),frame(101)],self.addresses,'bounded-fanout',publish=False,defer_fanout=True)
+        self.assertEqual(self.snapshot(self.h),before)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM canonical_evidence').fetchone()[0],0)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],0)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_gaps').fetchone()[0],0)
+        self.assertFalse(self.h.db.in_transaction)
+        commit_candidate_batch(self.state,[frame(100)],self.addresses,'bounded-fanout',publish=False,defer_fanout=True)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],expected)
+
+    async def test_deferred_preparation_rejects_fresh_binding_change_without_losing_intent(self):
+        from meme_machine.solana_derived_fanout import prepare,apply
+        from meme_machine.solana_history_delivery import capture_context
+        from meme_machine.solana_selective_history import economic_records
+        rows=economic_records('pump',PROGRAMS['pump'],copy.deepcopy(FIXTURE['pump'][0]),
+            endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_stream')
+        mint=next(row.payload['event']['mint'] for row in rows if row.kind=='event')
+        other,h=state_at(Path(self.tmp.name)/'inline-binding-fanout.sqlite')
+        self.addCleanup(other.writer.close)
+        h.bind('pump','retained-alias',market_address=mint)
+        commit_candidate_batch(other,[frame(100)],self.addresses,'binding-fanout',publish=False)
+        self.h.bind('pump','retained-alias',market_address=mint)
+        commit_candidate_batch(self.state,[frame(100)],self.addresses,'binding-fanout',publish=False,defer_fanout=True)
+        before=self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall()
+        context=capture_context(self.h.lifecycle)
+        product=prepare(context.canonical_path,context.endpoint_identity,context.source_identity)
+        self.assertIsNotNone(product)
+        with self.state.writer.transaction():
+            self.h.db.execute("UPDATE evidence_bindings SET market_address='changed' WHERE family='pump' AND address='retained-alias'")
+        self.assertFalse(apply(self.h.lifecycle,product))
+        self.assertEqual(self.h.db.execute('SELECT * FROM candidate_derived_fanout ORDER BY rowid').fetchall(),before)
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='canonical' AND id NOT GLOB 'fanout:*'").fetchone()[0],0)
+        with self.state.writer.transaction():
+            self.h.db.execute("UPDATE evidence_bindings SET market_address=? WHERE family='pump' AND address='retained-alias'",(mint,))
+        self.assertTrue(apply(self.h.lifecycle,product))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],0)
+        self.assertEqual(self.snapshot(self.h),self.snapshot(h))
+
+
 if __name__=='__main__':unittest.main()
 
 

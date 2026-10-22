@@ -96,6 +96,8 @@ class ScopedRetirement:
 
     def pinned(self,family,address,lo,hi,shared):
         scope=self.history.scope_for(family,address);base=FAMILIES[family]
+        from .solana_derived_fanout import pending
+        if pending(self.lifecycle,scope,hi):return 'pending_consumer'
         binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
         market=address if binding is None else binding[0]
         aliases=[a for a, in self.db.execute('SELECT address FROM evidence_bindings WHERE coverage_scope=?',(scope,))]+[market,address]
@@ -232,6 +234,12 @@ class ScopedRetirement:
                     if canonical_row is None or not canonical_row[2]:continue
                     scope,slot=canonical_row[:2]
                     if scope not in enabled_scopes:continue
+                    from .solana_derived_fanout import record_pending
+                    if record_pending(self.db,identity):
+                        pinned[identity]=stored_bytes
+                        if oldest is None or slot<oldest['slot']:
+                            oldest=dict(scope=scope,slot=slot,reason='pending_consumer')
+                        continue
                     owners=self.shared_owners(scope,identity)
                     if not owners:continue # never guess an unbound consumer released evidence
                     reason='shared_binding_bound' if len(owners)>64 else None
@@ -318,6 +326,8 @@ class ScopedRetirement:
                     if oldest is None or rows[0][2]<oldest['slot']:oldest=dict(scope=coverage_scope(family,address),slot=rows[0][2],reason=reason)
                     continue
                 for row in rows:
+                    from .solana_derived_fanout import record_pending
+                    if record_pending(self.db,row[0]):continue
                     receipt=self.db.execute('''SELECT 1 FROM candidate_history_outbox WHERE kind='canonical' AND consumed IS NOT NULL
                         AND json_extract(body,'$.record.identity')=? LIMIT 1''',(row[0],)).fetchone()
                     # Legacy evidence lacking a durable consumer receipt cannot

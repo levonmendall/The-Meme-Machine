@@ -5,6 +5,8 @@ uses a dedicated consumer thread, independently of the optional historian.
 No new database, provider acquisition or evidence authority.
 """
 from contextlib import closing
+from dataclasses import dataclass
+from functools import wraps
 from .runtime.operation_costs import measured
 import hashlib
 import json
@@ -22,10 +24,130 @@ from .solana_rolling_history import program_scope
 MAX_BYTES=16*1024*1024
 
 
+@dataclass(frozen=True)
+class CaptureContext:
+    canonical_path:str
+    candidate_path:str
+    endpoint_identity:str
+    clock:object
+    source_identity:tuple|None=None
+
+
+@dataclass(frozen=True)
+class ActorAck:
+    accepted:bool
+    hint:object
+    refresh_cleared:bool=False
+
+
+def capture_context(life):
+    """Initial owner bootstrap only; never transfer its connection or methods."""
+    stat=life.writer.path.stat()
+    return CaptureContext(str(life.writer.path.resolve()),str(life.path.resolve()),
+        life.history.endpoint_identity,life.clock,(stat.st_dev,stat.st_ino))
+
+
+class _CaptureRolling:
+    def __init__(self,db):self.db=db
+    def scopes(self,*args,**kwargs):
+        from .solana_rolling_history import RollingHistory
+        return RollingHistory.scopes(self,*args,**kwargs)
+    def pending_slice(self,*args,**kwargs):
+        from .solana_rolling_history import RollingHistory
+        return RollingHistory.pending_slice(self,*args,**kwargs)
+
+
+class _CaptureHistory:
+    def __init__(self,db,context):
+        self.db=db;self.endpoint_identity=context.endpoint_identity
+        self.rolling=_CaptureRolling(db)
+    def scope_for(self,*args,**kwargs):
+        from .solana_selective_history import SelectiveHistory
+        return SelectiveHistory.scope_for(self,*args,**kwargs)
+
+
+class _CaptureReader:
+    """The shared selectors receive read helpers, never an owner connection."""
+    def __init__(self,db,context,actor,hint):
+        self.db=db;self.path=Path(context.candidate_path);self.clock=context.clock
+        self.writer=SimpleNamespace(path=Path(context.canonical_path))
+        self.history=_CaptureHistory(db,context);self.hint=hint;self._generation=None
+        self._proof_delivery_generation=actor.proof_generation
+        self._proof_delivery_progress=dict(actor.proof_progress)
+        self._consumer_refresh_requested=hint.refresh_requested
+        self._consumer_refresh_cursor=actor.refresh_cursor
+        self._consumer_refresh_horizon=actor.refresh_horizon
+        self._consumer_refresh_revision=actor.refresh_revision
+    def unconsumed(self,*args,**kwargs):
+        from .solana_candidate_lifecycle import CandidateLifecycle
+        return CandidateLifecycle.unconsumed(self,*args,**kwargs)
+
+
+class CaptureActor:
+    """One consumer-thread actor; durable queues remain the restart authority.
+
+    Connections belong to one bounded capture, so cancellation cannot leave a
+    canonical WAL reader pinned while the consumer FULL-commits or shuts down.
+    Only an accepted owner ACK advances the private scheduling cursors.
+    """
+    def __init__(self,context):
+        self.context=context;self.proof_generation=None;self.proof_progress={}
+        self.refresh_token=None;self.refresh_cursor=0;self.refresh_horizon=None;self.refresh_revision=None
+        stat=None if context.source_identity is not None else Path(context.canonical_path).stat()
+        self.source_identity=context.source_identity if stat is None else (stat.st_dev,stat.st_ino)
+
+    def capture(self,hint,previous=None):
+        if previous is not None:
+            snapshot,feedback=previous
+            if feedback.accepted:
+                scan=snapshot.get('proof_scan')
+                if (scan and self.proof_generation==scan['generation']
+                        and self.proof_progress==scan['base']):
+                    self.proof_progress=dict(scan['next'])
+                refresh=snapshot.get('refresh_scan')
+                if refresh and self.refresh_token==refresh['token']:
+                    if refresh['finished']:
+                        # A newer commit can add work behind this cursor. Finish
+                        # the bounded sweep first, then revisit after cadence.
+                        self.refresh_cursor=0;self.refresh_horizon=None;self.refresh_revision=None
+                    elif snapshot['refresh']:
+                        self.refresh_cursor=snapshot['refresh'][-1][0]
+        if hint.refresh_token!=self.refresh_token or not hint.refresh_requested:
+            self.refresh_token=hint.refresh_token
+            self.refresh_cursor=0;self.refresh_horizon=None;self.refresh_revision=None
+        path=Path(self.context.canonical_path);before=path.stat()
+        if (before.st_dev,before.st_ino)!=self.source_identity:
+            raise EvidenceUnavailable('candidate_delivery_source_replaced')
+        with closing(diagnostic_connect(path.as_uri()+'?mode=ro',
+                diagnostic_role='candidate_delivery.capture_read',uri=True,timeout=0)) as db:
+            db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
+            try:
+                reader=_CaptureReader(db,self.context,self,hint)
+                snapshot=capture(reader,revision=hint.revision,schedule=True)
+                after=path.stat()
+                if ((before.st_dev,before.st_ino)!=(after.st_dev,after.st_ino)
+                        or reader._generation is not None and reader._generation[2:]!=(before.st_dev,before.st_ino)):
+                    raise EvidenceUnavailable('candidate_delivery_source_replaced')
+                self.proof_generation=reader._proof_delivery_generation
+                self.proof_progress=dict(reader._proof_delivery_progress)
+                self.refresh_cursor=reader._consumer_refresh_cursor
+                self.refresh_horizon=reader._consumer_refresh_horizon
+                self.refresh_revision=reader._consumer_refresh_revision
+            except BaseException:
+                try:db.rollback()
+                except sqlite3.Error:pass
+                raise
+            else:db.rollback()
+        return snapshot
+
+
 def generation(life):
+    if isinstance(life,_CaptureReader) and life._generation is not None:return life._generation
     db=life.db;stat=life.writer.path.stat()
     session=db.execute('SELECT session FROM prewarm_startup WHERE id=1').fetchone()
-    return (session,life.history.endpoint_identity,stat.st_dev,stat.st_ino)
+    result=(session,life.history.endpoint_identity,stat.st_dev,stat.st_ino)
+    if isinstance(life,_CaptureReader):life._generation=result
+    return result
 
 
 def proof_receipt(life,row):
@@ -137,8 +259,16 @@ def _proof_selection(life,current_generation,revision):
     return list(selected.values()),dict(generation=stamp,revision=revision,base=base,next=progress,more=more),deadline
 
 
+def _capture_cost(function):
+    owner=measured('owner.delivery_capture')(function)
+    @wraps(function)
+    def call(life,*args,**kwargs):
+        return (function if isinstance(life,_CaptureReader) else owner)(life,*args,**kwargs)
+    return call
+
+
 @boundary('candidate_delivery.capture',lambda life:life.writer.path)
-@measured('owner.delivery_capture')
+@_capture_cost
 def capture(life,*,revision=None,schedule=False):
     """Capture consumer work; the runtime also requests ACKed scheduling turns.
 
@@ -146,11 +276,15 @@ def capture(life,*,revision=None,schedule=False):
     contract. The one independent runtime consumer explicitly requests
     publication-only and blocked-page progress, without opening a writer.
     """
-    if life.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
+    actor=isinstance(life,_CaptureReader)
+    if life.db.in_transaction and not actor:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
+    if actor and not life.db.in_transaction:raise EvidenceUnavailable('candidate_delivery_capture_transaction_required')
     rows=[];size=0;references={}
+    from .solana_derived_fanout import DISPATCH_GUARD
     for full in life.db.execute('''SELECT id,family,address,kind,body,hash,created,
-        body -> '$.record.identity',body -> '$.record.slot',body -> '$.available' FROM candidate_history_outbox
-        WHERE '''+active_sql('family',solana=True)+''' AND consumed IS NULL ORDER BY priority,created,rowid LIMIT 64'''):
+        body -> '$.record.identity',body -> '$.record.slot',body -> '$.available' FROM candidate_history_outbox o
+        WHERE '''+active_sql('o.family',solana=True)+''' AND consumed IS NULL AND id NOT GLOB 'fanout:*' AND '''+
+        DISPATCH_GUARD+''' ORDER BY priority,created,rowid LIMIT 64'''):
         row=full[:7]
         row_bytes=len(row[4].encode())
         if size+row_bytes>MAX_BYTES:
@@ -162,9 +296,9 @@ def capture(life,*,revision=None,schedule=False):
         # integer; either changes the exact consumer acknowledgement bytes.
         # Decode only these bounded scalars, never the full economic payload.
         references[row[0]]=tuple(None if value is None else json.loads(value) for value in full[7:])
-    # This synchronous owner turn cannot interleave a binding mutation. Reuse
-    # only its first lookup for each key, including a missing binding. ACK
-    # independently rereads the current binding after the consumer commits.
+    # The owner turn or explicit read transaction keeps these binding reads
+    # coherent. Reuse the first lookup for each key, including a missing one.
+    # ACK independently rereads the current binding after the consumer commits.
     bindings={}
     for _,family,address,*_ in rows:
         key=(family,address)
@@ -173,6 +307,8 @@ def capture(life,*,revision=None,schedule=False):
                 key).fetchone()
     current_generation=generation(life)
     if revision is None:revision=getattr(life.history,'_history_delivery_revision',0)
+    if actor and life._proof_delivery_generation!=digest(current_generation):
+        life._consumer_refresh_cursor=0;life._consumer_refresh_horizon=None;life._consumer_refresh_revision=None
     raw_proofs,scan,proof_deadline=_proof_selection(life,current_generation,revision)
     proofs=[];publication_ids=[];overflow=False
     consumer=None
@@ -197,20 +333,36 @@ def capture(life,*,revision=None,schedule=False):
             # another consumer fsync or waiting for its unrelated fair cursor.
             publication_ids.append(row[1])
     if overflow:scan['next']=scan['base'];scan['more']=True
-    refresh=[]
+    refresh=[];refresh_scan=None
     if getattr(life,'_consumer_refresh_requested',False):
         cursor=getattr(life,'_consumer_refresh_cursor',0)
+        active=active_sql('family',solana=True)+" AND state IN ('queued','warming','active')"
+        horizon=getattr(life,'_consumer_refresh_horizon',None) if actor else None
+        if actor and horizon is None:
+            # The table's rowid head bounds arrivals without sorting/scanning
+            # the lifecycle population to find a separate active maximum.
+            horizon=life.db.execute('SELECT MAX(rowid) FROM candidate_lifecycle').fetchone()[0] or 0
+            life._consumer_refresh_horizon=horizon
+            # EOF authenticates this entire fixed sweep. A newer page hint
+            # cannot erase a change behind an already ACKed rowid cursor.
+            life._consumer_refresh_revision=revision
+        bound='' if horizon is None else ' AND rowid<=?'
         for rowid,family,address,state,deadline in life.db.execute('SELECT rowid,family,address,state,deadline FROM candidate_lifecycle WHERE '+
-                active_sql('family',solana=True)+" AND state IN ('queued','warming','active') AND rowid>? ORDER BY rowid LIMIT 64",(cursor,)):
+                active+' AND rowid>?'+bound+' ORDER BY rowid LIMIT 64',(cursor,*(() if horizon is None else (horizon,)))):
             promotion=life.db.execute("SELECT id FROM candidate_history_outbox WHERE family=? AND address=? AND kind='promotion' ORDER BY created DESC,rowid DESC LIMIT 1",(family,address)).fetchone()
             refresh.append((rowid,family,address,state,deadline,promotion))
-        if not refresh:life._consumer_refresh_requested=False;life._consumer_refresh_cursor=0
+        if actor:
+            refresh_scan=dict(token=life.hint.refresh_token,revision=life._consumer_refresh_revision,
+                finished=len(refresh)<64 or bool(refresh and refresh[-1][0]==horizon))
+        elif not refresh:life._consumer_refresh_requested=False;life._consumer_refresh_cursor=0
     if not rows and not proofs and not refresh:
         scan_work=bool(raw_proofs) or scan['more']
-        if not schedule or not publication_ids and not scan_work and proof_deadline is None:return None
-    return dict(rows=rows,bindings=bindings,references=references,proofs=proofs,generation=current_generation,
+        if not schedule or not publication_ids and not scan_work and proof_deadline is None and refresh_scan is None:return None
+    snapshot=dict(rows=rows,bindings=bindings,references=references,proofs=proofs,generation=current_generation,
         refresh=refresh,publication_ids=publication_ids,proof_scan=scan,proof_deadline=proof_deadline,
         at=life.clock(),canonical_path=str(life.writer.path.resolve()),candidate_path=str(life.path.resolve()))
+    if actor:snapshot.update(capture_actor=True,refresh_scan=refresh_scan)
+    return snapshot
 
 
 @boundary('candidate_delivery.deliver',lambda snapshot:snapshot['candidate_path'])
@@ -324,11 +476,24 @@ def acknowledge(life,snapshot,result):
                     life.db.execute("UPDATE candidate_lifecycle SET state='demoted',deadline=NULL WHERE rowid=?",(rowid,))
                     life.emit(family,address,'demoted',dict(reason='observation_work_finished_or_deadline',at=life.clock(),recoverable=True))
                 elif target!=state:life.db.execute('UPDATE candidate_lifecycle SET state=? WHERE rowid=?',(target,rowid))
-    if snapshot['refresh']:life._consumer_refresh_cursor=snapshot['refresh'][-1][0]
+    if snapshot['refresh'] and not snapshot.get('capture_actor'):life._consumer_refresh_cursor=snapshot['refresh'][-1][0]
     scan=snapshot.get('proof_scan')
-    if scan and getattr(life,'_proof_delivery_generation',None)==scan['generation'] and getattr(life,'_proof_delivery_progress',{})==scan['base']:
+    if not snapshot.get('capture_actor') and scan and getattr(life,'_proof_delivery_generation',None)==scan['generation'] and getattr(life,'_proof_delivery_progress',{})==scan['base']:
         life._proof_delivery_progress=dict(scan['next'])
     return True
+
+
+def acknowledge_actor(life,snapshot,result):
+    """Owner ACK plus conservative refresh EOF feedback, no reader authority."""
+    from .solana_history_notifications import delivery_hint
+    if not snapshot.get('capture_actor'):raise EvidenceUnavailable('candidate_delivery_actor_snapshot_required')
+    entered=delivery_hint(life.history);refresh=snapshot.get('refresh_scan')
+    clear=bool(refresh and refresh['finished'] and entered.refresh_requested
+        and entered.refresh_token==refresh['token'] and entered.revision==refresh['revision'])
+    accepted=acknowledge(life,snapshot,result)
+    if accepted and clear:
+        life._consumer_refresh_requested=False;life._consumer_refresh_cursor=0
+    return ActorAck(accepted,delivery_hint(life.history),accepted and clear)
 
 
 def readonly_history(path):
