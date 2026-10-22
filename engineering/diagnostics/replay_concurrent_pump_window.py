@@ -420,6 +420,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
 
 
 def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
+    from meme_machine.runtime.evidence_worker import owner_thread_fairness
     limits(batch, rate, seconds)
     directory = Path(directory).absolute()
     original.need(directory.parent.resolve(strict=True) == directory.parent and not directory.exists(),
@@ -427,7 +428,7 @@ def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
     records, batches, _ = freeze(parcel, batch)
     directory.mkdir(mode=0o700); old_umask = os.umask(0o077)
     try:
-        with original.no_network():
+        with original.no_network(), owner_thread_fairness():
             runs = [asyncio.run(run_arm(parcel, records, batches, directory/name,
                 concurrent=concurrent, rate=rate, seconds=seconds))
                 for name, concurrent in (('serial-control', False), ('concurrent', True))]
@@ -454,6 +455,7 @@ def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
                 concurrent='independent_bounded_arrival_intake_actor_and_qualification_no_per_batch_drain'),
             context_rows_imported_as_state=0, original_inputs_unchanged=True,
             native_acquisition_join_repair_exercised=False, production_admission_and_owner_policy=True,
+            owner_thread_fairness_seconds=.0005,
             publication_thread_handoff_exercised=True, actor_capture_service_cpu_separately_measured=False,
             concurrency_scope='independent_tasks_and_three_physical_threads_with_progress_before_intake_finishes_not_CPU_parallelism',
             classification_differences_are_failures=True, quote_inputs='unavailable_no_synthetic_quotes',

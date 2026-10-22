@@ -1,6 +1,7 @@
 """Disposable public-API tests for the engineering-only logical replay command."""
 from copy import deepcopy
 import asyncio
+import sys
 import threading
 from collections import Counter
 from pathlib import Path
@@ -367,6 +368,7 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
 
     def test_real_owner_actor_and_qualifier_overlap_preserve_all_semantics_and_restart(self):
         parcel = CapturedParcel()
+        switch_interval = sys.getswitchinterval()
         # The public cohort has no oracle/quote/concentration input. No real
         # provider may be constructed to fill that missing evidence.
         with patch('meme_machine.operational.managed_pump_qualification.MarketSnapshotProvider',
@@ -380,6 +382,8 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         self.assertEqual(result['different_stores'], [])
         self.assertTrue(parcel.checked)
         self.assertTrue(result['production_admission_and_owner_policy'])
+        self.assertEqual(result['owner_thread_fairness_seconds'], .0005)
+        self.assertEqual(sys.getswitchinterval(), switch_interval)
         self.assertEqual(result['input_provenance'], 'public_fixture')
         self.assertTrue(result['publication_thread_handoff_exercised'])
         self.assertFalse(result['actor_capture_service_cpu_separately_measured'])
