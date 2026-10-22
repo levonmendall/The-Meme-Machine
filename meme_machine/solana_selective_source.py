@@ -572,6 +572,7 @@ def source_work(work,stop,observe=None):
                 await asyncio.sleep(min(.2,.01*2**min(retries-1,5)))
     resumable.candidate_delivery_continuation=getattr(work,'candidate_delivery_continuation',False) is True
     resumable.candidate_delivery_capture_actor=getattr(work,'candidate_delivery_capture_actor',False) is True
+    resumable.candidate_delivery_publication_handoff=getattr(work,'candidate_delivery_publication_handoff',False) is True
     return resumable
 
 
@@ -595,8 +596,9 @@ class SelectiveSource:
         self.control_committed_market_time=None
         self.acquisition_plan_lock=asyncio.Lock();self.acquisition_idle_until=0
         self.preparation_lock=asyncio.Lock();self.archive_preparation_lock=asyncio.Lock()
-        from .solana_history_notifications import WorkPulse
+        from .solana_history_notifications import WorkPulse,ProofPublicationHandoff
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
+        self.proof_publication_handoff=ProofPublicationHandoff()
         self.archive_preparation_wakeup=WorkPulse()
         self.delivery_urgent=WorkPulse();self.delivery_revision=0
         self.delivery_capture_context=None;self.delivery_owner_hint=None
@@ -905,26 +907,37 @@ class SelectiveSource:
                         else:del self.pending_delivery[key]
 
     async def publish_history(self):
-        seen=-1;retry_at=None
+        seen=-1;retry_at=None;prefer_exact=True
         try:
             while not self.stop.is_set():
+                retries=[at for at in (retry_at,self.proof_publication_handoff.retry_at) if at is not None]
                 seen=await self.history_wakeup.wait(seen,self.stop,
-                    delay=None if retry_at is None else max(0,retry_at-time.monotonic()))
+                    delay=None if not retries else max(0,min(retries)-time.monotonic()))
                 if self.stop.is_set():break
+                # An ACKed batch can proceed to the next consumer capture
+                # independently of publication's next owner admission. Alternate
+                # exact handoffs with the ordinary fixed-horizon scan so neither
+                # new consumer work nor older recovery proofs can starve it.
+                identities=(self.proof_publication_handoff.take() if prefer_exact else None)
+                prefer_exact=identities is None
                 ready=time.monotonic();timing={}
                 def publish(s):
                     timing['owner_claim_monotonic']=time.monotonic()
                     h=install(s);timing['publication_started_monotonic']=time.monotonic()
-                    h.lifecycle.publish()
+                    if identities is None:h.lifecycle.publish()
+                    else:h.lifecycle.publish(proof_ids=identities)
                     timing['publication_finished_monotonic']=time.monotonic()
                     timing['publication_finished_wall']=time.time()
-                    startup=h.startup.advance()
+                    startup=h.startup.advance() if identities is None else None
                     return (bool(getattr(h.lifecycle,'_proof_publication_cursor',None)),startup,
                         getattr(h.lifecycle,'_consumer_retry_at',None),getattr(h.lifecycle,'_published_count',0))
                 more,startup,retry_at,published=await self.flush_delivery(publish)
+                if identities is not None:
+                    if retry_at is None:self.proof_publication_handoff.complete(identities)
+                    else:self.proof_publication_handoff.retry_at=retry_at
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
-                if more:self.history_wakeup.notify() # Drain one fixed durable horizon, then sleep.
+                if identities is not None or more or self.proof_publication_handoff.ready():self.history_wakeup.notify()
                 if published:self.history_changed(publication=False) # Revalidate context changed by actual publication.
         finally:
             await self.flush_delivery()
@@ -1787,7 +1800,7 @@ class SelectiveSource:
                 await asyncio.sleep(.1)
 
     async def _complete_history_delivery(self,snapshot,result,*,continuation=None):
-        """ACK then publish this exact durable proof batch, in separate turns.
+        """ACK then schedule this exact durable proof batch, in separate turns.
 
         The background proof cursor may have passed the batch while its
         independent consumer FULL-committed. Revisit its pending identities,
@@ -1811,6 +1824,16 @@ class SelectiveSource:
                 label='candidate_delivery_ack',**options)
         identities=tuple(snapshot.get('publication_ids',[proof['identity'] for proof in snapshot['proofs']]))
         if accepted and identities:
+            if (snapshot.get('capture_actor') and
+                    getattr(self.work,'candidate_delivery_publication_handoff',False) is True):
+                # These are hints to already-durable pending proofs. The
+                # independently scheduled publisher still authenticates current
+                # binding/gaps/receipts after its own accounting fence. A full
+                # mailbox applies bounded backpressure, never drops evidence.
+                self.history_wakeup.notify()
+                await self.proof_publication_handoff.offer(identities,self.stop)
+                self.history_wakeup.notify()
+                return accepted
             # Retain the same accounting-before-publication fence as the
             # background publisher. ACK alone does not flush native delivery.
             def publish_exact(state):

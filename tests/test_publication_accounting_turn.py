@@ -1113,5 +1113,229 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
         await self.assert_published(snapshot, False)
 
 
+    async def enable_publication_handoff(self):
+        self.work.candidate_delivery_publication_handoff = True
+        await self.enable_capture_actor()
+
+    async def handoff_capture(self):
+        """Actual read actor and physical consumer; no synthesized ACK result."""
+        from meme_machine.solana_history_delivery import CaptureActor, capture_context
+        from meme_machine.solana_history_notifications import delivery_hint
+        context, hint = await self.query(lambda state: (capture_context(self.native['history'].lifecycle),
+            delivery_hint(self.native['history'])))
+        pool = ThreadPoolExecutor(max_workers=1)
+        try:
+            snapshot = await asyncio.wrap_future(pool.submit(CaptureActor(context).capture, hint))
+            self.assertIsNotNone(snapshot)
+            result = await asyncio.wrap_future(pool.submit(deliver, snapshot))
+            return snapshot, result
+        finally:await asyncio.to_thread(pool.shutdown, wait=True)
+
+    async def wait_handoff(self, predicate):
+        async def poll():
+            while not await predicate():
+                await asyncio.sleep(.005)
+        await asyncio.wait_for(poll(), 3)
+
+    async def restart_handoff_owner(self):
+        """Reopen durable private stores with no mailbox or scan hints retained."""
+        self.source.stop.set()
+        await asyncio.to_thread(self.owner.close)
+        def factory():
+            state, history = state_at(self.path)
+            history.lifecycle.delivery_separated = True
+            self.native.update(state=state, history=history)
+            state.close = state.writer.close
+            return state
+        self.owner = PriorityOwner(factory)
+        await asyncio.shield(asyncio.wrap_future(self.owner.ready))
+        self.source = SelectiveSource(SimpleNamespace(credential='offline', identity='a'*64), None)
+        self.source.stop = asyncio.Event(); self.source.batched = True
+        self.work = OwnedWork(self.owner)
+        await self.enable_publication_handoff()
+
+    async def test_publication_handoff_allows_next_physical_full_ack_and_urgent_owner_while_publisher_waits(self):
+        from meme_machine import solana_history_delivery as delivery
+        proof, _ = await self.proof()
+        await self.scouts(128); await self.enable_publication_handoff()
+        self.source.pending_delivery[self.key] = (123, NOW)
+        capture_entered, capture_release = self.held()
+        publication_entered, publication_release = asyncio.Event(), asyncio.Event()
+        self.releases.append(publication_release)
+        original = delivery.CaptureActor.capture; captures = []
+        def observed(actor, *args, **kwargs):
+            if len(captures) == 1:
+                capture_entered.set()
+                if not capture_release.wait(3):raise RuntimeError('handoff_next_capture_release')
+            snapshot = original(actor, *args, **kwargs)
+            captures.append(None if snapshot is None else len(snapshot['rows']))
+            return snapshot
+        async def before(index, label, component):
+            if label == 'source_commit' and component == 'history_publication':
+                publication_entered.set(); await publication_release.wait()
+        self.work.before = before
+        pool = ThreadPoolExecutor(max_workers=1); self.source.delivery_executor = pool
+        try:
+            with patch.object(delivery.CaptureActor, 'capture', observed):
+                consumer = self.start(self.source.candidate_history_delivery())
+                await self.wait_entered(capture_entered)
+                self.assertEqual(self.source.proof_publication_handoff.queue.qsize(), 1)
+                publisher = self.start(self.source.publish_history())
+                await asyncio.wait_for(publication_entered.wait(), 2)
+                self.assertEqual(self.source.proof_publication_handoff.active, tuple(proof['publication_ids']))
+                capture_release.set()
+                async def consumed():return not await self.pending_scouts()
+                await self.wait_handoff(consumed)
+                self.assertEqual(captures[:2], [64, 64])
+                self.assertGreaterEqual(self.work.counts['owner.stage.candidate_delivery_ack.calls'], 2)
+                # Publication is still outside owner admission. The next real
+                # FULL delivery and fresh ACK have completed, and protection
+                # can use the original reserved priority without waiting.
+                self.assertEqual(await self.source.work(lambda state: 'urgent_progress', 0), 'urgent_progress')
+                self.assertFalse(publication_release.is_set())
+                await self.assert_published(proof, False)
+                publication_release.set()
+                async def published():
+                    return await self.query(lambda state: state.writer.db.execute(
+                        'SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0] == 0)
+                await self.wait_handoff(published)
+                self.assertEqual(await self.accounting(), [('pump', 'yellowstone', 123)])
+                self.assertEqual(self.source.pending_delivery, {})
+                await self.assert_published(proof)
+                self.source.stop.set()
+                await asyncio.wait_for(asyncio.gather(consumer, publisher), 3)
+        finally:
+            capture_release.set(); publication_release.set(); self.source.stop.set()
+            for task in self.tasks:
+                if not task.done():task.cancel()
+            await asyncio.gather(*self.tasks, return_exceptions=True)
+            await asyncio.to_thread(pool.shutdown, wait=True)
+
+    async def test_publication_handoff_bounds_deduplicates_and_stop_or_cancel_releases_full_mailbox_waiter(self):
+        from meme_machine.solana_history_notifications import ProofPublicationHandoff
+        handoff = ProofPublicationHandoff(); stop = asyncio.Event()
+        first = tuple(digest(['first', n]) for n in range(64))
+        second = tuple(digest(['second', n]) for n in range(64))
+        third = tuple(digest(['third', n]) for n in range(64))
+        await handoff.offer(first, stop)
+        self.assertEqual(handoff.take(), first)
+        await handoff.offer(second, stop)
+        self.assertEqual(len(handoff.outstanding), 128)
+        await handoff.offer(first, stop); await handoff.offer(second, stop)
+        self.assertEqual(handoff.queue.qsize(), 1)
+        waiting = self.start(handoff.offer(third, stop))
+        await asyncio.sleep(0); self.assertFalse(waiting.done())
+        waiting.cancel()
+        with self.assertRaises(asyncio.CancelledError):await waiting
+        self.assertEqual(handoff.outstanding, set(first+second))
+        waiting = self.start(handoff.offer(third, stop))
+        await asyncio.sleep(0); stop.set(); await asyncio.wait_for(waiting, 1)
+        self.assertEqual(handoff.queue.qsize(), 1)
+        self.assertEqual(handoff.outstanding, set(first+second))
+        handoff.complete(first)
+        self.assertEqual(handoff.take(), second)
+        handoff.complete(second)
+        self.assertFalse(handoff.ready()); self.assertEqual(handoff.outstanding, set())
+        stop.clear()
+        with self.assertRaisesRegex(ValueError, 'candidate_publication_handoff_bound'):
+            await handoff.offer(tuple(digest(['overflow', n]) for n in range(65)), stop)
+
+    async def test_publication_handoff_busy_exact_keeps_hint_and_runs_fair_scan_before_target_retry(self):
+        from meme_machine import solana_history_delivery as delivery
+        proof, _ = await self.proof(ack=True); await self.enable_publication_handoff()
+        identities = tuple(proof['publication_ids'])
+        await self.source.proof_publication_handoff.offer(identities, self.source.stop)
+        original_open = delivery.readonly_history
+        life = self.native['history'].lifecycle; original_publish = life.publish
+        calls = []; busy = []; fair_after_retry = asyncio.Event()
+        def publication(*args, **kwargs):
+            targeted = kwargs.get('proof_ids')
+            calls.append(targeted)
+            if len(calls) == 2:self.assertEqual(self.source.proof_publication_handoff.active, identities)
+            result = original_publish(*args, **kwargs)
+            if targeted is not None and len(calls) == 1:
+                self.assertIsNotNone(life._consumer_retry_at)
+                busy.append(life._consumer_retry_at)
+            if len(calls) >= 4 and targeted is None:
+                loop.call_soon_threadsafe(fair_after_retry.set)
+            return result
+        def opened(path):
+            if not calls or len(calls) != 1:return original_open(path)
+            error = sqlite3.OperationalError('offline_busy_receipt_read')
+            error.sqlite_errorcode = sqlite3.SQLITE_BUSY
+            raise error
+        loop = asyncio.get_running_loop()
+        with patch.object(delivery, 'readonly_history', opened), patch.object(life, 'publish', publication):
+            publisher = self.start(self.source.publish_history())
+            await asyncio.wait_for(fair_after_retry.wait(), 3)
+            self.source.stop.set(); await asyncio.wait_for(publisher, 3)
+        self.assertEqual(calls[:4], [identities, None, identities, None])
+        self.assertEqual(len(busy), 1)
+        self.assertIsNone(self.source.proof_publication_handoff.active)
+        self.assertEqual(self.source.proof_publication_handoff.outstanding, set())
+        await self.assert_published(proof)
+
+    async def test_publication_handoff_corrupt_receipt_fails_at_fresh_verification_then_durable_restart_replays(self):
+        proof, _ = await self.proof(ack=True); await self.enable_publication_handoff()
+        identities = tuple(proof['publication_ids']); life = self.native['history'].lifecycle
+        with closing(sqlite3.connect(life.path)) as db:
+            original = db.execute('SELECT body,hash FROM source_receipts WHERE id=?', ('coverage:'+identities[0],)).fetchone()
+            db.execute('UPDATE source_receipts SET hash=? WHERE id=?', ('0'*64, 'coverage:'+identities[0]))
+        await self.source.proof_publication_handoff.offer(identities, self.source.stop)
+        publisher = self.start(self.source.publish_history())
+        with self.assertRaisesRegex(EvidenceUnavailable, 'candidate_delivery_receipt_corrupt'):await publisher
+        self.assertEqual(self.source.proof_publication_handoff.active, identities)
+        await self.assert_published(proof, False)
+        with closing(sqlite3.connect(life.path)) as db:
+            db.execute('UPDATE source_receipts SET body=?,hash=? WHERE id=?', (*original, 'coverage:'+identities[0]))
+        await self.restart_handoff_owner()
+        self.assertFalse(self.source.proof_publication_handoff.ready())
+        publisher = self.start(self.source.publish_history())
+        async def published():
+            return await self.query(lambda state: state.writer.db.execute(
+                'SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0] == 0)
+        await self.wait_handoff(published)
+        self.source.stop.set(); await asyncio.wait_for(publisher, 3)
+        await self.assert_published(proof)
+
+    async def test_publication_handoff_canceled_after_fresh_ack_keeps_full_receipt_and_pending_proof_for_restart(self):
+        proof, _ = await self.proof(); await self.scouts(1); await self.enable_publication_handoff()
+        snapshot, result = await self.handoff_capture()
+        handoff = self.source.proof_publication_handoff
+        # Fill both hint slots with unrelated scheduling-only hashes. No
+        # receipt/coverage authority is attached to either mailbox entry.
+        await handoff.offer((digest('active_hint'),), self.source.stop); handoff.take()
+        await handoff.offer((digest('queued_hint'),), self.source.stop)
+        completion = self.start(self.source._complete_history_delivery(snapshot, result))
+        async def acked():return not await self.pending_scouts()
+        await self.wait_handoff(acked)
+        self.assertFalse(completion.done())
+        completion.cancel()
+        with self.assertRaises(asyncio.CancelledError):await completion
+        self.assertEqual(handoff.outstanding, {digest('active_hint'), digest('queued_hint')})
+        await self.assert_published(proof, False)
+        with closing(sqlite3.connect(self.native['history'].lifecycle.path)) as db:
+            self.assertIsNotNone(db.execute('SELECT hash FROM source_receipts WHERE id=?',
+                ('coverage:'+proof['publication_ids'][0],)).fetchone())
+        await self.restart_handoff_owner()
+        publisher = self.start(self.source.publish_history())
+        async def published():
+            return await self.query(lambda state: state.writer.db.execute(
+                'SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0] == 0)
+        await self.wait_handoff(published)
+        self.source.stop.set(); await asyncio.wait_for(publisher, 3)
+        await self.assert_published(proof)
+
+    async def test_publication_handoff_rejected_fresh_generation_ack_never_offers_proof_hint(self):
+        proof, _ = await self.proof(); await self.enable_publication_handoff()
+        snapshot, result = await self.handoff_capture()
+        await self.query(lambda state: self.native['history'].startup.begin())
+        self.assertFalse(await self.source._complete_history_delivery(snapshot, result))
+        self.assertFalse(self.source.proof_publication_handoff.ready())
+        self.assertEqual(self.source.proof_publication_handoff.outstanding, set())
+        self.assertEqual([label for _, label, _ in self.work.calls], ['candidate_delivery_ack'])
+        await self.assert_published(proof, False)
+
+
 if __name__ == '__main__':
     unittest.main()
