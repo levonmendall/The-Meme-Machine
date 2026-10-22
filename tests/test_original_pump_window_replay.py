@@ -432,7 +432,7 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         native_delivery, native_step = SelectiveSource.candidate_history_delivery, QualificationReader.step
         native_work = OwnedWork.__call__
         seeded = set(); outbox_counts = {}; captured_ids = set(); held = threading.Event()
-        release = threading.Event(); sources = []; probes = []; turns = [0]; signals = {}
+        release = threading.Event(); sources = []; probes = []; turns = [0]; delivery_pulses = [0]; signals = {}
 
         def ingest(history, rows, *args, **kwargs):
             path = str(history.writer.path)
@@ -465,7 +465,13 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
             return snapshot
 
         async def delivery(source):
-            if Path(source.canonical_path).parent.name == 'concurrent':sources.append(source)
+            if Path(source.canonical_path).parent.name == 'concurrent':
+                sources.append(source)
+                native_observer = source.observer
+                def observe(kind, values):
+                    native_observer(kind, values)
+                    if kind == 'history_delivery_timing':delivery_pulses[0] += 1
+                source.observer = observe
             return await native_delivery(source)
 
         def step(reader):
@@ -477,9 +483,10 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
             return answer
 
         async def work(value, function, *args, **kwargs):
+            before = delivery_pulses[0]
             answer = await native_work(value, function, *args, **kwargs)
             if getattr(function, '__name__', None) == 'pending_outbox' and sources:
-                probes.append(answer)
+                probes.append((answer, before))
                 if answer:signals['pending'].set()
             return answer
 
@@ -501,12 +508,19 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
                 if task.done():task.result()
                 self.assertTrue(signals['pending'].is_set())
                 self.assertFalse(sources[-1].stop.is_set())
-                self.assertEqual(probes, [True])
+                # An ACK racing the initial owner read legitimately schedules
+                # one more read. While capture is held, the last delivery pulse
+                # is fixed. Wait for a probe entered after that pulse was already
+                # observed and cleared, rather than assuming the first one was.
+                await asyncio.wait_for(until(lambda: probes and probes[-1][1] == delivery_pulses[0]), 5)
+                self.assertTrue(all(answer for answer, _ in probes))
+                checked = len(probes); pulses = delivery_pulses[0]
                 # Several actual empty qualification turns pulse changed while
                 # the alias capture is held. They must not poll the owner.
                 target = turns[0] + 3
                 await asyncio.wait_for(until(lambda: turns[0] >= target), 5)
-                self.assertEqual(probes, [True])
+                self.assertEqual(delivery_pulses[0], pulses)
+                self.assertEqual(len(probes), checked)
                 release.set()
                 right = await asyncio.wait_for(asyncio.shield(task), 10)
             finally:
@@ -526,7 +540,7 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
                 self.assertGreaterEqual(row['counters']['completion_outbox_checks'], 1)
                 self.assertLessEqual(row['counters']['completion_outbox_checks'], row['counters']['delivery_batches'] + 1)
             self.assertGreater(right['counters']['completion_outbox_waits'], 0)
-            self.assertTrue(probes[-1] is False)
+            self.assertTrue(probes[-1][0] is False)
             self.assertTrue(all(count > 64 * len(parcel.inputs) for count in outbox_counts.values()))
 
         old_umask = os.umask(0o077)
