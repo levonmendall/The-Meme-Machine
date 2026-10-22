@@ -50,6 +50,20 @@ def oldest_transfer():
     return transferred,replay,join
 
 
+def envelope_frame(slot):
+    """The captured Pump/PumpSwap contents at distinct native coordinates."""
+    value=frame(slot,logs=False);transactions=[];statuses=[]
+    for family in ('pump','pumpswap'):
+        for original in FIXTURE[family]:
+            index=len(transactions);tx=copy.deepcopy(original)
+            sig=based58.b58encode((slot*100+index).to_bytes(64,'little')).decode()
+            tx.update(slot=slot,transactionIndex=index,blockTime=int(NOW))
+            tx['transaction']['signatures']=[sig]
+            transactions.append(tx);statuses.append((sig,index,(program_scope(family),),None,NOW))
+    return YellowstoneTransactionFrame(value.update,100,NOW,replay_from_slot=100,
+        log_transactions=tuple(transactions),candidate_statuses=tuple(statuses))
+
+
 class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
@@ -61,6 +75,208 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         tables=('rolling_economic_events','rolling_economic_addresses','candidate_blocks',
             'candidate_pending_proofs','candidate_coverage','candidate_history_outbox')
         return {t:h.db.execute('SELECT * FROM '+t+' ORDER BY rowid').fetchall() for t in tables}
+
+    async def test_pre_intake_envelopes_preserve_single_commit_order_full_ack_and_restart(self):
+        from meme_machine.solana_economic_preparation import prepare_candidate_frames
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        baseline,h=state_at(Path(self.tmp.name)/'inline.sqlite');self.addCleanup(baseline.writer.close)
+        for history in (h,self.h):history.lifecycle.delivery_separated=True
+        frames=(envelope_frame(100),envelope_frame(101))
+        original,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity)
+        products,timing=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
+        self.assertTrue(any(value.outbox for value in products))
+        self.assertLessEqual(timing['prepared_bytes'],CANDIDATE_COMMIT_BYTES)
+        commit_candidate_batch(baseline,frames,self.addresses,'same',prepared=original,publish=False)
+        before=dict(self.state.writer.transaction_metrics)
+        with patch.object(self.h.lifecycle,'emit_raw',wraps=self.h.lifecycle.emit_raw) as emit:
+            commit_candidate_batch(self.state,frames,self.addresses,'same',prepared=products,publish=False)
+        self.assertTrue(any(call.kwargs.get('_prepared') is not None for call in emit.call_args_list))
+        self.assertEqual(self.state.writer.transaction_metrics['commit.calls'],before['commit.calls']+1)
+        self.assertEqual(self.snapshot(self.h),self.snapshot(h))
+        # Replay takes the existing immutable receipt/availability path, never
+        # treats a stale fresh product as a new observation or a new recipient.
+        old=self.snapshot(self.h)
+        with patch.object(self.h.lifecycle,'emit_raw',wraps=self.h.lifecycle.emit_raw) as emit:
+            commit_candidate_batch(self.state,frames,self.addresses,'same',prepared=products,publish=False)
+        self.assertTrue(all(call.kwargs.get('_prepared') is None for call in emit.call_args_list))
+        self.assertEqual(self.snapshot(self.h),old)
+        delivered=0
+        for _ in range(128):
+            snapshot=capture(self.h.lifecycle)
+            if snapshot is None:break
+            result=deliver(snapshot);self.assertTrue(acknowledge(self.h.lifecycle,snapshot,result))
+            delivered+=len(snapshot['rows'])
+            self.h.lifecycle.publish()
+        else:self.fail('bounded_full_delivery_did_not_settle')
+        self.assertGreater(delivered,0)
+        self.assertEqual(self.h.db.execute('SELECT count(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],0)
+        path=self.state.writer.path;self.state.writer.close()
+        reopened,history=state_at(path);self.addCleanup(reopened.writer.close)
+        history.lifecycle.delivery_separated=True
+        self.assertIsNone(capture(history.lifecycle))
+        self.assertFalse(any(name.startswith('candidate_derived_') or name=='candidate_fanout_targets'
+            for name, in history.db.execute("SELECT name FROM sqlite_master WHERE type='table'")))
+
+    async def test_pre_intake_mismatched_local_products_fall_back_to_original_bytes(self):
+        from dataclasses import replace
+        from meme_machine.solana_economic_preparation import prepare_candidate_frames
+        for changed in ('generation','canonical_raw','available','recipients','record'):
+            with self.subTest(changed=changed):
+                state,h=state_at(Path(self.tmp.name)/('changed-'+changed+'.sqlite'));self.addCleanup(state.writer.close)
+                reference,old=state_at(Path(self.tmp.name)/('reference-'+changed+'.sqlite'));self.addCleanup(reference.writer.close)
+                h.lifecycle.delivery_separated=old.lifecycle.delivery_separated=True
+                frames=(envelope_frame(100),)
+                products,_=prepare_candidate_frames(frames,self.addresses,'same',h.endpoint_identity,state.writer.path)
+                index=next(i for i,p in enumerate(products) if p.outbox);target=products[index].outbox[0]
+                bad=dict(generation=('stale',),canonical_raw=target.canonical_raw+' ',
+                    available=target.available-1,recipients=(),record=copy.deepcopy(target.record))[changed]
+                outbox=(replace(target,**{changed:bad}),*products[index].outbox[1:])
+                altered=(*products[:index],replace(products[index],outbox=outbox),*products[index+1:])
+                baseline,_=prepare_candidate_frames(frames,self.addresses,'same',old.endpoint_identity)
+                commit_candidate_batch(reference,frames,self.addresses,'same',prepared=baseline,publish=False)
+                with patch.object(h.lifecycle,'emit_raw',wraps=h.lifecycle.emit_raw) as emit:
+                    commit_candidate_batch(state,frames,self.addresses,'same',prepared=altered,publish=False)
+                target_calls=[call for call in emit.call_args_list if call.args[2]=='canonical'
+                    and json.loads(call.args[3])['record']['identity']==target.record.identity]
+                self.assertTrue(target_calls)
+                self.assertTrue(all(call.kwargs.get('_prepared') is None for call in target_calls))
+                self.assertEqual(self.snapshot(h),self.snapshot(old))
+
+    async def test_pre_intake_fresh_binding_selection_emits_new_recipient_inline(self):
+        from meme_machine.solana_economic_preparation import prepare_candidate_frames
+        reference,old=state_at(Path(self.tmp.name)/'binding-reference.sqlite');self.addCleanup(reference.writer.close)
+        self.h.lifecycle.delivery_separated=old.lifecycle.delivery_separated=True
+        frames=(envelope_frame(100),)
+        products,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
+        target=next(p for f in products for p in f.outbox if p.record.scope==program_scope('pump'))
+        mint=target.record.payload['event']['mint']
+        for h in (self.h,old):h.bind('pump','late-recipient',market_address=mint)
+        baseline,_=prepare_candidate_frames(frames,self.addresses,'same',old.endpoint_identity)
+        commit_candidate_batch(reference,frames,self.addresses,'same',prepared=baseline,publish=False)
+        with patch.object(self.h.lifecycle,'emit_raw',wraps=self.h.lifecycle.emit_raw) as emit:
+            commit_candidate_batch(self.state,frames,self.addresses,'same',prepared=products,publish=False)
+        target_calls=[call for call in emit.call_args_list if call.args[2]=='canonical'
+            and json.loads(call.args[3])['record']['identity']==target.record.identity]
+        self.assertTrue(any(call.args[1]=='late-recipient' for call in target_calls))
+        self.assertTrue(all(call.kwargs.get('_prepared') is None for call in target_calls))
+        self.assertEqual(self.snapshot(self.h),self.snapshot(old))
+
+    async def test_pre_intake_path_replacement_cannot_reuse_old_generation_products(self):
+        from meme_machine.solana_economic_preparation import prepare_candidate_frames
+        self.h.lifecycle.delivery_separated=True;frames=(envelope_frame(100),)
+        products,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
+        self.assertTrue(any(p.outbox for p in products))
+        path=self.state.writer.path;old_inode=path.stat().st_ino
+        self.state.writer.close();path.rename(path.with_suffix('.retained.sqlite'))
+        replacement,h=state_at(path);self.addCleanup(replacement.writer.close);h.lifecycle.delivery_separated=True
+        self.assertNotEqual(path.stat().st_ino,old_inode)
+        with patch.object(h.lifecycle,'emit_raw',wraps=h.lifecycle.emit_raw) as emit:
+            commit_candidate_batch(replacement,frames,self.addresses,'same',prepared=products,publish=False)
+        self.assertTrue(emit.call_args_list)
+        self.assertTrue(all(call.kwargs.get('_prepared') is None for call in emit.call_args_list))
+        self.assertGreater(h.db.execute("SELECT count(*) FROM candidate_history_outbox WHERE kind='canonical'").fetchone()[0],0)
+
+    async def test_pre_intake_optional_busy_and_result_budget_keep_original_input(self):
+        from meme_machine import solana_economic_preparation as preparation
+        self.h.lifecycle.delivery_separated=True;frames=(envelope_frame(100),)
+        original,timing=preparation.prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity)
+        with patch.object(preparation.sqlite3,'connect',side_effect=sqlite3.OperationalError('database is locked')):
+            busy,_=preparation.prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
+        bounded,limited=preparation.prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,
+            self.state.writer.path,timing['prepared_bytes'])
+        self.assertEqual(busy,original);self.assertEqual(bounded,original)
+        self.assertEqual(limited['prepared_bytes'],timing['prepared_bytes'])
+        commit_candidate_batch(self.state,frames,self.addresses,'same',prepared=bounded,publish=False)
+        self.assertGreater(self.h.db.execute("SELECT count(*) FROM candidate_history_outbox WHERE kind='canonical'").fetchone()[0],0)
+
+    async def test_pre_intake_preview_threshold_never_truncates_authoritative_recipients(self):
+        from meme_machine.solana_economic_preparation import prepare_candidate_frames
+        self.h.lifecycle.delivery_separated=True;frames=(envelope_frame(100),)
+        initial,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
+        target=next(p for f in initial for p in f.outbox if p.record.scope==program_scope('pump'))
+        mint=target.record.payload['event']['mint'];aliases={'alias-'+str(n) for n in range(65)}
+        for address in sorted(aliases):self.h.bind('pump',address,market_address=mint)
+        products,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
+        self.assertFalse(any(p.record.identity==target.record.identity for f in products for p in f.outbox))
+        with patch.object(self.h.lifecycle,'emit_raw',wraps=self.h.lifecycle.emit_raw) as emit:
+            commit_candidate_batch(self.state,frames,self.addresses,'same',prepared=products,publish=False)
+        calls=[call for call in emit.call_args_list if call.args[2]=='canonical'
+            and json.loads(call.args[3])['record']['identity']==target.record.identity]
+        self.assertTrue(aliases <= {call.args[1] for call in calls})
+        self.assertTrue(all(call.kwargs.get('_prepared') is None for call in calls))
+
+    async def test_pre_intake_reuse_rolls_back_with_original_canonical_and_outbox_transaction(self):
+        from meme_machine.solana_economic_preparation import prepare_candidate_frames
+        self.h.lifecycle.delivery_separated=True;frames=(envelope_frame(100),)
+        products,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
+        before=self.snapshot(self.h);original=self.h.lifecycle.emit_raw;used=[]
+        def fail_after_insert(*args,**kwargs):
+            result=original(*args,**kwargs)
+            if kwargs.get('_prepared') is not None:
+                used.append(True);raise RuntimeError('prepared_outbox_rollback_fault')
+            return result
+        with patch.object(self.h.lifecycle,'emit_raw',side_effect=fail_after_insert), \
+                self.assertRaisesRegex(RuntimeError,'^prepared_outbox_rollback_fault$'):
+            commit_candidate_batch(self.state,frames,self.addresses,'same',prepared=products,publish=False)
+        self.assertTrue(used);self.assertEqual(self.snapshot(self.h),before)
+        self.assertFalse(self.h.db.in_transaction)
+        self.assertGreater(self.h.db.execute("SELECT count(*) FROM candidate_gaps WHERE reason='candidate_native_batch_failed'").fetchone()[0],0)
+        commit_candidate_batch(self.state,frames,self.addresses,'same',prepared=products,publish=False)
+        self.assertGreater(self.h.db.execute("SELECT count(*) FROM candidate_history_outbox WHERE kind='canonical'").fetchone()[0],0)
+
+    async def test_pre_intake_ro_snapshot_closes_before_envelope_hash_work(self):
+        from meme_machine import solana_candidate_lifecycle as lifecycle
+        from meme_machine import solana_economic_preparation as preparation
+        opened=[];real_connect=sqlite3.connect;real_hashes=lifecycle.outbox_hashes
+        class Reader(sqlite3.Connection):
+            closed=False
+            def close(self):
+                self.rolled_back=not self.in_transaction;super().close();self.closed=True
+        def connect(*args,**kwargs):
+            self.assertTrue(args[0].endswith('?mode=ro'));self.assertTrue(kwargs['uri'])
+            db=real_connect(*args,**kwargs,factory=Reader);opened.append(db);return db
+        def hashes(*args):
+            self.assertTrue(opened)
+            self.assertTrue(all(db.closed and db.rolled_back for db in opened))
+            return real_hashes(*args)
+        with patch.object(preparation.sqlite3,'connect',side_effect=connect), \
+                patch.object(lifecycle,'outbox_hashes',side_effect=hashes) as hashing:
+            products,_=preparation.prepare_candidate_frames((envelope_frame(100),),self.addresses,
+                'same',self.h.endpoint_identity,self.state.writer.path)
+        self.assertTrue(any(p.outbox for p in products));self.assertGreater(hashing.call_count,0)
+
+    async def test_pre_intake_cancel_joins_accepted_preparation_before_returning(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from meme_machine import solana_economic_preparation as preparation
+        self.h.lifecycle.delivery_separated=True;entered=threading.Event();release=threading.Event();finished=threading.Event()
+        source=SelectiveSource(SimpleNamespace(credential='offline',identity=self.h.endpoint_identity),None)
+        source.stop=asyncio.Event();source.batched=True;source.history_separated=True
+        source.canonical_path=str(self.state.writer.path);calls=[]
+        async def work(fn,priority,**options):calls.append(True);return fn(self.state)
+        work.candidate_outbox_preparation=True;source.work=work
+        original=preparation.prepare_candidate_frames
+        def blocked(*args):
+            entered.set()
+            if not release.wait(2):raise AssertionError('preparation_gate_deadline')
+            try:return original(*args)
+            finally:finished.set()
+        queue=CandidateCommitQueue();await queue.put(envelope_frame(100));before=self.snapshot(self.h)
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            source.preparation_executor=executor
+            with patch.object(preparation,'prepare_candidate_frames',side_effect=blocked):
+                task=asyncio.create_task(source.candidate_commits(queue,self.addresses,'same',priority=0))
+                try:
+                    self.assertTrue(await asyncio.to_thread(entered.wait,1))
+                    task.cancel();await asyncio.sleep(0);task.cancel();await asyncio.sleep(0)
+                    self.assertFalse(task.done());release.set()
+                    with self.assertRaises(asyncio.CancelledError):await task
+                finally:
+                    release.set()
+                    if not task.done():
+                        task.cancel()
+                        await asyncio.gather(task,return_exceptions=True)
+        self.assertTrue(finished.is_set());self.assertEqual(calls,[])
+        self.assertEqual(self.snapshot(self.h),before);self.assertEqual(queue.count,1)
 
     async def test_measured_owner_path_keeps_exact_economics_and_distinct_completion(self):
         baseline,h=state_at(Path(self.tmp.name)/'baseline.sqlite')

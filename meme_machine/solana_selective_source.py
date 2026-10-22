@@ -327,8 +327,9 @@ def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None
                             if previous and previous.body()!=row.body():raise EvidenceUnavailable('candidate_economic_content_conflict')
                             rows[row.identity]=row
         material=rows if prepared is not None else rows.values()
-        if timing is None:history.ingest(material)
-        else:history.ingest(material,timing=timing)
+        options={} if prepared is None or not prepared.outbox else dict(prepared_outbox=prepared.outbox)
+        if timing is None:history.ingest(material,**options)
+        else:history.ingest(material,timing=timing,**options)
         with candidate_phase(timing,'coverage_receipt'):
             for scope,census in censuses.items():
                 old=state.writer.db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
@@ -575,6 +576,7 @@ def source_work(work,stop,observe=None):
     resumable.candidate_delivery_continuation=getattr(work,'candidate_delivery_continuation',False) is True
     resumable.candidate_delivery_capture_actor=getattr(work,'candidate_delivery_capture_actor',False) is True
     resumable.candidate_delivery_publication_handoff=getattr(work,'candidate_delivery_publication_handoff',False) is True
+    resumable.candidate_outbox_preparation=getattr(work,'candidate_outbox_preparation',False) is True
     return resumable
 
 
@@ -1006,10 +1008,14 @@ class SelectiveSource:
                 async with self.preparation_lock:
                     started=time.monotonic()
                     try:
+                        outbox_path=(self.canonical_path if
+                            getattr(self.work,'candidate_outbox_preparation',False) is True else None)
                         from .solana_evidence_service import STREAM_PROCESS_DECODE_MIN_BYTES
                         if priority==0 or sum(r[1] for r in rows)>=STREAM_PROCESS_DECODE_MIN_BYTES:
+                            args=(frames,addresses,session,self.config.identity)
+                            if outbox_path is not None:args=(*args,outbox_path)
                             pending=asyncio.wrap_future(self.preparation_executor.submit(
-                                prepare_candidate_frames,frames,addresses,session,self.config.identity))
+                                prepare_candidate_frames,*args))
                             try:prepared,preparation=await asyncio.shield(pending)
                             except asyncio.CancelledError:
                                 # The physical worker still owns this accepted
@@ -1031,7 +1037,10 @@ class SelectiveSource:
                             # existing pool; no historian or delivery job is added.
                             products=[];totals=dict(cpu_seconds=0,wall_seconds=0,prepared_bytes=0,records=0,mode='off_owner_inline')
                             for frame in frames:
-                                product,timing=prepare_candidate_frames((frame,),addresses,session,self.config.identity)
+                                args=((frame,),addresses,session,self.config.identity)
+                                if outbox_path is not None:
+                                    args=(*args,outbox_path,CANDIDATE_COMMIT_BYTES-totals['prepared_bytes'])
+                                product,timing=prepare_candidate_frames(*args)
                                 products.extend(product)
                                 for key in ('cpu_seconds','wall_seconds','prepared_bytes','records'):totals[key]+=timing[key]
                                 if totals['prepared_bytes']>CANDIDATE_COMMIT_BYTES:

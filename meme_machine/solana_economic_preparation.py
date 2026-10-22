@@ -2,11 +2,15 @@
 
 This is a decoder product, not consumer-supplied evidence. The owner still
 checks its source coordinates, mutable continuity, conflicts and all durable
-publication obligations. No database or provider is accessed here.
+publication obligations. Optional read-only recipient hints close before CPU
+preparation; no database mutation or provider access is permitted here.
 """
 from dataclasses import dataclass,replace
+from contextlib import closing
 import hashlib
 import json
+from pathlib import Path
+import sqlite3
 import time
 from .solana_evidence_plane import PreparedRecord,EvidenceUnavailable,canonical,digest
 from .solana_native_evidence import economic_transaction,signature
@@ -14,6 +18,7 @@ from .solana_selective_history import economic_records,SelectiveHistory
 
 MAX_BYTES=32*1024*1024
 ARCHIVE_TRANSACTION_BYTES=1024*1024
+OUTBOX_PREVIEW_RECIPIENTS=64
 
 
 def archive_preparation_context(job,endpoint):
@@ -125,9 +130,78 @@ class PreparedCandidateFrame:
     rows: tuple
     censuses: dict
     census_hashes: dict
+    outbox: tuple=()
 
 
-def prepare_candidate_frames(frames,addresses,session,endpoint):
+@dataclass(frozen=True)
+class PreparedOutboxRecord:
+    record: object
+    generation: tuple
+    recipients: tuple
+    canonical_raw: str
+    available: float
+    envelope: str
+    checksum: str
+    identities: tuple
+
+
+def prepare_outbox(frames,path,endpoint,remaining):
+    """Optional bounded hints; every authoritative decision remains in ingest.
+
+    Read only identities/recipients in one short coherent WAL transaction. Close
+    the cursor, transaction and connection before envelope/hash CPU or IPC. A
+    busy, replaced, old or unavailable store simply retains inline preparation.
+    """
+    if remaining<=0:return tuple(frames),0
+    from .solana_candidate_lifecycle import record_recipients,outbox_hashes
+    previews=[];copied=0
+    try:
+        path=Path(path).resolve();before=path.stat()
+        with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=0)) as db:
+            db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
+            try:
+                session=db.execute('SELECT session FROM prewarm_startup WHERE id=1').fetchone()
+                generation=(session,endpoint,before.st_dev,before.st_ino)
+                for frame in frames:
+                    selected=[]
+                    for product in frame.rows:
+                        row=product.record
+                        if (row.kind!='event' or row.payload['event'].get('event_type') in ('create','migration')
+                                or db.execute('SELECT 1 FROM canonical_evidence WHERE identity=?',
+                                              (row.identity,)).fetchone()):continue
+                        recipients=record_recipients(db,row,rolling=True,limit=OUTBOX_PREVIEW_RECIPIENTS+1)
+                        if not recipients or len(recipients)>OUTBOX_PREVIEW_RECIPIENTS:continue
+                        size=sum(len(value.encode())+16 for target in recipients for value in target)
+                        if copied+size>remaining:continue
+                        copied+=size;selected.append((product,tuple(recipients)))
+                    previews.append(selected)
+                after=path.stat()
+                if (before.st_dev,before.st_ino)!=(after.st_dev,after.st_ino):return tuple(frames),0
+            finally:db.rollback()
+    except (OSError,sqlite3.Error):return tuple(frames),0
+    # Products are local pinned decoder output, just like PreparedEconomicRecord.
+    # Their checksums grant no source/recipient/availability authority. The fresh
+    # owner checks all those inputs before reusing these deterministic bytes.
+    results=[];retained=0
+    for frame,selected in zip(frames,previews):
+        outbox=[]
+        for product,recipients in selected:
+            available=float(product.record.observed_at) # Exact SQLite REAL affinity on fresh store.
+            raw='{"available":'+canonical(available)+',"record":'+product.encoded+'}'
+            hashes=tuple(outbox_hashes(family,address,'canonical',raw)
+                         for family,address,_ in recipients)
+            identities=tuple(value[0] for value in hashes)
+            checksum=hashes[0][1] if hashes else hashlib.sha256(raw.encode()).hexdigest()
+            size=len(raw.encode())+len(canonical([generation,recipients,identities,checksum]).encode())
+            if retained+size>remaining:continue
+            retained+=size
+            outbox.append(PreparedOutboxRecord(product.record,generation,recipients,
+                product.encoded,available,raw,checksum,identities))
+        results.append(replace(frame,outbox=tuple(outbox)))
+    return tuple(results),retained
+
+
+def prepare_candidate_frames(frames,addresses,session,endpoint,canonical_path=None,result_limit=MAX_BYTES):
     if not 0<len(frames)<=8:raise EvidenceUnavailable('candidate_commit_batch_bound')
     begun=time.monotonic();cpu=time.thread_time();results=[];size=0
     reverse={scope:address for address,scope in addresses.items()}
@@ -160,6 +234,9 @@ def prepare_candidate_frames(frames,addresses,session,endpoint):
         if size>MAX_BYTES:raise EvidenceUnavailable('candidate_preparation_result_bound')
         results.append(PreparedCandidateFrame(key,tuple(rows.values()),censuses,
             {scope:digest(census) for scope,census in censuses.items()}))
+    if canonical_path is not None:
+        results,extra=prepare_outbox(results,canonical_path,endpoint,min(MAX_BYTES,result_limit)-size)
+        size+=extra
     return tuple(results),dict(cpu_seconds=time.thread_time()-cpu,
         wall_seconds=time.monotonic()-begun,prepared_bytes=size,
         records=sum(len(r.rows) for r in results))

@@ -690,7 +690,7 @@ class SelectiveHistory:
         return result
 
     @measured('owner.economic_ingest')
-    def ingest(self,rows,*,restored=None,timing=None,prepared_serialization=None):
+    def ingest(self,rows,*,restored=None,timing=None,prepared_serialization=None,prepared_outbox=None):
         """One identity; a bounded shared cache permits late scoped backfill.
 
         The global hot-retention floor remains monotonic. It cannot prevent an
@@ -814,7 +814,8 @@ class SelectiveHistory:
                     self.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
             with candidate_phase(timing,'delivery_outbox'):
                 self._queue_events(rows)
-                if hasattr(self,'lifecycle'):self.lifecycle.queue_records(rows)
+                if hasattr(self,'lifecycle'):
+                    self.lifecycle.queue_records(rows,prepared=prepared_outbox if stored_fresh else None)
             # Retain the owner's same physical storage reservation and the
             # explicit file cap for offline/bounded synthetic stores.
             with candidate_phase(timing,'ingest_setup'):
