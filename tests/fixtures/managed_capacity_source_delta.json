@@ -42,8 +42,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
-      "after_bytes": 29503,
-      "after_sha256": "ecd378ea4522b0a30b63286dee9f69aa0df52e2d033f0efcc98076c00f44c933",
+      "after_bytes": 34462,
+      "after_sha256": "f31a8451da7c118ae537ee470906db15c438455cf3e7060f79050ab4dea07af9",
       "status": "A"
     },
     "meme_machine/operational/managed_pons_survivor.py": {
@@ -52,8 +52,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_pump_qualification.py": {
-      "after_bytes": 34076,
-      "after_sha256": "6a65db47801df876a61e04e517462682b6953acb55544204581bed0c504daa6e",
+      "after_bytes": 37277,
+      "after_sha256": "c9d491498403f04a5258ecf0942b44dc49c3d5488e61bbe33dbaed2845ebad46",
       "status": "A"
     },
     "meme_machine/operational/managed_qualification_replay.py": {
@@ -131,21 +131,25 @@
       "status": "M"
     },
     "meme_machine/solana_candidate_lifecycle.py": {
-      "after_bytes": 46205,
-      "after_sha256": "477166762e32e509c6f86be6785c86b0d381a252be471395b4254698c26e7bd0",
+      "after_bytes": 47773,
+      "after_sha256": "6b536c241032c7df9dd038a90f371d0c6fb7b7e29ab076ce53db41404cc8636a",
       "before_bytes": 44124,
       "before_sha256": "4c48fe1247281b07e3b71235c533b76afe728a31db7a8b2cae85c1878a669293",
       "changed_nodes": [
+        "CandidateLifecycle.__init__",
         "CandidateLifecycle.deliver_rows",
+        "CandidateLifecycle.emit_raw",
         "CandidateLifecycle.queue_records",
         "CandidateLifecycle.refresh",
-        "CandidateLifecycle.repair"
+        "CandidateLifecycle.repair",
+        "outbox_hashes",
+        "record_recipients"
       ],
       "status": "M"
     },
     "meme_machine/solana_economic_preparation.py": {
-      "after_bytes": 7731,
-      "after_sha256": "e0c128e1fed5e70228d6596379dbd0644982493bce4d1d0cda168e24e95fcdf6",
+      "after_bytes": 11733,
+      "after_sha256": "3a76e76d346aeccab444db5c135443db63c4cbe1ea66aa8f5d5b372aab1c94fe",
       "before_bytes": 4381,
       "before_sha256": "92eafe7b8309e1895ce8deb940d3fe81e01c6dc8adad0ec6ed32d750ecf7bd03",
       "changed_nodes": [
@@ -155,9 +159,26 @@
         "PreparedArchiveTransaction.__statement_2",
         "PreparedArchiveTransaction.__statement_3",
         "PreparedArchiveTransaction.__statement_4",
+        "PreparedCandidateFrame.__layout__",
+        "PreparedCandidateFrame.__statement_4",
+        "PreparedOutboxRecord.__layout__",
+        "PreparedOutboxRecord.__statement_0",
+        "PreparedOutboxRecord.__statement_1",
+        "PreparedOutboxRecord.__statement_2",
+        "PreparedOutboxRecord.__statement_3",
+        "PreparedOutboxRecord.__statement_4",
+        "PreparedOutboxRecord.__statement_5",
+        "PreparedOutboxRecord.__statement_6",
+        "PreparedOutboxRecord.__statement_7",
         "SerializedEconomicBatch.__layout__",
         "SerializedEconomicBatch.__statement_0",
         "SerializedEconomicBatch.__statement_1",
+        "__statement_0",
+        "__statement_10",
+        "__statement_11",
+        "__statement_12",
+        "__statement_13",
+        "__statement_2",
         "__statement_3",
         "__statement_4",
         "__statement_5",
@@ -168,6 +189,8 @@
         "archive_preparation_context",
         "archive_prepared_events",
         "prepare_archive_transaction",
+        "prepare_candidate_frames",
+        "prepare_outbox",
         "prepare_serialized_economics"
       ],
       "status": "M"
@@ -186,8 +209,8 @@
       "status": "M"
     },
     "meme_machine/solana_evidence_service.py": {
-      "after_bytes": 86935,
-      "after_sha256": "1982d10d68181b9ac67bb6329ccec75856dfcabc028864589286a7e4279e7306",
+      "after_bytes": 86978,
+      "after_sha256": "1c3fd3cb62e9392223d708160b5bee21757d7e451e126dd009a3e1609b787430",
       "before_bytes": 85144,
       "before_sha256": "2644baf4b6396608bde735e29d00adc22e5a67a39a4eb94c22d2bdc998ce1f84",
       "changed_nodes": [
@@ -282,8 +305,8 @@
       "status": "A"
     },
     "meme_machine/solana_selective_history.py": {
-      "after_bytes": 73893,
-      "after_sha256": "3daae4ef26602a125cf4a1a23b574242b5a97a15f8a92feb832edd44420bedc7",
+      "after_bytes": 73986,
+      "after_sha256": "161dfac7ac22f35907cfd29c08e0b254277dcc3f06931a2aa5c4eb47fa4bb95c",
       "before_bytes": 68510,
       "before_sha256": "d7b79f1a25b687cadc0ebe16f81ddc1ffba222402c3433378658ba39a5734ae3",
       "changed_nodes": [
@@ -301,8 +324,8 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 199620,
-      "after_sha256": "498dff47e185cc1bbefc6091d1a63f2593e9291f3db6fcc4b8a1d37ef0dab7f5",
+      "after_bytes": 200345,
+      "after_sha256": "ed8b44aba9f6eb5f91909bfd5e47fc42a8af6619ae607fa2ca9d7606e5a69caa",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -352,6 +375,7 @@
         "__statement_38",
         "__statement_49",
         "__statement_50",
+        "commit_candidates",
         "consistent_incomplete_archive_logs",
         "source_work",
         "wait_candidate_log_space"
@@ -395,12 +419,12 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "6404939fcc60585a2b37ce21d1ea9366c3cc99e8",
-  "implementation_tree": "fbe09b3f4f1b1b6080ea05b76a1dbd1e39ea924e",
+  "implementation": "a50de6646e5db9d866fdd9c126a59f79c4479a9c",
+  "implementation_tree": "ea57d8caf81d7c2aef48ec37ea3488bc7355a47a",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
-      "bytes": 10024,
-      "sha256": "1110c66269b4ca9048b81c891b3c4da39a1c42582a4876605d82cedb8a239cd1"
+      "bytes": 10374,
+      "sha256": "7a5140ad6ac1a657df3dde79bbeb2a1f91993c5cc5fe66e437dcccfe08670109"
     },
     "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
       "bytes": 12869,
@@ -408,11 +432,15 @@
     }
   },
   "read_guard": {
-    "after_bytes": 377045,
-    "after_sha256": "aa666d7cb31dcd994e46e492d05b14c5b102e3098f123441ced8526fa4244801",
+    "after_bytes": 377078,
+    "after_sha256": "81356067c797764a8aa650ac73f057a43579d805918a4d48cf0cf0df3ddd9e78",
     "before_bytes": 376814,
     "before_sha256": "5512e1b375dfbe960f1e6927e9528ff51b28a2a329657d3a1e42b7b47107b3e6",
     "changes": [
+      {
+        "after": "            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
+        "before": "            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"
+      },
       {
         "after": "        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
         "before": "        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())\n"
