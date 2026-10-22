@@ -149,8 +149,8 @@
       "status": "M"
     },
     "meme_machine/solana_derived_fanout.py": {
-      "after_bytes": 18904,
-      "after_sha256": "80768a92a054a6c86acf4c743a435a39d14a4f223bab81ebf0da0970e5a00346",
+      "after_bytes": 19613,
+      "after_sha256": "9fda50dde6dea6ab9c51dd945a2e41ef817968e71250101470a516f96152d48b",
       "status": "A"
     },
     "meme_machine/solana_economic_preparation.py": {
@@ -333,8 +333,8 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 205796,
-      "after_sha256": "3c931357334ee2055e34e59eff34649e5edc9240ecc36f02d4af41213a41e776",
+      "after_bytes": 206367,
+      "after_sha256": "435a0a90ed450dfb798108d6c3a212e23af2248ff37a57438efc4ca8d1c6762c",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -430,8 +430,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "1556ae2f0284bb0d3e77b6e6f53a4a36004828e7",
-  "implementation_tree": "8c9daee70d9d58826c2115fc3b676230e942e4a3",
+  "implementation": "29c469e41b9e3860bcbf344d233c70da1444e8c2",
+  "implementation_tree": "21b11b55153eb6f8c140bf284c9ee0613c100613",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 10024,
