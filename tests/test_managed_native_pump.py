@@ -373,6 +373,24 @@ class ManagedPumpTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'replay_mutated_native_history'):
                 managed.replay_pump(self.config)
 
+    def test_replay_fingerprints_unmaterialized_fanout_and_reserved_targets(self):
+        from meme_machine.operational import managed_qualification_replay as comparison
+        from meme_machine.solana_derived_fanout import SCHEMA
+        self.stores();original=comparison.compare_readers
+        for table in ('candidate_derived_fanout','candidate_fanout_targets'):
+            with self.subTest(table=table):
+                with sqlite3.connect(self.config.evidence) as db:db.executescript(SCHEMA)
+                def mutate(*args,**kwargs):
+                    result=original(*args,**kwargs)
+                    # Disposable failure injection: even empty durable queue
+                    # disappearance must not be omitted from the native audit.
+                    with sqlite3.connect(self.config.evidence) as db:
+                        db.execute('DROP TABLE '+table)
+                    return result
+                with patch.object(comparison,'compare_readers',side_effect=mutate):
+                    with self.assertRaisesRegex(ValueError,'replay_mutated_native_history'):
+                        managed.replay_pump(self.config)
+
     def retained_canonical_before_scout(self, family='pumpswap'):
         """Real canonical intake/FULL/ACK can precede its scout registry row."""
         from meme_machine.runtime.candidate_history import CandidateHistory

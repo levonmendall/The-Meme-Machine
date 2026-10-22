@@ -342,6 +342,7 @@ def replay_pump(config, *, seconds=60):
         digest = hashlib.sha256()
         for path, tables in ((config.evidence, ('records', 'shared_history_cache',
                 'candidate_coverage', 'candidate_history_outbox', 'candidate_gaps',
+                'candidate_derived_fanout', 'candidate_fanout_targets',
                 'stream_receipts', 'rolling_economic_events', 'scoped_cold_records',
                 'scoped_cold_addresses', 'scoped_cold_manifests', 'hot_chunks', 'hot_refs')),
                 (config.history, ('candidates', 'events', 'canonical_event_refs',
