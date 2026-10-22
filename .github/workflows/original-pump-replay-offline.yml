@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'engineering/diagnostics/replay_original_pump_window.py'
+      - 'engineering/diagnostics/replay_concurrent_pump_window.py'
       - 'tests/test_original_pump_window_replay.py'
       - '.github/workflows/original-pump-replay-offline.yml'
 permissions:
@@ -28,4 +29,6 @@ jobs:
         run: |
           python -m operational.tests OPERATIONAL --modules \
             tests.test_original_pump_window_replay \
+            tests.test_publication_accounting_turn \
+            tests.test_solana_history_separation \
             tests.test_managed_capacity_source_guard --verbose
