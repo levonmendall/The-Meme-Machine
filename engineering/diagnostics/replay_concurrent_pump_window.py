@@ -227,9 +227,13 @@ def compare_outbox_modes(runs):
     stores = sorted({key for row in compared for key in row['different_stores']})
     exercised = all(run['outbox_preparation']['emit_probe_enabled'] and
         ((run['outbox_preparation']['products'] > 0 and
-          run['outbox_preparation']['successful_prepared_emits'] > 0) if mode else
+          run['outbox_preparation']['successful_prepared_emits'] > 0 and
+          run['outbox_preparation']['measured_products'] > 0 and
+          run['outbox_preparation']['measured_successful_prepared_emits'] > 0) if mode else
          (run['outbox_preparation']['products'] == 0 and
-          run['outbox_preparation']['successful_prepared_emits'] == 0))
+          run['outbox_preparation']['successful_prepared_emits'] == 0 and
+          run['outbox_preparation']['measured_products'] == 0 and
+          run['outbox_preparation']['measured_successful_prepared_emits'] == 0))
         for run, mode in zip(runs, order))
     return dict(coherent=not fields and not stores, semantic_fields=list(original.SEMANTIC_FIELDS),
         different_semantic_fields=fields, different_stores=stores,
@@ -264,7 +268,7 @@ def stores(state, reader):
 
 
 async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seconds,
-                  outbox_preparation=False):
+                  outbox_preparation=False, _outbox_probe=None):
     from meme_machine.solana_evidence_plane import EvidenceWriter
     from meme_machine.solana_evidence_service import FinalizedFence
     from meme_machine.solana_evidence_control import PriorityOwner
@@ -482,6 +486,11 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             await bootstrap()
             await qualification(install_nonfinancial_history, config)
             await admit_group(parcel.warmup)
+            # Warmup commits have returned from the actual owner; no measured
+            # arrivals or consumer tasks have started. Snapshot the operating
+            # method spy too, so warmup-only reuse cannot certify the 5081 cut.
+            warmup_products = counters['outbox_preparation_products']
+            warmup_emits = None if _outbox_probe is None else _outbox_probe['successful_prepared_emits']
             reader = await qualification(open_reader, cancel_result=lambda value:value.close())
             initial = await qualification(reader.snapshot)
             original.need(initial['native_event_backlog'] == len(parcel.warmup) and
@@ -516,6 +525,8 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             timing = dict(wall_nanoseconds=time.perf_counter_ns()-wall,
                           process_cpu_nanoseconds=time.process_time_ns()-cpu,
                           scope='normalized_intake_actual_owner_actor_and_qualification_all_threads')
+            total_products = counters['outbox_preparation_products']
+            total_emits = None if _outbox_probe is None else _outbox_probe['successful_prepared_emits']
             # Stop the physical workers before taking a coherent terminal cut.
             # Their existing accepted-delivery cancellation cleanup must join
             # FULL then fresh owner ACK; no harness-side ACK is manufactured.
@@ -587,10 +598,16 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 reader_restart_verified=True, owner_actor_restart_verified=True,
                 store_fingerprints=before_restart, counters=dict(counters), owner_counters=owner_counts,
                 outbox_preparation=dict(enabled=outbox_preparation,
-                    products=counters['outbox_preparation_products'],
+                    products=total_products, total_products=total_products,
+                    warmup_products=warmup_products, measured_products=total_products-warmup_products,
+                    emit_probe_enabled=_outbox_probe is not None,
+                    successful_prepared_emits=total_emits, total_successful_prepared_emits=total_emits,
+                    warmup_successful_prepared_emits=warmup_emits,
+                    measured_successful_prepared_emits=None if total_emits is None else total_emits-warmup_emits,
                     scope='normalized_records_actual_readonly_preview_on_source_event_loop_before_owner_admission_no_native_frame_or_process_IPC',
                     economic_products_frozen_before_timing_for_both_modes=True,
                     preparation_counters_include_untimed_warmup=True,
+                    measured_counter_offsets='after_warmup_owner_return_before_existing_timed_start',
                     owner_callback_counts_are_not_SQL_statement_counts=True),
                 thread_ids=thread_ids, distinct_pipeline_threads=len(set(thread_ids.values())) == 3,
                 production_work_capabilities=capabilities,
@@ -636,9 +653,8 @@ def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120, outbox_prepar
         # method. The default route retains its existing measurement overhead.
         with patch.object(CandidateLifecycle, 'emit_raw', observed_emit) if outbox_preparation else nullcontext():
             run = asyncio.run(run_arm(parcel, records, batches, directory/name,
-                concurrent=concurrent, rate=rate, seconds=seconds, outbox_preparation=prepared))
-        run['outbox_preparation'].update(emit_probe_enabled=outbox_preparation,
-            successful_prepared_emits=hits['successful_prepared_emits'] if outbox_preparation else None)
+                concurrent=concurrent, rate=rate, seconds=seconds, outbox_preparation=prepared,
+                _outbox_probe=hits if outbox_preparation else None))
         return run
     try:
         with original.no_network(), owner_thread_fairness():

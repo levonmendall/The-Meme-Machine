@@ -399,8 +399,10 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         for row in result['runs']:
             self.assertFalse(row['outbox_preparation']['enabled'])
             self.assertEqual(row['outbox_preparation']['products'], 0)
+            self.assertEqual(row['outbox_preparation']['measured_products'], 0)
             self.assertFalse(row['outbox_preparation']['emit_probe_enabled'])
             self.assertIsNone(row['outbox_preparation']['successful_prepared_emits'])
+            self.assertIsNone(row['outbox_preparation']['measured_successful_prepared_emits'])
         self.assertEqual(left['store_fingerprints'], right['store_fingerprints'])
         self.assertEqual(len(left['store_fingerprints']), 6)
         for row in result['runs']:
@@ -448,9 +450,18 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
             if mode:
                 self.assertGreater(measured['products'], 0)
                 self.assertGreater(measured['successful_prepared_emits'], 0)
+                self.assertGreater(measured['measured_products'], 0)
+                self.assertGreater(measured['measured_successful_prepared_emits'], 0)
             else:
                 self.assertEqual(measured['products'], 0)
                 self.assertEqual(measured['successful_prepared_emits'], 0)
+                self.assertEqual(measured['measured_products'], 0)
+                self.assertEqual(measured['measured_successful_prepared_emits'], 0)
+            self.assertEqual(measured['total_products'], measured['products'])
+            self.assertEqual(measured['total_products'], measured['warmup_products']+measured['measured_products'])
+            self.assertEqual(measured['total_successful_prepared_emits'], measured['successful_prepared_emits'])
+            self.assertEqual(measured['total_successful_prepared_emits'],
+                             measured['warmup_successful_prepared_emits']+measured['measured_successful_prepared_emits'])
         self.assertTrue(parcel.checked)
 
     def test_outbox_comparison_requires_actual_preparation_and_every_original_field(self):
@@ -458,9 +469,11 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         control.update(implementation='concurrent',
             store_fingerprints={key:'retained' for key in concurrent.STORE_FIELDS},
             outbox_preparation=dict(enabled=False, emit_probe_enabled=True, products=0,
-                                    successful_prepared_emits=0))
+                                    successful_prepared_emits=0, measured_products=0,
+                                    measured_successful_prepared_emits=0))
         prepared = deepcopy(control)
-        prepared['outbox_preparation'].update(enabled=True, products=1, successful_prepared_emits=1)
+        prepared['outbox_preparation'].update(enabled=True, products=1, successful_prepared_emits=1,
+                                              measured_products=1, measured_successful_prepared_emits=1)
         runs = [deepcopy(row) for row in (control, prepared, prepared, control)]
         self.assertTrue(concurrent.compare_outbox_modes(runs)['preparation_exercised'])
         for key in original.SEMANTIC_FIELDS:
@@ -471,6 +484,12 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         self.assertFalse(concurrent.compare_outbox_modes(missing)['preparation_exercised'])
         missing = deepcopy(runs); missing[2]['outbox_preparation']['successful_prepared_emits'] = 0
         self.assertFalse(concurrent.compare_outbox_modes(missing)['preparation_exercised'])
+        warmup_only = deepcopy(runs)
+        for row in warmup_only[1:3]:
+            row['outbox_preparation'].update(warmup_products=1, warmup_successful_prepared_emits=1,
+                                             measured_products=0, measured_successful_prepared_emits=0)
+        self.assertTrue(concurrent.compare_outbox_modes(warmup_only)['coherent'])
+        self.assertFalse(concurrent.compare_outbox_modes(warmup_only)['preparation_exercised'])
         changed = deepcopy(runs); changed[1]['store_fingerprints']['canonical_native'] = 'mutated'
         self.assertEqual(concurrent.compare_outbox_modes(changed)['different_stores'], ['canonical_native'])
 
