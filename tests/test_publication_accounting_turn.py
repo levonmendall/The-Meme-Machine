@@ -1281,6 +1281,7 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
         with closing(sqlite3.connect(life.path)) as db:
             original = db.execute('SELECT body,hash FROM source_receipts WHERE id=?', ('coverage:'+identities[0],)).fetchone()
             db.execute('UPDATE source_receipts SET hash=? WHERE id=?', ('0'*64, 'coverage:'+identities[0]))
+            db.commit()
         await self.source.proof_publication_handoff.offer(identities, self.source.stop)
         publisher = self.start(self.source.publish_history())
         with self.assertRaisesRegex(EvidenceUnavailable, 'candidate_delivery_receipt_corrupt'):await publisher
@@ -1288,6 +1289,7 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
         await self.assert_published(proof, False)
         with closing(sqlite3.connect(life.path)) as db:
             db.execute('UPDATE source_receipts SET body=?,hash=? WHERE id=?', (*original, 'coverage:'+identities[0]))
+            db.commit()
         await self.restart_handoff_owner()
         self.assertFalse(self.source.proof_publication_handoff.ready())
         publisher = self.start(self.source.publish_history())
@@ -1335,6 +1337,52 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.source.proof_publication_handoff.outstanding, set())
         self.assertEqual([label for _, label, _ in self.work.calls], ['candidate_delivery_ack'])
         await self.assert_published(proof, False)
+
+    async def test_publication_handoff_persistent_busy_normal_cursor_respects_original_retry_despite_notifications(self):
+        from meme_machine import solana_history_delivery as delivery
+        proof, _ = await self.proof(ack=True); await self.enable_publication_handoff()
+        life = self.native['history'].lifecycle
+        cursor, horizon = (0, 0, 0), (1000, 1000, 1000000)
+        def seed(state):
+            life._proof_publication_cursor = cursor
+            life._proof_publication_horizon = horizon
+        await self.query(seed)
+        original_open, original_publish = delivery.readonly_history, life.publish
+        starts = []; retries = []; retained = []; first_busy = asyncio.Event(); loop = asyncio.get_running_loop()
+        def publication(*args, **kwargs):
+            self.assertIsNone(kwargs.get('proof_ids'))
+            starts.append(time.monotonic())
+            result = original_publish(*args, **kwargs)
+            if life._consumer_retry_at is not None:
+                retries.append(life._consumer_retry_at)
+                retained.append((life._proof_publication_cursor, life._proof_publication_horizon))
+                loop.call_soon_threadsafe(first_busy.set)
+            return result
+        def opened(path):
+            if len(starts) <= 2:
+                error = sqlite3.OperationalError('offline_persistent_busy_receipt_read')
+                error.sqlite_errorcode = sqlite3.SQLITE_BUSY
+                raise error
+            return original_open(path)
+        with patch.object(delivery, 'readonly_history', opened), patch.object(life, 'publish', publication):
+            publisher = self.start(self.source.publish_history())
+            await asyncio.wait_for(first_busy.wait(), 2)
+            # A source pulse remains a hint. Neither new arrivals nor the
+            # still-nonempty normal cursor may defeat the failed turn's timer.
+            async def pulses():
+                while len(starts) < 3:
+                    self.source.history_wakeup.notify(); await asyncio.sleep(.005)
+            notifier = self.start(pulses())
+            async def published():
+                return await self.query(lambda state: state.writer.db.execute(
+                    'SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0] == 0)
+            await self.wait_handoff(published)
+            self.source.stop.set(); await asyncio.wait_for(asyncio.gather(publisher, notifier), 3)
+        self.assertEqual(len(retries), 2)
+        self.assertEqual(retained, [(cursor, horizon), (cursor, horizon)])
+        self.assertGreaterEqual(starts[1], retries[0])
+        self.assertGreaterEqual(starts[2], retries[1])
+        await self.assert_published(proof)
 
 
 if __name__ == '__main__':

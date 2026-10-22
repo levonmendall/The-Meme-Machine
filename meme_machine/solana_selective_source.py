@@ -912,8 +912,12 @@ class SelectiveSource:
             while not self.stop.is_set():
                 retries=[at for at in (retry_at,self.proof_publication_handoff.retry_at) if at is not None]
                 seen=await self.history_wakeup.wait(seen,self.stop,
-                    delay=None if not retries else max(0,min(retries)-time.monotonic()))
+                    delay=None if not retries else max(0,max(retries)-time.monotonic()))
                 if self.stop.is_set():break
+                # New work can pulse while SQLite's existing busy backoff is
+                # active. Keep that same retry deadline instead of turning a
+                # retained normal cursor into immediate repeated owner turns.
+                if retry_at is not None and time.monotonic()<retry_at:continue
                 # An ACKed batch can proceed to the next consumer capture
                 # independently of publication's next owner admission. Alternate
                 # exact handoffs with the ordinary fixed-horizon scan so neither
@@ -937,7 +941,8 @@ class SelectiveSource:
                     else:self.proof_publication_handoff.retry_at=retry_at
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
-                if identities is not None or more or self.proof_publication_handoff.ready():self.history_wakeup.notify()
+                if retry_at is None and (identities is not None or more or self.proof_publication_handoff.ready()):
+                    self.history_wakeup.notify()
                 if published:self.history_changed(publication=False) # Revalidate context changed by actual publication.
         finally:
             await self.flush_delivery()
