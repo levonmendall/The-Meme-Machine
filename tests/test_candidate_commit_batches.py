@@ -879,6 +879,28 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             if consumer is not None:await asyncio.gather(consumer,return_exceptions=True)
             pool.shutdown(wait=True)
 
+    async def test_deferred_fanout_keeps_original_per_candidate_dispatch_order(self):
+        from meme_machine.solana_derived_fanout import prepare,apply
+        from meme_machine.solana_history_delivery import capture_context,capture
+        other,h=state_at(Path(self.tmp.name)/'inline-dispatch.sqlite')
+        self.addCleanup(other.writer.close)
+        for state,history,deferred in ((other,h,False),(self.state,self.h,True)):
+            history.lifecycle.delivery_separated=True
+            commit_candidate_batch(state,[frame(100)],self.addresses,'dispatch-session',publish=False,defer_fanout=deferred)
+            mint=history.db.execute("SELECT json_extract(body,'$.payload.event.mint') FROM canonical_evidence WHERE kind='event' LIMIT 1").fetchone()[0]
+            # These are scheduling messages through the actual original emit
+            # interface, not fabricated economic inputs or qualification proof.
+            history.lifecycle.emit('pump',mint,'scout',dict(fields=dict(test='same-recipient')))
+            history.lifecycle.emit('pump','unrelated-recipient','scout',dict(fields=dict(test='independent')))
+        held=capture(self.h.lifecycle)
+        self.assertEqual([(row[2],row[3]) for row in held['rows']],[('unrelated-recipient','scout')])
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        context=capture_context(self.h.lifecycle)
+        while (product:=prepare(context.canonical_path,context.endpoint_identity,context.source_identity)) is not None:
+            self.assertTrue(apply(self.h.lifecycle,product))
+        self.assertEqual(self.snapshot(self.h),self.snapshot(h))
+        self.assertEqual(capture(self.h.lifecycle)['rows'],capture(h.lifecycle)['rows'])
+
     async def test_deferred_capacity_rolls_back_whole_frame_batch_without_false_gap(self):
         from meme_machine.solana_derived_fanout import FanoutBackpressure
         before=self.snapshot(self.h)
