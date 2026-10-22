@@ -395,8 +395,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "78d0a455d981aeecff05eb8beee2af183b0db90a",
-  "implementation_tree": "6d7a8d6e1fe6bb82c6b3a1a1679fff6c010b4074",
+  "implementation": "6404939fcc60585a2b37ce21d1ea9366c3cc99e8",
+  "implementation_tree": "fbe09b3f4f1b1b6080ea05b76a1dbd1e39ea924e",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 10024,
