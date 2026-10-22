@@ -39,7 +39,7 @@ jobs:
             tests.test_publication_accounting_turn \
             tests.test_solana_history_separation \
             tests.test_managed_capacity_source_guard --verbose
-      - name: Check bounded native content and managed storage offline (not release acceptance)
+      - name: Check native content, managed replay and storage offline (not release acceptance)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope == 'native-content' }}
         env:
           PYTHONDONTWRITEBYTECODE: '1'
@@ -48,5 +48,6 @@ jobs:
             tests.test_managed_log_repair_batches \
             tests.test_archive_full_log_content \
             tests.test_solana_source_drain \
+            tests.test_managed_native_pump \
             tests.test_managed_native_pons \
             tests.test_managed_capacity_source_guard --verbose
