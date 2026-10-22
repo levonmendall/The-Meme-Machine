@@ -1,5 +1,7 @@
 """Disposable public-API tests for the engineering-only logical replay command."""
 from copy import deepcopy
+import asyncio
+import threading
 from collections import Counter
 from pathlib import Path
 import os
@@ -9,6 +11,8 @@ import unittest
 from unittest.mock import patch
 
 from engineering.diagnostics import replay_original_pump_window as replay
+from engineering.diagnostics import replay_original_pump_window as original
+from engineering.diagnostics import replay_concurrent_pump_window as concurrent
 from meme_machine.solana_economic_preparation import prepare_economic_record
 from meme_machine.solana_selective_history import PROGRAMS, economic_records
 from tests.test_solana_selective_evidence import FIXTURE
@@ -353,6 +357,169 @@ class OriginalWindowReplayTests(unittest.TestCase):
             raw = replay.canonical(changed); (directory/'manifest.json').write_bytes(raw)
             with self.subTest(case=case), self.assertRaises(ValueError):
                 replay.Parcel(directory, replay.sha(raw))
+
+
+class ConcurrentWindowReplayTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name).resolve()
+
+    def test_real_owner_actor_and_qualifier_overlap_preserve_all_semantics_and_restart(self):
+        parcel = CapturedParcel()
+        # The public cohort has no oracle/quote/concentration input. No real
+        # provider may be constructed to fill that missing evidence.
+        with patch('meme_machine.operational.managed_pump_qualification.MarketSnapshotProvider',
+                   side_effect=AssertionError('no_provider_construction')):
+            result = concurrent.benchmark(parcel, self.root/'concurrent', batch=1, rate=5, seconds=30)
+        self.assertTrue(result['engineering_validation_passed'])
+        self.assertTrue(result['coherent']); self.assertTrue(result['concurrency_exercised'])
+        self.assertEqual(result['semantic_fields'], list(original.SEMANTIC_FIELDS))
+        self.assertEqual(len(result['semantic_fields']), 22)
+        self.assertEqual(result['different_semantic_fields'], [])
+        self.assertEqual(result['different_stores'], [])
+        self.assertTrue(parcel.checked)
+        self.assertTrue(result['production_admission_and_owner_policy'])
+        self.assertEqual(result['input_provenance'], 'public_fixture')
+        self.assertTrue(result['publication_thread_handoff_exercised'])
+        self.assertFalse(result['actor_capture_service_cpu_separately_measured'])
+        self.assertFalse(result['financial_authority'])
+        self.assertFalse(result['throughput_readiness_proven'])
+        self.assertFalse(result['full_qualification_proven'])
+        self.assertEqual(result['quote_inputs'], 'unavailable_no_synthetic_quotes')
+        self.assertEqual(result['context_rows_imported_as_state'], 0)
+        left, right = result['runs']
+        self.assertEqual(left['store_fingerprints'], right['store_fingerprints'])
+        self.assertEqual(len(left['store_fingerprints']), 6)
+        for row in result['runs']:
+            self.assertTrue(row['distinct_pipeline_threads'])
+            self.assertTrue(row['reader_restart_verified'])
+            self.assertTrue(row['owner_actor_restart_verified'])
+            self.assertEqual(row['initial']['native_event_backlog'], len(parcel.warmup))
+            self.assertEqual(row['final']['native_event_backlog'], 0)
+            self.assertEqual(row['completed'], {'warmup':len(parcel.warmup), 'measured':len(parcel.measured)})
+            self.assertEqual(row['provider_requests'], 0)
+            self.assertGreater(row['owner_counters']['owner.stage.candidate_delivery_ack.calls'], 0)
+            self.assertNotIn('owner.stage.candidate_delivery_capture.calls', row['owner_counters'])
+            self.assertEqual(row['counters']['offered_measured_events'], len(parcel.measured))
+            self.assertEqual(row['counters']['admitted_measured_events'], len(parcel.measured))
+            self.assertLessEqual(row['counters']['arrival_queue_peak_batches'], concurrent.ARRIVAL_BATCHES)
+        self.assertGreater(right['counters']['delivery_before_intake_finished'], 0)
+        self.assertGreater(right['counters']['observed_before_intake_finished'], 0)
+        self.assertGreater(right['counters']['intake_turns_without_qualification_drain'], 0)
+        self.assertEqual(left['counters'].get('intake_turns_without_qualification_drain', 0), 0)
+
+    def test_every_original_semantic_field_is_required_and_mutation_fails(self):
+        arm = {key: ['retained', key] for key in original.SEMANTIC_FIELDS}
+        arm['store_fingerprints'] = {key:'original' for key in concurrent.STORE_FIELDS}
+        self.assertTrue(concurrent.compare_arms(arm, deepcopy(arm))['coherent'])
+        for key in original.SEMANTIC_FIELDS:
+            with self.subTest(field=key):
+                changed = deepcopy(arm); changed[key].append('mutated')
+                result = concurrent.compare_arms(arm, changed)
+                self.assertFalse(result['coherent']); self.assertEqual(result['different_semantic_fields'], [key])
+                del changed[key]
+                self.assertFalse(concurrent.compare_arms(arm, changed)['coherent'])
+        changed = deepcopy(arm); changed['store_fingerprints']['canonical_native'] = 'mutated'
+        self.assertEqual(concurrent.compare_arms(arm, changed)['different_stores'], ['canonical_native'])
+        changed = deepcopy(arm); changed['store_fingerprints']['unknown'] = 'unreviewed'
+        self.assertFalse(concurrent.compare_arms(arm, changed)['coherent'])
+
+    def test_cohort_order_and_authentication_are_checked_before_private_stores(self):
+        parcel = CapturedParcel()
+        parcel.inputs[1]['sequence'] = parcel.inputs[0]['sequence']
+        with self.assertRaisesRegex(ValueError, 'concurrent_cohort_order'):
+            concurrent.benchmark(parcel, self.root/'rejected', seconds=1)
+        self.assertFalse((self.root/'rejected').exists())
+        parcel = CapturedParcel()
+        record = parcel.records[parcel.inputs[1]['identity']]
+        parcel.inputs[1]['first_seen'] = record.observed_at + 1
+        with self.assertRaisesRegex(ValueError, 'concurrent_normalized_identity'):
+            concurrent.benchmark(parcel, self.root/'rejected-auth', seconds=1)
+        self.assertFalse((self.root/'rejected-auth').exists())
+
+    def test_arrival_batch_and_deadline_limits_reject_unbounded_options(self):
+        for batch, rate, seconds in ((0, 10, 1), (65, 10, 1), (1, 0, 1),
+                                     (1, float('inf'), 1), (1, 1, 0), (1, 1, 1801)):
+            with self.subTest(batch=batch, rate=rate, seconds=seconds), self.assertRaises(ValueError):
+                concurrent.limits(batch, rate, seconds)
+
+    def test_repeated_cancellation_of_either_physical_reader_open_closes_returned_handles(self):
+        from meme_machine.operational.managed_pump_qualification import QualificationReader
+        native_open, native_close = QualificationReader._open, QualificationReader.close
+        for blocked_open in (1, 2):
+            with self.subTest(open=blocked_open):
+                opened = threading.Event(); release = threading.Event()
+                opening_threads = []; closed = []
+                def held(reader):
+                    fresh = reader.db is None
+                    result = native_open(reader)
+                    if fresh and result:
+                        opening_threads.append(threading.get_ident())
+                        if len(opening_threads) == blocked_open:
+                            opened.set()
+                            if not release.wait(10):raise RuntimeError('test_reader_open_release_deadline')
+                    return result
+                def close(reader):
+                    closed.append(threading.get_ident())
+                    return native_close(reader)
+                async def scenario():
+                    parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 1)
+                    task = asyncio.create_task(concurrent.run_arm(parcel, records, batches,
+                        self.root/('reader-cancel-'+str(blocked_open)), concurrent=True, rate=5, seconds=20))
+                    try:
+                        async def entered():
+                            while not opened.is_set():
+                                if task.done():task.result()
+                                await asyncio.sleep(.001)
+                        await asyncio.wait_for(entered(), 10)
+                        task.cancel(); await asyncio.sleep(0); task.cancel(); release.set()
+                        with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task, 10)
+                    finally:
+                        release.set()
+                        if not task.done():task.cancel()
+                        await asyncio.gather(task, return_exceptions=True)
+                old_umask = os.umask(0o077)
+                try:
+                    with replay.no_network(), patch.object(QualificationReader, '_open', held), patch.object(QualificationReader, 'close', close):
+                        asyncio.run(scenario())
+                finally:os.umask(old_umask)
+                self.assertEqual(len(opening_threads), blocked_open)
+                self.assertEqual(closed, opening_threads)
+
+    def test_repeated_cancellation_joins_native_owner_initialization_before_close(self):
+        from meme_machine.solana_evidence_plane import EvidenceWriter
+        native_init, native_close = EvidenceWriter.__init__, EvidenceWriter.close
+        entered = threading.Event(); release = threading.Event(); initialized = []; closed = []
+        def held(writer, *args, **kwargs):
+            native_init(writer, *args, **kwargs)
+            initialized.append(threading.get_ident()); entered.set()
+            if not release.wait(10):raise RuntimeError('test_owner_ready_release_deadline')
+        def close(writer):
+            closed.append(threading.get_ident()); return native_close(writer)
+        async def scenario():
+            parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 1)
+            task = asyncio.create_task(concurrent.run_arm(parcel, records, batches,
+                self.root/'owner-ready-cancel', concurrent=True, rate=5, seconds=20))
+            try:
+                async def opened():
+                    while not entered.is_set():
+                        if task.done():task.result()
+                        await asyncio.sleep(.001)
+                await asyncio.wait_for(opened(), 10)
+                task.cancel(); await asyncio.sleep(0); task.cancel(); release.set()
+                with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task, 10)
+            finally:
+                release.set()
+                if not task.done():task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        old_umask = os.umask(0o077)
+        try:
+            with replay.no_network(), patch.object(EvidenceWriter, '__init__', held), patch.object(EvidenceWriter, 'close', close):
+                asyncio.run(scenario())
+        finally:os.umask(old_umask)
+        self.assertEqual(len(initialized), 1)
+        self.assertEqual(closed, initialized)
 
 
 if __name__ == '__main__':

@@ -138,29 +138,39 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
 
     def factory():
         writer = EvidenceWriter(config.evidence, clock=lambda: at)
-        fence = FinalizedFence(writer, endpoint_identity=endpoint)
-        history = SelectiveHistory(writer, endpoint, clock=lambda: at)
-        history.db.executescript(STATE_SCHEMA)
-        history.lifecycle = CandidateLifecycle(history, candidate_path=config.history)
-        history.lifecycle.delivery_separated = True
-        history.rolling = RollingHistory(history); history.startup = PrewarmStartup(history)
-        fence.selective = history; fence.health('topology', 'candidate_hybrid_v1')
-        thread_ids['owner'] = threading.get_ident()
-        return SimpleNamespace(writer=writer, fence=fence, selective=history, close=writer.close)
+        try:
+            fence = FinalizedFence(writer, endpoint_identity=endpoint)
+            history = SelectiveHistory(writer, endpoint, clock=lambda: at)
+            history.db.executescript(STATE_SCHEMA)
+            history.lifecycle = CandidateLifecycle(history, candidate_path=config.history)
+            history.lifecycle.delivery_separated = True
+            history.rolling = RollingHistory(history); history.startup = PrewarmStartup(history)
+            fence.selective = history; fence.health('topology', 'candidate_hybrid_v1')
+            thread_ids['owner'] = threading.get_ident()
+            return SimpleNamespace(writer=writer, fence=fence, selective=history, close=writer.close)
+        except BaseException:
+            try:writer.close()
+            except BaseException:pass
+            raise
 
     def open_reader():
         value = QualificationReader(config, clock=lambda: at, provider=provider, decision_target=None)
-        original.need(value._open(), 'concurrent_reader_open')
-        value.plane.acknowledge = lambda *args: acknowledgements.append(args)
-        def refused(**request):
-            from meme_machine.solana_evidence_plane import EvidenceUnavailable
-            commands.append(request)
-            raise EvidenceUnavailable('concurrent_engineering_ipc_refused')
-        value.plane.command = refused
-        thread_ids['qualification'] = threading.get_ident()
-        return value
+        try:
+            original.need(value._open(), 'concurrent_reader_open')
+            value.plane.acknowledge = lambda *args: acknowledgements.append(args)
+            def refused(**request):
+                from meme_machine.solana_evidence_plane import EvidenceUnavailable
+                commands.append(request)
+                raise EvidenceUnavailable('concurrent_engineering_ipc_refused')
+            value.plane.command = refused
+            thread_ids['qualification'] = threading.get_ident()
+            return value
+        except BaseException:
+            try:value.close()
+            except BaseException:pass
+            raise
 
-    async def qualification(function, *args):
+    async def qualification(function, *args, cancel_result=None):
         future = asyncio.wrap_future(qualification_pool.submit(function, *args))
         try:return await asyncio.shield(future)
         except asyncio.CancelledError:
@@ -171,12 +181,31 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 try:await asyncio.shield(future)
                 except asyncio.CancelledError:continue
                 except BaseException:break
-            if not future.cancelled():future.result()
+            if not future.cancelled():
+                result = future.result()
+                if cancel_result is not None:
+                    cleanup = asyncio.wrap_future(qualification_pool.submit(cancel_result, result))
+                    while not cleanup.done():
+                        try:await asyncio.shield(cleanup)
+                        except asyncio.CancelledError:continue
+                        except BaseException:break
+                    cleanup.result()
             raise
 
     async def bootstrap():
         nonlocal owner, source, work
-        owner = PriorityOwner(factory); await asyncio.wrap_future(owner.ready)
+        owner = PriorityOwner(factory)
+        ready = asyncio.wrap_future(owner.ready)
+        try:await asyncio.shield(ready)
+        except asyncio.CancelledError:
+            # ready is the native owner's own Future. Canceling its asyncio
+            # waiter must not cancel initialization before its close finally.
+            while not ready.done():
+                try:await asyncio.shield(ready)
+                except asyncio.CancelledError:continue
+                except BaseException:break
+            ready.result()
+            raise
         source = SelectiveSource(SimpleNamespace(identity=endpoint), None, token='offline')
         source.stop = asyncio.Event(); source.delivery_executor = delivery_pool
         work = OwnedWork(owner); work.candidate_delivery_capture_actor = True
@@ -265,7 +294,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             await bootstrap()
             await qualification(install_nonfinancial_history, config)
             await admit_group(parcel.warmup)
-            reader = await qualification(open_reader)
+            reader = await qualification(open_reader, cancel_result=lambda value:value.close())
             initial = await qualification(reader.snapshot)
             original.need(initial['native_event_backlog'] == len(parcel.warmup) and
                           initial['durably_observed_native_events'] == 0, 'concurrent_initial_state')
@@ -349,7 +378,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             owner.close(); owner = None
             # Reopen the actual canonical owner, seed a new actor and reopen
             # the actual qualification reader, rather than copy prior cursors.
-            await bootstrap(); reader = await qualification(open_reader)
+            await bootstrap(); reader = await qualification(open_reader, cancel_result=lambda value:value.close())
             tasks.append(asyncio.create_task(source.candidate_history_delivery()))
             await asyncio.sleep(0)
             await stop_tasks()
@@ -378,11 +407,16 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
         try:
             await stop_tasks()
         finally:
-            if reader is not None:await qualification(reader.close)
-            if owner is not None:owner.close()
-            # Existing physical consumer cancellation joins before owner close.
-            delivery_pool.shutdown(wait=True, cancel_futures=True)
-            qualification_pool.shutdown(wait=True, cancel_futures=True)
+            try:
+                if reader is not None:await qualification(reader.close)
+            finally:
+                try:
+                    if owner is not None:owner.close()
+                finally:
+                    # Existing physical consumer cancellation joins before
+                    # owner close, including when a different cleanup fails.
+                    delivery_pool.shutdown(wait=True, cancel_futures=True)
+                    qualification_pool.shutdown(wait=True, cancel_futures=True)
 
 
 def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
