@@ -42,8 +42,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
-      "after_bytes": 29503,
-      "after_sha256": "ecd378ea4522b0a30b63286dee9f69aa0df52e2d033f0efcc98076c00f44c933",
+      "after_bytes": 34224,
+      "after_sha256": "c06fbcb28420d2d47473ed6c87373a7a3e4c8500f2138d3cd9efafa66b08a474",
       "status": "A"
     },
     "meme_machine/operational/managed_pons_survivor.py": {
@@ -395,8 +395,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "6404939fcc60585a2b37ce21d1ea9366c3cc99e8",
-  "implementation_tree": "fbe09b3f4f1b1b6080ea05b76a1dbd1e39ea924e",
+  "implementation": "0a1b302e950644b90cbf68af64196bdcedef18da",
+  "implementation_tree": "67668c86bfc92e1934f5b9cf7ad01767f728d48c",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 10024,
