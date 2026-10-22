@@ -389,7 +389,8 @@ async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
     actual native status can use the original full byte/count bound. Every wake
     rechecks that identity so native delivery can release a waiting WS packet.
     """
-    if slot<join.filtered_from_slot or slot<=join.completed or (slot,sig) in join.early_logs:return
+    if (slot<join.filtered_from_slot or slot<=join.completed
+            or (slot,sig) in join.early_logs or (slot,sig) in join.completed_log_fields):return
     size=len(str(logs).encode())
     if size>MAX_PENDING_BYTES:raise EvidenceUnavailable('candidate_log_buffer_pressure')
     started=join.clock()
@@ -397,7 +398,8 @@ async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
         # A native/HTTP callback may have consumed this slot or installed the
         # same key while this WS packet waited. Its original late/duplicate
         # validator must run next without reserving these bytes twice.
-        if slot<join.filtered_from_slot or slot<=join.completed or (slot,sig) in join.early_logs:return
+        if (slot<join.filtered_from_slot or slot<=join.completed
+                or (slot,sig) in join.early_logs or (slot,sig) in join.completed_log_fields):return
         if len(join.early_logs)<32768 and join.early_log_bytes+size<=MAX_PENDING_BYTES//2:return
         pending=join.pending.get(slot)
         required=bool(pending is not None and sig in pending['missing_logs']
