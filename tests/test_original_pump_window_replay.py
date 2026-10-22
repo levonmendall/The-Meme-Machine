@@ -423,6 +423,14 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name).resolve()
 
+    def test_cli_worker_budget_covers_four_opt_in_arms_and_keeps_default_two(self):
+        for seconds in (.01, 120, 1800):
+            with self.subTest(seconds=seconds):
+                concurrent.limits(1, 1, seconds)
+                self.assertEqual(concurrent.worker_budget(seconds), 2*seconds)
+                self.assertEqual(concurrent.worker_budget(seconds,
+                    reader_placement_comparison=True), 4*seconds)
+
     def test_opt_in_placement_abba_preserves_all_fields_stores_network_guard_and_process_restart(self):
         import importlib.util
         parcel = CapturedParcel()
@@ -445,6 +453,11 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
             self.assertEqual(timing['process_cpu_nanoseconds'],
                 timing['parent_cpu_nanoseconds']+timing['child_cpu_nanoseconds'])
             self.assertGreater(row['reader_initialization']['wall_nanoseconds'], 0)
+            lifecycle = row['lifecycle_timing']
+            self.assertFalse(lifecycle['final_cleanup_included'])
+            self.assertEqual(lifecycle['spawned_reader_close_and_reap_included'],
+                             row['reader_placement'] == 'spawn')
+            self.assertIn('pre_final_cleanup', lifecycle['scope'])
             if row['reader_placement'] == 'spawn':
                 self.assertTrue(row['reader_process_restart_verified'])
                 self.assertEqual(len(row['qualification_process_ids']), 2)
@@ -547,23 +560,34 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
                 if not admitted.wait(10):raise AssertionError('all_inputs_admission_deadline')
             return native_capture(actor, *args, **kwargs)
         async def scenario():
-            never_ack = asyncio.Event()
+            child_failed = asyncio.Event(); failures = []; loop = asyncio.get_running_loop()
+            native_step = concurrent.SpawnReader.step
+            def step(reader):
+                try:return native_step(reader)
+                except ValueError as error:
+                    failures.append(str(error)); loop.call_soon_threadsafe(child_failed.set)
+                    raise
             async def work(value, function, *args, **kwargs):
                 if kwargs.get('label') == 'candidate_delivery_ack':
                     entered_ack[0] = True
                     # FULL is already visible, but this ACK has not entered
-                    # the real owner. Reader success cannot manufacture it.
-                    await never_ack.wait()
+                    # the real owner. Once the actual reader failure is known,
+                    # fail this test-only admission instead of leaving accepted
+                    # delivery cleanup blocked forever or manufacturing an ACK.
+                    await asyncio.wait_for(child_failed.wait(), 10)
+                    raise ValueError('original_window_concurrent_reader_experiment_boundary_failure')
                 answer = await native_work(value, function, *args, **kwargs)
                 if kwargs.get('component') == 'candidate':
                     admissions[0] += 1
                     if admissions[0] == 2:admitted.set()
                 return answer
             with patch.object(CaptureActor, 'capture', capture), patch.object(OwnedWork, '__call__', work), \
-                    patch.object(concurrent, '_placement_reader_child', _committed_exit_qualification_child):
+                    patch.object(concurrent, '_placement_reader_child', _committed_exit_qualification_child), \
+                    patch.object(concurrent.SpawnReader, 'step', step):
                 with self.assertRaisesRegex(ValueError, 'concurrent_reader_experiment_boundary_failure'):
                     await concurrent.run_arm(parcel, records, batches, crash, concurrent=True, rate=5,
                         seconds=20, reader_placement='spawn', placement_probe=True)
+            self.assertEqual(failures, ['original_window_concurrent_reader_experiment_boundary_failure'])
         old_umask = os.umask(0o077)
         try:
             with original.no_network(), owner_thread_fairness():

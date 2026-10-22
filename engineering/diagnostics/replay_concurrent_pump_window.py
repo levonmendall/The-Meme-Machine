@@ -323,6 +323,11 @@ def limits(batch, rate, seconds):
                   'concurrent_deadline')
 
 
+def worker_budget(seconds, *, reader_placement_comparison=False):
+    """Bound the CLI worker's two default arms or four opt-in ABBA arms."""
+    return (4 if reader_placement_comparison else 2)*seconds
+
+
 def freeze(parcel, batch):
     """Authenticate immutable normalized inputs before either timed arm."""
     from meme_machine.solana_economic_preparation import prepare_economic_record
@@ -760,7 +765,9 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                     lifecycle_timing=dict(wall_nanoseconds=time.perf_counter_ns()-arm_wall,
                         parent_cpu_nanoseconds=time.process_time_ns()-arm_cpu,
                         reader_child_cpu_nanoseconds=sum(value.cpu_nanoseconds for value in spawned),
-                        scope='whole_arm_setup_pipeline_cuts_and_restart_not_additive_with_pipeline_timing'),
+                        final_cleanup_included=False,
+                        spawned_reader_close_and_reap_included=reader_placement == 'spawn',
+                        scope='pre_final_cleanup_setup_pipeline_cuts_and_restart_not_additive_with_pipeline_timing_or_comparable_complete_cleanup'),
                     qualification_process_ids=[value.identity['pid'] for value in spawned],
                     qualification_process_identities=[value.identity for value in spawned],
                     reader_process_restart_verified=reader_placement == 'spawn' and len(spawned) == 2 and
@@ -931,7 +938,8 @@ def main():
                         if args.parcel else ['--public-fixture'])
             if args.reader_placement_comparison:command.append('--reader-placement-comparison')
             child = subprocess.Popen(command, start_new_session=True, stdout=subprocess.DEVNULL)
-            until = time.monotonic() + 2*args.seconds
+            until = time.monotonic() + worker_budget(args.seconds,
+                reader_placement_comparison=args.reader_placement_comparison)
             try:
                 while child.poll() is None:
                     scratch.check(); original.need(time.monotonic() < until, 'concurrent_worker_deadline')
