@@ -268,12 +268,12 @@ async def run_native_arm(path, frames, *, deferred, restart_before_apply=False):
         for number in range(len(frames)):
             await asyncio.sleep(max(0, probe_started+number*.002-loop.time()))
             await source.work(lambda state:state.writer.db.execute(
-                'SELECT count(*) FROM canonical_evidence').fetchone(), 0, label='fixture_protective_probe')
+                'SELECT count(*) FROM canonical_evidence').fetchone(), 0, label=None)
             probe_count['priority_zero_calls'] += 1
             def maintenance(state):
                 with state.writer.transaction():
                     state.writer.db.execute("INSERT OR REPLACE INTO service_health VALUES('fixture_maintenance','1')")
-            await source.work(maintenance, 4, label='fixture_maintenance_probe')
+            await source.work(maintenance, 4, label=None)
             probe_count['priority_four_calls'] += 1
 
     async def late_scout_and_promotion():
@@ -354,7 +354,7 @@ async def run_native_arm(path, frames, *, deferred, restart_before_apply=False):
                             targets = db.execute('SELECT count(*) FROM candidate_fanout_targets').fetchone()[0]
                             checkpoints = db.execute('SELECT count(*) FROM candidate_checkpoints').fetchone()[0]
                             return dict(placeholders=len(rows), targets=targets, checkpoints=checkpoints)
-                        restart_reserved = await source.work(reserved, 0, label='fixture_pending_cut')
+                        restart_reserved = await source.work(reserved, 0, label=None)
                         if (restart_reserved['targets'] != restart_pending[2]
                                 or restart_reserved['placeholders'] != restart_pending[2]
                                 or restart_reserved['checkpoints'] != 0 or source.preparation_lock.locked()):
