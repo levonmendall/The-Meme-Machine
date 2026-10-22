@@ -158,7 +158,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
     delivery_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='track-a-history')
     qualification_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='track-a-qualification')
     tasks = []; acknowledgements = []; commands = []; progress = []; thread_ids = {}
-    intake_finished = False; changed = asyncio.Event(); latest = None
+    intake_finished = False; changed = asyncio.Event(); delivery_changed = asyncio.Event(); latest = None
     provider = NoNetworkProvider(); loop = asyncio.get_running_loop()
     queue = asyncio.Queue(maxsize=ARRIVAL_BATCHES)
 
@@ -249,7 +249,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 counters['delivery_wall_nanoseconds'] += int(values['wall_seconds'] * 1e9)
                 counters['delivery_cpu_nanoseconds'] += int(values['cpu_seconds'] * 1e9)
                 if not intake_finished:counters['delivery_before_intake_finished'] += 1
-                changed.set()
+                changed.set(); delivery_changed.set()
         source.observer = observe
 
     async def stop_tasks():
@@ -278,6 +278,23 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             check_tasks(); changed.clear()
             if latest is not None and latest.get('durably_observed_native_events', 0) >= target:break
             await changed.wait()
+
+    def pending_outbox(state):
+        return state.writer.db.execute('SELECT 1 FROM candidate_history_outbox '
+            'WHERE consumed IS NULL LIMIT 1').fetchone() is not None
+
+    async def delivered_until_empty():
+        # Native observations and outbox obligations are different populations:
+        # several authenticated binding scopes can deliver one native identity.
+        # Intake is finished here. Check once, then only after real delivery ACK
+        # progress; qualification's empty turns must not poll the owner. Clear
+        # before the coherent owner read so an ACK during it cannot be lost.
+        while True:
+            check_tasks(); delivery_changed.clear()
+            counters['completion_outbox_checks'] += 1
+            if not await source.work(pending_outbox, 2):return
+            check_tasks(); counters['completion_outbox_waits'] += 1
+            await delivery_changed.wait()
 
     async def qualify():
         nonlocal latest
@@ -337,6 +354,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             async def finished():
                 await asyncio.gather(feeding, producing)
                 await qualified_until(len(parcel.inputs))
+                await delivered_until_empty()
             completion = asyncio.create_task(finished())
             try:
                 while not completion.done():

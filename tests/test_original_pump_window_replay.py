@@ -1,6 +1,8 @@
 """Disposable public-API tests for the engineering-only logical replay command."""
 from copy import deepcopy
 import asyncio
+import hashlib
+import json
 import sys
 import threading
 from collections import Counter
@@ -414,6 +416,126 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         self.assertGreater(right['counters']['observed_before_intake_finished'], 0)
         self.assertGreater(right['counters']['intake_turns_without_qualification_drain'], 0)
         self.assertEqual(left['counters'].get('intake_turns_without_qualification_drain', 0), 0)
+
+    def test_completion_waits_for_real_alias_outbox_acks_after_all_native_observations(self):
+        from meme_machine.operational.managed_pump_qualification import QualificationReader
+        from meme_machine.runtime.evidence_worker import owner_thread_fairness
+        from meme_machine.solana_history_delivery import CaptureActor
+        from meme_machine.solana_native_evidence import pubkey
+        from meme_machine.solana_selective_history import SelectiveHistory
+        from meme_machine.solana_selective_source import SelectiveSource
+        from tests.test_publication_accounting_turn import OwnedWork
+        parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 1)
+        identities = {item['identity'] for item in parcel.inputs}
+        mint = next(iter(records.values()))[0].record.payload['event']['mint']
+        native_ingest, native_capture = SelectiveHistory.ingest, CaptureActor.capture
+        native_delivery, native_step = SelectiveSource.candidate_history_delivery, QualificationReader.step
+        native_work = OwnedWork.__call__
+        seeded = set(); outbox_counts = {}; captured_ids = set(); held = threading.Event()
+        release = threading.Event(); sources = []; probes = []; turns = [0]; signals = {}
+
+        def ingest(history, rows, *args, **kwargs):
+            path = str(history.writer.path)
+            if path not in seeded:
+                # Independent authentic binding scopes each owe their own
+                # receipt for the same mint. aliases= would share one scope
+                # and queue_records would correctly deduplicate those names.
+                for index in range(64):
+                    address = pubkey(hashlib.sha256(('completion-alias-'+str(index)).encode()).digest())
+                    history.bind('pump', address, market_address=mint)
+                seeded.add(path)
+            answer = native_ingest(history, rows, *args, **kwargs)
+            outbox_counts[path] = history.db.execute("SELECT count(*) FROM candidate_history_outbox "
+                "WHERE kind='canonical'").fetchone()[0]
+            return answer
+
+        def capture(actor, *args, **kwargs):
+            snapshot = native_capture(actor, *args, **kwargs)
+            if Path(actor.context.canonical_path).parent.name != 'concurrent' or snapshot is None:return snapshot
+            already_visible = identities <= captured_ids
+            canonical_rows = [row for row in snapshot['rows'] if row[3] == 'canonical']
+            captured_ids.update(json.loads(row[4])['record']['identity'] for row in canonical_rows)
+            if already_visible and canonical_rows and not held.is_set():
+                # The preceding pages have completed real FULL delivery/ACK.
+                # Hold a later alias page after its read transaction is closed,
+                # before accepting another physical delivery that cancellation
+                # cleanup would otherwise finish and ACK for the old harness.
+                held.set()
+                if not release.wait(20):raise RuntimeError('test_alias_capture_release_deadline')
+            return snapshot
+
+        async def delivery(source):
+            if Path(source.canonical_path).parent.name == 'concurrent':sources.append(source)
+            return await native_delivery(source)
+
+        def step(reader):
+            answer = native_step(reader)
+            if reader.config.root.name == 'concurrent':
+                turns[0] += 1
+                if answer['durably_observed_native_events'] == len(parcel.inputs):
+                    signals['loop'].call_soon_threadsafe(signals['observed'].set)
+            return answer
+
+        async def work(value, function, *args, **kwargs):
+            answer = await native_work(value, function, *args, **kwargs)
+            if getattr(function, '__name__', None) == 'pending_outbox' and sources:
+                probes.append(answer)
+                if answer:signals['pending'].set()
+            return answer
+
+        async def scenario():
+            signals.update(loop=asyncio.get_running_loop(), observed=asyncio.Event(), pending=asyncio.Event())
+            left = await concurrent.run_arm(parcel, records, batches, self.root/'serial-control',
+                concurrent=False, rate=5, seconds=30)
+            task = asyncio.create_task(concurrent.run_arm(parcel, records, batches, self.root/'concurrent',
+                concurrent=True, rate=5, seconds=30))
+            waits = []
+            async def until(predicate):
+                while not predicate():
+                    if task.done():task.result()
+                    await asyncio.sleep(.001)
+            try:
+                await asyncio.wait_for(until(lambda: held.is_set() and signals['observed'].is_set()), 10)
+                waits = [asyncio.create_task(signals['pending'].wait()), asyncio.create_task(sources[-1].stop.wait())]
+                await asyncio.wait_for(asyncio.wait([task, *waits], return_when=asyncio.FIRST_COMPLETED), 10)
+                if task.done():task.result()
+                self.assertTrue(signals['pending'].is_set())
+                self.assertFalse(sources[-1].stop.is_set())
+                self.assertEqual(probes, [True])
+                # Several actual empty qualification turns pulse changed while
+                # the alias capture is held. They must not poll the owner.
+                target = turns[0] + 3
+                await asyncio.wait_for(until(lambda: turns[0] >= target), 5)
+                self.assertEqual(probes, [True])
+                release.set()
+                right = await asyncio.wait_for(asyncio.shield(task), 10)
+            finally:
+                release.set()
+                for wait in waits:wait.cancel()
+                if not task.done():task.cancel()
+                await asyncio.gather(task, *waits, return_exceptions=True)
+            comparison = concurrent.compare_arms(left, right)
+            self.assertTrue(comparison['coherent'])
+            self.assertEqual(comparison['different_semantic_fields'], [])
+            self.assertEqual(comparison['different_stores'], [])
+            self.assertEqual(len(comparison['semantic_fields']), 22)
+            self.assertEqual(len(right['store_fingerprints']), 6)
+            for row in (left, right):
+                self.assertTrue(row['reader_restart_verified']); self.assertTrue(row['owner_actor_restart_verified'])
+                self.assertEqual(row['final']['native_event_backlog'], 0)
+                self.assertGreaterEqual(row['counters']['completion_outbox_checks'], 1)
+                self.assertLessEqual(row['counters']['completion_outbox_checks'], row['counters']['delivery_batches'] + 1)
+            self.assertGreater(right['counters']['completion_outbox_waits'], 0)
+            self.assertTrue(probes[-1] is False)
+            self.assertTrue(all(count > 64 * len(parcel.inputs) for count in outbox_counts.values()))
+
+        old_umask = os.umask(0o077)
+        try:
+            with replay.no_network(), owner_thread_fairness(), patch.object(SelectiveHistory, 'ingest', ingest), \
+                    patch.object(CaptureActor, 'capture', capture), patch.object(SelectiveSource, 'candidate_history_delivery', delivery), \
+                    patch.object(QualificationReader, 'step', step), patch.object(OwnedWork, '__call__', work):
+                asyncio.run(scenario())
+        finally:os.umask(old_umask)
 
     def test_every_original_semantic_field_is_required_and_mutation_fails(self):
         arm = {key: ['retained', key] for key in original.SEMANTIC_FIELDS}
