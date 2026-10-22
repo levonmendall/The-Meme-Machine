@@ -434,8 +434,8 @@
   "implementation_tree": "21b11b55153eb6f8c140bf284c9ee0613c100613",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
-      "bytes": 10024,
-      "sha256": "1110c66269b4ca9048b81c891b3c4da39a1c42582a4876605d82cedb8a239cd1"
+      "bytes": 10374,
+      "sha256": "7a5140ad6ac1a657df3dde79bbeb2a1f91993c5cc5fe66e437dcccfe08670109"
     },
     "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
       "bytes": 12869,
@@ -443,11 +443,15 @@
     }
   },
   "read_guard": {
-    "after_bytes": 377045,
-    "after_sha256": "aa666d7cb31dcd994e46e492d05b14c5b102e3098f123441ced8526fa4244801",
+    "after_bytes": 377078,
+    "after_sha256": "81356067c797764a8aa650ac73f057a43579d805918a4d48cf0cf0df3ddd9e78",
     "before_bytes": 376814,
     "before_sha256": "5512e1b375dfbe960f1e6927e9528ff51b28a2a329657d3a1e42b7b47107b3e6",
     "changes": [
+      {
+        "after": "            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
+        "before": "            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"
+      },
       {
         "after": "        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
         "before": "        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())\n"
