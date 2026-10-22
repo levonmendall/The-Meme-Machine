@@ -905,8 +905,13 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_deferred_capacity_rolls_back_whole_frame_batch_without_false_gap(self):
         from meme_machine.solana_derived_fanout import FanoutBackpressure
+        other,h=state_at(Path(self.tmp.name)/'fanout-capacity-reference.sqlite')
+        self.addCleanup(other.writer.close)
+        commit_candidate_batch(other,[frame(100)],self.addresses,'bounded-fanout',publish=False)
+        expected=h.db.execute('SELECT COUNT(*) FROM canonical_evidence').fetchone()[0]
+        self.assertGreater(expected,0)
         before=self.snapshot(self.h)
-        with patch('meme_machine.solana_derived_fanout.MAX_RECORDS',1):
+        with patch('meme_machine.solana_derived_fanout.MAX_RECORDS',expected):
             with self.assertRaises(FanoutBackpressure):
                 commit_candidate_batch(self.state,[frame(100),frame(101)],self.addresses,'bounded-fanout',publish=False,defer_fanout=True)
         self.assertEqual(self.snapshot(self.h),before)
@@ -915,7 +920,7 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_gaps').fetchone()[0],0)
         self.assertFalse(self.h.db.in_transaction)
         commit_candidate_batch(self.state,[frame(100)],self.addresses,'bounded-fanout',publish=False,defer_fanout=True)
-        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],1)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_derived_fanout').fetchone()[0],expected)
 
     async def test_deferred_preparation_rejects_fresh_binding_change_without_losing_intent(self):
         from meme_machine.solana_derived_fanout import prepare,apply
