@@ -377,6 +377,254 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE hi IS NULL').fetchone()[0],2)
 
+    async def repair_stage_barrier(self, blocked, *, batch=False):
+        """Real live/repair callbacks; gate only offline transport/owner boundaries.
+
+        The WS receiver owns a future packet above its soft waterline. One
+        captured head log remains buffered while an absent native-required
+        field uses the real measured RPC, accounting and receipt callbacks.
+        Virtual wall clocks identify where the existing availability stamp is
+        taken; they are not provider latency or market-capacity measurements.
+        """
+        import based58
+        import threading
+        from meme_machine import solana_selective_source as module
+        from meme_machine.solana_candidate_join import CandidateTransactionJoin
+        from meme_machine.solana_selective_history import economic_records
+        from meme_machine.solana_source_drain import StopEither
+        self.assertIn(blocked,('transport','delivery','receipt','join_install'))
+        original=copy.deepcopy(FIXTURE['pump'][0]);slot=original['slot'];index=original['transactionIndex']
+        first=original['transaction']['signatures'][0]
+        required=[based58.b58encode(bytes([number])*64).decode()
+            for number in range(2,4 if batch else 3)]
+        future=based58.b58encode(bytes([9])*64).decode()
+        transactions={first:original}
+        for signature in required+[future]:
+            tx=copy.deepcopy(original);tx['transaction']['signatures'][0]=signature
+            if signature==future:tx['slot']+=2;tx['blockTime']+=2
+            transactions[signature]=tx
+        loop=asyncio.get_running_loop();wall=[NOW];physical_return=[];available=[];trace=[]
+        transport_release=threading.Event()
+        gates={stage:asyncio.Event() for stage in ('delivery','receipt','join_install')}
+        entered={stage:asyncio.Event() for stage in ('transport','delivery','receipt','join_install')}
+        for stage,gate in gates.items():
+            if stage!=blocked:gate.set()
+        if blocked!='transport':transport_release.set()
+        all_receipts=asyncio.Event();all_receipt_attempts=asyncio.Event()
+        receipt_attempts=[];persisted=[];read_contexts={};join_box=[];installed=[];joined=[]
+        first_admitted=asyncio.Event();future_waiting=asyncio.Event();future_admitted=asyncio.Event()
+        head_installed=asyncio.Event();native_ready=asyncio.Event();packets=asyncio.Queue()
+        local_stop=asyncio.Event();physical=[]
+
+        class OfflineRPC:
+            def delivered(self,signatures,priority):
+                self_case.assertEqual(priority,2);self_case.assertEqual(signatures,required)
+                physical.append(tuple(signatures));loop.call_soon_threadsafe(entered['transport'].set)
+                if not transport_release.wait(3):raise TimeoutError('offline transport gate')
+                wall[0]=NOW+10;physical_return.append(wall[0]);trace.append(('transport_return',wall[0]))
+                values=[]
+                for signature in signatures:
+                    tx=copy.deepcopy(transactions[signature]);tx.pop('transactionIndex',None);values.append(tx)
+                receipt=dict(bytes=len(json.dumps(values).encode()),cu=40*len(values),calls=1)
+                if len(values)>1:receipt['batch_members']=len(values)
+                return values,receipt
+            def call_delivered(self,method,params,priority):
+                if method=='getSlot':return slot-1,dict(bytes=1,cu=1,calls=1)
+                self_case.assertEqual(method,'getTransaction')
+                self_case.assertEqual(params[1],dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1))
+                values,receipt=self.delivered([params[0]],priority);return values[0],receipt
+            def log_batch_delivered(self,signatures,priority):return self.delivered(signatures,priority)
+        self_case=self
+        source=SelectiveSource(SimpleNamespace(credential='offline',identity='a'*64,stream_url='offline'),OfflineRPC())
+        source.stop=asyncio.Event();source.batched=True
+        def receipts():
+            # A separate real reader proves the owner callback's SQL is visible
+            # after its commit, not merely present on an uncommitted connection.
+            with closing(sqlite3.connect(self.state.writer.path)) as reader:
+                return [json.loads(raw) for raw, in reader.execute(
+                    "SELECT body FROM acquisition_observations WHERE kind='native_stream_log_supplement'")]
+        def accounting():
+            return self.history.db.execute("SELECT COALESCE(SUM(calls),0) FROM provider_delivery "
+                "WHERE family='rolling_recovery_missing_logs' AND transport='rpc'").fetchone()[0]
+        async def work(fn,priority=2,**options):
+            closure={name:cell.cell_contents for name,cell in zip(fn.__code__.co_freevars,fn.__closure__ or ())}
+            if 'delivery' in fn.__code__.co_names and closure.get('family')=='rolling_recovery_missing_logs':
+                entered['delivery'].set();await gates['delivery'].wait()
+                result=fn(self.state);trace.append(('delivery_committed',wall[0]));return result
+            if 'native_stream_log_supplement' in fn.__code__.co_consts:
+                signature=closure['receipt']['native_witness']['signature']
+                receipt_attempts.append(signature);available.append(closure['available'])
+                if len(receipt_attempts)==len(required):all_receipt_attempts.set()
+                entered['receipt'].set();await gates['receipt'].wait()
+                result=fn(self.state);self.assertFalse(self.history.db.in_transaction)
+                persisted.append(signature);trace.append(('receipt_committed',signature,wall[0]))
+                if len(persisted)==len(required):all_receipts.set()
+                # complete_required_log is synchronous. Holding the existing
+                # awaited owner return is its final asynchronous pre-install
+                # boundary; no fake sleep is inserted into join mutation.
+                entered['join_install'].set();await gates['join_install'].wait()
+                return result
+            return fn(self.state)
+        source.work=work
+        def observe(kind,values):
+            if kind=='joined_frame':joined.append(values['slot'])
+        source.observer=observe
+        begin=CandidateTransactionJoin.begin_required_log_read
+        feed=CandidateTransactionJoin.feed_log
+        complete=CandidateTransactionJoin.complete_required_log
+        wait_space=module.wait_candidate_log_space
+        def begin_read(join,number,signature):
+            witness=begin(join,number,signature)
+            if signature in required:read_contexts[signature]=join.required_log_reads[number,signature]
+            return witness
+        def feed_log(join,number,signature,logs,error,seen):
+            result=feed(join,number,signature,logs,error,seen)
+            if signature==first:first_admitted.set()
+            if signature==future:future_admitted.set()
+            return result
+        def install_log(join,number,signature,logs,seen):
+            if signature in required:
+                self.assertIs(join.required_log_reads[number,signature],read_contexts[signature])
+                self.assertTrue(any(row['native_witness']['signature']==signature for row in receipts()))
+                self.assertEqual(accounting(),1)
+                installed.append(signature);trace.append(('join_install',signature,wall[0]))
+            result=complete(join,number,signature,logs,seen)
+            if number==slot and join.completed>=slot:head_installed.set()
+            return result
+        async def pressure(join,progress,stop,session_stop,number,signature,logs):
+            if not join_box:join_box.append(join)
+            if signature==future:future_waiting.set()
+            return await wait_space(join,progress,stop,session_stop,number,signature,logs)
+        class Socket:
+            def __init__(socket):socket.acks=asyncio.Queue();socket.frontiers=iter((11,12))
+            async def send(socket,raw):
+                value=json.loads(raw);await socket.acks.put(json.dumps(dict(id=value['id'],result=value['id']+10)))
+            async def recv(socket):
+                if not socket.acks.empty():return await socket.acks.get()
+                frontier=next(socket.frontiers,None)
+                if frontier is not None:
+                    return json.dumps(dict(params=dict(subscription=frontier,result=dict(context=dict(slot=slot-1),
+                        value=dict(err={'InstructionError':[0,0]},signature='failed',logs=[])))))
+                return await packets.get()
+        class Connection:
+            async def __aenter__(self):return Socket()
+            async def __aexit__(self,*args):pass
+        async def packet(signature):
+            tx=transactions[signature]
+            await packets.put(json.dumps(dict(params=dict(subscription=11,result=dict(context=dict(slot=tx['slot']),
+                value=dict(err=None,signature=signature,logs=tx['meta']['logMessages']))))))
+        addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+        async def status(handler,number,signature,ordinal):
+            u=pb.SubscribeUpdate(filters=[scope_labels(addresses)[program_scope('pump')]])
+            u.transaction_status.slot=number;u.transaction_status.index=ordinal
+            u.transaction_status.signature=based58.b58decode(signature.encode())
+            await handler(u,u.ByteSize(),NOW)
+        async def finalized(handler,offset,count):
+            number=slot+offset
+            u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=number;m.parent_slot=number-1
+            m.blockhash=str(number);m.parent_blockhash=str(number-1)
+            m.block_time.timestamp=original['blockTime']+offset;m.executed_transaction_count=count
+            await handler(u,u.ByteSize(),NOW)
+            u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=number;u.slot.parent=number-1;u.slot.status=pb.SLOT_FINALIZED
+            await handler(u,u.ByteSize(),NOW)
+        async def stream(channel,request,handler,family,session_stop):
+            await status(handler,slot,first,index);await packet(first)
+            await first_admitted.wait()
+            for ordinal,signature in enumerate(required,index+1):await status(handler,slot,signature,ordinal)
+            await finalized(handler,0,index+1+len(required))
+            await packet(future);await future_waiting.wait()
+            # A real finalized linked child makes the absent head eligible.
+            await finalized(handler,1,0);native_ready.set()
+            await head_installed.wait()
+            await status(handler,slot+2,future,index);await finalized(handler,2,index+1)
+            await future_admitted.wait()
+            await StopEither(source.stop,session_stop).wait()
+        source.stream=stream
+        desired=[dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,deadline=NOW+150,
+            lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
+        size=len(str(original['meta']['logMessages']).encode());bound=size+size//2
+        task=None
+        with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()), \
+                patch('meme_machine.solana_selective_source.time.time',side_effect=lambda:wall[0]), \
+                patch('meme_machine.solana_selective_source.wait_candidate_log_space',pressure), \
+                patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound), \
+                patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound), \
+                patch.object(CandidateTransactionJoin,'begin_required_log_read',begin_read), \
+                patch.object(CandidateTransactionJoin,'feed_log',feed_log), \
+                patch.object(CandidateTransactionJoin,'complete_required_log',install_log):
+            task=asyncio.create_task(source.live(None,desired,local_stop))
+            try:
+                await asyncio.wait_for(entered[blocked].wait(),2)
+                await asyncio.wait_for(native_ready.wait(),2)
+                if blocked in ('receipt','join_install'):await asyncio.wait_for(all_receipt_attempts.wait(),2)
+                if blocked=='join_install':await asyncio.wait_for(all_receipts.wait(),2)
+                join=join_box[0]
+                self.assertGreater(join.early_log_bytes,bound//2)
+                self.assertIn((slot,first),join.early_logs)
+                self.assertFalse(future_admitted.is_set());self.assertFalse(head_installed.is_set())
+                self.assertEqual(join.pending[slot]['missing_logs'],set(required))
+                self.assertEqual(set(join.required_log_reads),{(slot,signature) for signature in required})
+                for signature in required:
+                    self.assertIs(join.required_log_reads[slot,signature],read_contexts[signature])
+                self.assertEqual(installed,[]);self.assertEqual(joined,[])
+                self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+                self.assertEqual(source.pipeline_metrics['log_repair:rolling']['supplements_authenticated'],0)
+                self.assertEqual(accounting(),int(blocked in ('receipt','join_install')))
+                self.assertEqual(len(receipts()),len(required) if blocked=='join_install' else 0)
+                self.assertEqual(physical_return,[] if blocked=='transport' else [NOW+10])
+                self.assertTrue(any(row['phase']=='LOG_BUFFER_WAIT' for row in source.handlers.records.values()))
+                wall[0]=NOW+20
+                if blocked=='transport':transport_release.set()
+                else:gates[blocked].set()
+                await asyncio.wait_for(head_installed.wait(),2)
+                await asyncio.wait_for(future_admitted.wait(),2)
+                local_stop.set();await asyncio.wait_for(task,3)
+            finally:
+                transport_release.set()
+                for gate in gates.values():gate.set()
+                local_stop.set()
+                if task is not None and not task.done():task.cancel()
+                if task is not None:await asyncio.gather(task,return_exceptions=True)
+        expected_available=NOW+20 if blocked=='delivery' else NOW+10
+        self.assertEqual(available,[expected_available]*len(required))
+        self.assertEqual([row['http_result_available_at'] for row in receipts()],available)
+        for signature in required:
+            self.assertEqual(self.history.db.execute("SELECT min(first_seen) FROM canonical_evidence "
+                "WHERE kind='event' AND signature=?",(signature,)).fetchone()[0],expected_available)
+        self.assertEqual(physical,[tuple(required)]);self.assertEqual(set(installed),set(required))
+        self.assertEqual(joined,[slot,slot+1,slot+2]);self.assertEqual(join_box[0].pending,{})
+        self.assertEqual(join_box[0].required_log_reads,{})
+        self.assertEqual((join_box[0].pending_bytes,join_box[0].early_log_bytes),(0,0))
+        self.assertEqual(source.drain_snapshot()['queues']['rolling'],dict(accepted=3,committed=3,pending=0))
+        self.assertEqual(source.drain_snapshot()['pending_handlers'],0)
+        self.assertEqual(source.source_drain['unpreserved_sessions'],0)
+        expected=set()
+        for ordinal,signature in enumerate([first]+required):
+            tx=copy.deepcopy(transactions[signature]);tx['transactionIndex']=index+ordinal
+            expected.update(row.identity for row in economic_records('pump',PROGRAMS['pump'],tx,
+                endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_stream'))
+        expected.update(row.identity for row in economic_records('pump',PROGRAMS['pump'],transactions[future],
+            endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_stream'))
+        self.assertEqual({row[0] for row in self.history.db.execute('SELECT identity FROM rolling_economic_events')},expected)
+        return SimpleNamespace(trace=trace,physical_return=physical_return,available=available)
+
+    async def test_head_repair_transport_wait_retains_exact_owner_while_ws_is_pressured(self):
+        await self.repair_stage_barrier('transport')
+
+    async def test_head_repair_delivery_accounting_wait_precedes_reported_http_availability(self):
+        result=await self.repair_stage_barrier('delivery')
+        self.assertEqual(result.physical_return,[NOW+10]);self.assertEqual(result.available,[NOW+20])
+
+    async def test_head_repair_receipt_admission_wait_cannot_publish_join_or_economics(self):
+        await self.repair_stage_barrier('receipt')
+
+    async def test_head_repair_durable_receipt_return_wait_retains_owner_before_join_install(self):
+        await self.repair_stage_barrier('join_install')
+
+    async def test_batched_head_repair_uses_same_delivery_receipt_install_stage_contract(self):
+        result=await self.repair_stage_barrier('delivery',batch=True)
+        self.assertEqual(result.physical_return,[NOW+10]);self.assertEqual(result.available,[NOW+20,NOW+20])
+
     async def native_head_live(self, *, truncated=False, later_truncated=0, exhaust=False,
             complete_ws=False, selection_ws=False, cancel=False, invalid_response=None,
             lookahead=None,future_capacity=False,repeated_cancel=False):
