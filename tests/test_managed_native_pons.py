@@ -19,6 +19,79 @@ ENDPOINT = 'https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_MANAGED_FIXTURE'
 GENERATION = 'independent-test-generation'
 
 
+class ManagedStorageCheckTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = self.enterContext(tempfile.TemporaryDirectory())
+        self.root = Path(self.tmp)
+        self.lane = object.__new__(ManagedPonsLane)
+        self.lane.root = self.root
+        self.lane.closed = False
+        self.lane.cancel = lambda: False
+
+    def test_retired_sidecar_after_metadata_read_does_not_abort_or_hide_observed_size(self):
+        victim = self.root/'retiring.sqlite-wal'
+        stable = self.root/'canonical.sqlite'
+        stable.write_bytes(b'1234')
+        original = Path.stat
+        for limit in (8, 7):
+            with self.subTest(limit=limit):
+                victim.write_bytes(b'5678')
+                reads = []
+                def retire(path, *args, **kwargs):
+                    value = original(path, *args, **kwargs)
+                    if path == victim:
+                        reads.append(True)
+                        victim.unlink()
+                    return value
+                with patch.object(Path, 'stat', retire), patch(
+                        'meme_machine.operational.managed_native_pons.MAX_STORAGE_BYTES', limit):
+                    if limit == 8:
+                        self.lane._check()
+                    else:
+                        with self.assertRaisesRegex(ValueError, 'storage_bound'):
+                            self.lane._check()
+                self.assertEqual(reads, [True])
+                self.assertFalse(victim.exists())
+
+    def test_disappearing_entry_does_not_suppress_storage_limit_on_remaining_files(self):
+        victim = self.root/'gone.sqlite-shm'
+        victim.write_bytes(b'0')
+        (self.root/'canonical.sqlite').write_bytes(b'12345678')
+        original = Path.stat
+        def missing(path, *args, **kwargs):
+            if path == victim:
+                raise FileNotFoundError()
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'stat', missing), patch(
+                'meme_machine.operational.managed_native_pons.MAX_STORAGE_BYTES', 7):
+            with self.assertRaisesRegex(ValueError, 'storage_bound'):
+                self.lane._check()
+
+    def test_permission_failure_and_missing_root_still_fail_closed(self):
+        victim = self.root/'canonical.sqlite'
+        victim.write_bytes(b'1')
+        original = Path.stat
+        def denied(path, *args, **kwargs):
+            if path == victim:
+                raise PermissionError()
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'stat', denied):
+            with self.assertRaises(PermissionError):
+                self.lane._check()
+        self.lane.root = self.root/'missing-generation'
+        with self.assertRaises(FileNotFoundError):
+            self.lane._check()
+
+    def test_closed_and_cancelled_generation_guards_are_unchanged(self):
+        self.lane.closed = True
+        with self.assertRaisesRegex(ValueError, 'closed'):
+            self.lane._check()
+        self.lane.closed = False
+        self.lane.cancel = lambda: True
+        with self.assertRaisesRegex(InterruptedError, 'managed_pons_cancelled'):
+            self.lane._check()
+
+
 class ManagedNativePonsTests(unittest.TestCase):
     def setUp(self):
         self.tmp = self.enterContext(tempfile.TemporaryDirectory())
