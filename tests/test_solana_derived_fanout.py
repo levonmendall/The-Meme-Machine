@@ -151,6 +151,27 @@ class DerivedFanoutTests(unittest.TestCase):
         self.assertEqual(self.h.db.execute("SELECT count(*) FROM candidate_history_outbox WHERE id NOT GLOB 'fanout:*'").fetchone()[0],0)
         with self.assertRaisesRegex(EvidenceUnavailable,'source_corrupt'):self.prepare(context)
 
+    def test_apply_publication_wakeup_waits_for_ack_except_consumed_duplicates(self):
+        context=self.freeze()
+        def revision():return getattr(self.h,'_history_publication_revision',0)
+        before=revision();delivery=getattr(self.h,'_history_delivery_revision',0)
+        self.assertTrue(fanout.apply(self.life,self.prepare(context)))
+        self.assertEqual(revision(),before)
+        self.assertGreater(getattr(self.h,'_history_delivery_revision',0),delivery)
+        # An unconsumed duplicate still has its actual future FULL/ACK.
+        with self.state.writer.transaction():self.h.ingest((self.row,),defer_fanout=True)
+        before=revision();self.assertTrue(fanout.apply(self.life,self.prepare(context)))
+        self.assertEqual(revision(),before)
+        snapshot=capture(self.life)
+        self.assertTrue(acknowledge(self.life,snapshot,deliver(snapshot)))
+        self.assertGreater(revision(),before)
+        # This replay's existing row is already consumed. Removing the durable
+        # reservation must wake publication because no new ACK will follow.
+        with self.state.writer.transaction():self.h.ingest((self.row,),defer_fanout=True)
+        before=revision();self.assertTrue(fanout.apply(self.life,self.prepare(context)))
+        self.assertGreater(revision(),before)
+        self.assertIsNone(capture(self.life));self.assertEqual(fanout.pending_counts(self.life),(0,0,0))
+
 
 class DerivedFanoutWorkerTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -215,4 +236,75 @@ class DerivedFanoutWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.source.preparation_lock.locked())
         self.assertGreater((await self.query(lambda s:fanout.pending_counts(self.native['history'].lifecycle)))[2],0)
         self.source.fanout_done.set();await asyncio.wait_for(self.start(),3)
+        self.assertEqual(await self.query(lambda s:fanout.pending_counts(self.native['history'].lifecycle)),(0,0,0))
+
+    async def test_real_ack_scout_and_proof_notifications_do_not_rescan_empty_fanout(self):
+        from meme_machine.solana_history_notifications import install as notifications
+        from meme_machine.solana_evidence_plane import IntervalProof,digest
+        loop=asyncio.get_running_loop();parked=asyncio.Event();calls=[];original=fanout.prepare
+        def prepare(*args):
+            value=original(*args);calls.append(value is None)
+            return value
+        wait=self.source.fanout_wakeup.wait
+        async def waiting(seen,closed,**options):
+            if seen==self.source.fanout_wakeup.epoch and not closed.is_set():parked.set()
+            return await wait(seen,closed,**options)
+        await self.query(lambda s:notifications(self.native['history'],loop,self.source.history_changed,capture_hints=True))
+        with patch.object(fanout,'prepare',prepare),patch.object(self.source.fanout_wakeup,'wait',waiting):
+            task=self.start();await asyncio.wait_for(parked.wait(),3)
+            epoch=self.source.fanout_wakeup.epoch;count=len(calls)
+            snapshot=await self.query(lambda s:capture(self.native['history'].lifecycle))
+            result=deliver(snapshot)
+            self.assertTrue(await self.query(lambda s:acknowledge(self.native['history'].lifecycle,snapshot,result)))
+            def other_changes(state):
+                h=self.native['history'];scope=program_scope('pumpswap')
+                with state.writer.transaction():
+                    h.lifecycle.emit('pump','unrelated','scout',dict(fields={}))
+                    h.lifecycle.defer_proof(IntervalProof(scope,100,100,'alchemy_finalized_stream','a'*64,
+                        dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=100,
+                            lineage_hash=digest([scope,100])),NOW))
+            await self.query(other_changes);await asyncio.sleep(0);await asyncio.sleep(0)
+            self.assertGreater(self.source.delivery_wakeup.epoch,0)
+            self.assertGreater(self.source.history_wakeup.epoch,0)
+            self.assertEqual(self.source.fanout_wakeup.epoch,epoch)
+            self.assertEqual(len(calls),count,'unrelated delivery changes triggered a physical RO scan')
+            self.source.fanout_done.set();self.source.fanout_wakeup.notify()
+            await asyncio.wait_for(task,3)
+            self.assertEqual(len(calls),count+1,'producers-closed still requires a fresh empty read')
+
+    async def test_accepted_native_commit_wakes_fanout_after_caller_cancel_and_rollback_does_not(self):
+        from meme_machine import solana_selective_source as source_module
+        from tests.test_candidate_commit_batches import frame
+        source=self.source;source.work.candidate_delivery_fanout=True
+        source.stop=asyncio.Event();source.batched=True;source.history_separated=False
+        addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+        queue=source_module.CandidateCommitQueue();await queue.put(frame(100));done=asyncio.Event();done.set()
+        entered=threading.Event();release=threading.Event();self.releases.append(release)
+        original=source_module.commit_candidate_batch;before=source.fanout_wakeup.epoch
+        def blocked(*args,**kwargs):
+            entered.set()
+            if not release.wait(3):raise AssertionError('offline-native-commit-release-missing')
+            return original(*args,**kwargs)
+        with patch.object(source_module,'commit_candidate_batch',blocked):
+            producer=asyncio.create_task(source.candidate_commits(queue,addresses,'cancelled-intake',producer_done=done))
+            self.tasks.append(producer);self.assertTrue(await asyncio.to_thread(entered.wait,2))
+            producer.cancel()
+            with self.assertRaises(asyncio.CancelledError):await producer
+            release.set()
+            pending=await self.query(lambda s:fanout.pending_counts(self.native['history'].lifecycle))
+        await asyncio.sleep(0)
+        self.assertGreater(pending[0],1)
+        self.assertEqual(source.fanout_wakeup.epoch,before+1,'durable work lost its accepted-owner wakeup')
+        # A failed outer FULL transaction must not publish even its volatile
+        # freeze revision. Original capacity/failure state remains durable.
+        before=source.fanout_wakeup.epoch;queue=source_module.CandidateCommitQueue();await queue.put(frame(101))
+        freeze=fanout.freeze
+        def failed(*args):freeze(*args);raise RuntimeError('offline-intake-rollback')
+        with patch.object(fanout,'freeze',failed):
+            with self.assertRaisesRegex(RuntimeError,'offline-intake-rollback'):
+                await source.candidate_commits(queue,addresses,'cancelled-intake',producer_done=done)
+        await asyncio.sleep(0)
+        self.assertEqual(source.fanout_wakeup.epoch,before)
+        self.assertEqual(await self.query(lambda s:fanout.pending_counts(self.native['history'].lifecycle)),pending)
+        source.fanout_done.set();await asyncio.wait_for(self.start(),3)
         self.assertEqual(await self.query(lambda s:fanout.pending_counts(self.native['history'].lifecycle)),(0,0,0))

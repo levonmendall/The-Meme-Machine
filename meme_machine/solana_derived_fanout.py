@@ -115,6 +115,9 @@ def freeze(life,rows):
     if count+len(intents)>MAX_RECORDS or size+added_bytes>MAX_BYTES:raise FanoutBackpressure()
     life.db.executemany('INSERT INTO candidate_derived_fanout VALUES(?,?,?,?,?,?,?,?,?,?,?)',intents)
     life.db.executemany('INSERT INTO candidate_fanout_targets VALUES(?,?,?,?,?,?,?,?,?)',targets)
+    # Private scheduling revision only. The native owner callback publishes a
+    # pulse after its complete outer FULL commit, even if its caller cancels.
+    life.history._fanout_intake_revision=getattr(life.history,'_fanout_intake_revision',0)+1
     from .solana_history_notifications import changed
     changed(life.history)
 
@@ -204,6 +207,7 @@ def apply(life,prepared):
     if (sum(len(outputs) for _,_,outputs in prepared.records)>PAGE or
             sum(len(output[5].encode())+256 for _,_,outputs in prepared.records for output in outputs)>PAGE_BYTES):
         raise EvidenceUnavailable('candidate_fanout_preparation_changed')
+    publication=False
     with life.writer.transaction():
         for key,binding in prepared.bindings:
             if life.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',key).fetchone()!=binding:return False
@@ -235,7 +239,11 @@ def apply(life,prepared):
                 # INSERT OR IGNORE's original duplicate behavior leaves an
                 # existing real row unchanged. A reservation supplies only
                 # dispatch position; it can never be acknowledged as delivery.
-                if life.db.execute('SELECT 1 FROM candidate_history_outbox WHERE id=?',(identity,)).fetchone():
+                existing=life.db.execute('SELECT consumed FROM candidate_history_outbox WHERE id=?',(identity,)).fetchone()
+                if existing is not None:
+                    # A consumed duplicate has no future FULL/ACK to reopen
+                    # proof eligibility after this reservation disappears.
+                    publication|=existing[0] is not None
                     life.db.execute('DELETE FROM candidate_history_outbox WHERE rowid=?',(rowid,))
                 else:life.db.execute('UPDATE candidate_history_outbox SET id=?,body=?,hash=? WHERE rowid=?',
                     (identity,raw,checksum,rowid))
@@ -245,7 +253,9 @@ def apply(life,prepared):
                 life.db.execute('DELETE FROM candidate_derived_fanout WHERE id=?',(row[0],))
             else:life.db.execute('UPDATE candidate_derived_fanout SET position=?,recipients_hash=? WHERE id=?',(end,tail[2],row[0]))
         from .solana_history_notifications import changed
-        changed(life.history)
+        # Genuinely new/unconsumed outputs cannot yet authorize a proof. Their
+        # eventual fresh ACK wakes publication; delivery still wakes now.
+        changed(life.history,publication=publication)
     return True
 
 

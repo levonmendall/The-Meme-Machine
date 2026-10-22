@@ -695,7 +695,6 @@ class SelectiveSource:
         if delivery:
             self.delivery_revision=getattr(self,'delivery_revision',0)+1
             self.delivery_wakeup.notify()
-            self.fanout_wakeup.notify()
         if delivery and urgent_delivery:self.delivery_urgent.notify()
 
     def retain_join_state(self,plane,session,body,queue,*,state,monotonic):
@@ -1002,7 +1001,7 @@ class SelectiveSource:
                 for _ in batch:queue.task_done()
 
     async def candidate_commits(self,queue,addresses,session,*,rolling=False,grouped=False,priority=2,producer_done=None):
-        native_announced=False
+        native_announced=False;loop=asyncio.get_running_loop()
         while producer_done is not None or not self.stop.is_set() or queue.count:
             rows=await queue.batch(producer_done)
             if not rows:return
@@ -1064,9 +1063,17 @@ class SelectiveSource:
             claimed=[];finished_wall=[]
             def durable(state):
                 claimed.append(time.monotonic())
+                deferred=getattr(self.work,'candidate_delivery_fanout',False) is True
+                history=install(state) if deferred else None
+                before=getattr(history,'_fanout_intake_revision',0)
                 commit_candidate_batch(state,frames,addresses,session,
                     grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases,
-                    defer_fanout=getattr(self.work,'candidate_delivery_fanout',False) is True)
+                    defer_fanout=deferred)
+                if deferred and getattr(history,'_fanout_intake_revision',0)!=before and not loop.is_closed():
+                    # Only newly frozen native work wakes this consumer. Post
+                    # after FULL and inside the accepted owner callback so a
+                    # cancelled async producer cannot lose a durable wakeup.
+                    loop.call_soon_threadsafe(self.fanout_wakeup.notify)
                 if rolling and not native_announced:
                     install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
                 claimed.append(time.monotonic());finished_wall.append(time.time())
