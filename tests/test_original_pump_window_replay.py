@@ -32,6 +32,61 @@ def captured():
     return [prepare_economic_record(r).record for r in (creation, *trades[:2])]
 
 
+def _guarded_qualification_child(*args):
+    from meme_machine.operational.managed_pump_qualification import QualificationReader
+    import socket
+    class Reader(QualificationReader):
+        def step(self):
+            try:socket.create_connection(('127.0.0.1', 1))
+            except ValueError as error:
+                if str(error) != 'original_window_network_refused':raise
+            else:raise AssertionError('child_network_guard_absent')
+            return super().step()
+    # A missing production guard reaches this offline assertion, never a real
+    # connection. The actual child must install its own no_network context.
+    with patch.object(socket, 'create_connection', side_effect=AssertionError('real_network_path')), \
+            patch('meme_machine.operational.managed_pump_qualification.QualificationReader', Reader):
+        concurrent._placement_reader_child(*args)
+
+
+def _intent_qualification_child(*args):
+    from meme_machine.operational.managed_pump_qualification import QualificationReader
+    class Reader(QualificationReader):
+        recorded = False
+        def step(self):
+            value = super().step()
+            if value.get('processed_this_turn') and not self.recorded:
+                self.plane.acknowledge('program:pump', 123)
+                self.recorded = True
+            return value
+    with patch('meme_machine.operational.managed_pump_qualification.QualificationReader', Reader):
+        concurrent._placement_reader_child(*args)
+
+
+def _failed_qualification_child(*args):
+    from meme_machine.operational.managed_pump_qualification import QualificationReader
+    class Reader(QualificationReader):
+        def step(self):raise ValueError('test_reader_child_failure')
+    with patch('meme_machine.operational.managed_pump_qualification.QualificationReader', Reader):
+        concurrent._placement_reader_child(*args)
+
+
+def _committed_exit_qualification_child(*args):
+    from meme_machine.operational.managed_pump_qualification import QualificationReader
+    target = len(args[3])
+    class Reader(QualificationReader):
+        def step(self):
+            value = super().step()
+            if value.get('processed_this_turn') and value['durably_observed_native_events'] == target:
+                # These are intentionally comparator-only ACK intents. Exit
+                # after the real FULL observation/cursor commit, before reply.
+                self.plane.acknowledge('program:pump', 123)
+                os._exit(23)
+            return value
+    with patch('meme_machine.operational.managed_pump_qualification.QualificationReader', Reader):
+        concurrent._placement_reader_child(*args)
+
+
 class CapturedParcel:
     """Small captured cohort exercises the same internal consumer APIs.
 
@@ -367,6 +422,196 @@ class ConcurrentWindowReplayTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name).resolve()
+
+    def test_opt_in_placement_abba_preserves_all_fields_stores_network_guard_and_process_restart(self):
+        import importlib.util
+        parcel = CapturedParcel()
+        spec = importlib.util.spec_from_file_location('private_executor_consumer_alias', concurrent.__file__)
+        alias = importlib.util.module_from_spec(spec); spec.loader.exec_module(alias)
+        with patch.object(concurrent, '_placement_reader_child', _guarded_qualification_child):
+            result = alias.placement_benchmark(parcel, self.root/'placement', batch=1, rate=5, seconds=30)
+        self.assertTrue(result['engineering_validation_passed']); self.assertTrue(parcel.checked)
+        self.assertEqual(result['placement_order'], ['thread', 'spawn', 'spawn', 'thread'])
+        self.assertEqual(len(result['runs']), 4); self.assertEqual(len(result['semantic_fields']), 22)
+        for row in result['runs']:
+            self.assertTrue(concurrent.compare_arms(result['runs'][0], row)['coherent'])
+            self.assertEqual(len(row['store_fingerprints']), 6)
+            self.assertEqual(row['completed'], {'warmup':1, 'measured':2})
+            self.assertTrue(row['reader_restart_verified']); self.assertTrue(row['owner_actor_restart_verified'])
+            self.assertTrue(row['all_reader_children_reaped'])
+            self.assertEqual(row['final']['native_event_backlog'], 0)
+            self.assertEqual(row['provider_requests'], 0); self.assertFalse(row['financial_authority'])
+            timing = row['timing']
+            self.assertEqual(timing['process_cpu_nanoseconds'],
+                timing['parent_cpu_nanoseconds']+timing['child_cpu_nanoseconds'])
+            self.assertGreater(row['reader_initialization']['wall_nanoseconds'], 0)
+            if row['reader_placement'] == 'spawn':
+                self.assertTrue(row['reader_process_restart_verified'])
+                self.assertEqual(len(row['qualification_process_ids']), 2)
+                self.assertTrue(all(pid != os.getpid() for pid in row['qualification_process_ids']))
+                self.assertGreater(timing['child_cpu_nanoseconds'], 0)
+                self.assertLessEqual(timing['child_start_sample_monotonic_ns'],
+                                     timing['child_end_sample_monotonic_ns'])
+            else:
+                self.assertEqual(timing['child_cpu_nanoseconds'], 0)
+                self.assertEqual(row['qualification_process_ids'], [])
+
+    def test_spawned_ack_intents_survive_close_restart_and_remain_strict_comparison_inputs(self):
+        parcel = CapturedParcel()
+        with patch.object(concurrent, '_placement_reader_child', _intent_qualification_child):
+            result = concurrent.placement_benchmark(parcel, self.root/'intents', batch=1, rate=5, seconds=30)
+        self.assertFalse(result['coherent']); self.assertFalse(result['engineering_validation_passed'])
+        self.assertEqual(result['different_semantic_fields'], ['ack_intents_sha256'])
+        expected = original.sha(original.canonical([['program:pump', 123]]))
+        for row in result['runs']:
+            if row['reader_placement'] == 'spawn':
+                self.assertEqual(row['ack_intents_sha256'], expected)
+                self.assertTrue(row['reader_process_restart_verified']); self.assertTrue(row['all_reader_children_reaped'])
+        self.assertEqual(result['different_stores'], [])
+
+    def test_spawned_reader_failure_is_not_a_success_and_reaps_the_actual_child(self):
+        from meme_machine.runtime.evidence_worker import owner_thread_fairness
+        parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 1)
+        opened = []; native_open = concurrent.SpawnReader.open
+        def open_reader(value):
+            opened.append(value); return native_open(value)
+        old_umask = os.umask(0o077)
+        try:
+            with original.no_network(), owner_thread_fairness(), \
+                    patch.object(concurrent, '_placement_reader_child', _failed_qualification_child), \
+                    patch.object(concurrent.SpawnReader, 'open', open_reader):
+                with self.assertRaisesRegex(ValueError, 'concurrent_reader_experiment_boundary_failure'):
+                    asyncio.run(concurrent.run_arm(parcel, records, batches, self.root/'failure',
+                        concurrent=True, rate=5, seconds=15, reader_placement='spawn', placement_probe=True))
+        finally:os.umask(old_umask)
+        self.assertTrue(opened)
+        self.assertTrue(all(not value.process.is_alive() and value.process.exitcode is not None for value in opened))
+        self.assertFalse((self.root/'failure/report.json').exists())
+
+    def test_cancel_joins_accepted_spawned_read_and_retains_its_ack_intent_before_child_close(self):
+        from meme_machine.runtime.evidence_worker import owner_thread_fairness
+        parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 1)
+        entered = threading.Event(); release = threading.Event(); opened = []
+        native_step, native_open = concurrent.SpawnReader.step, concurrent.SpawnReader.open
+        def step(value):
+            answer = native_step(value)
+            if answer.get('processed_this_turn') and not entered.is_set():
+                entered.set()
+                if not release.wait(10):raise AssertionError('accepted_read_release_deadline')
+            return answer
+        def open_reader(value):opened.append(value); return native_open(value)
+        async def scenario():
+            task = asyncio.create_task(concurrent.run_arm(parcel, records, batches, self.root/'cancel',
+                concurrent=True, rate=5, seconds=15, reader_placement='spawn', placement_probe=True))
+            try:
+                while not entered.is_set():
+                    if task.done():task.result()
+                    await asyncio.sleep(.001)
+                task.cancel(); await asyncio.sleep(.01)
+                self.assertFalse(task.done()); self.assertTrue(opened[0].process.is_alive())
+                release.set()
+                with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task, 10)
+            finally:
+                release.set()
+                if not task.done():task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        old_umask = os.umask(0o077)
+        try:
+            with original.no_network(), owner_thread_fairness(), \
+                    patch.object(concurrent, '_placement_reader_child', _intent_qualification_child), \
+                    patch.object(concurrent.SpawnReader, 'step', step), \
+                    patch.object(concurrent.SpawnReader, 'open', open_reader):
+                asyncio.run(scenario())
+        finally:os.umask(old_umask)
+        self.assertEqual(opened[0].acknowledgements, [['program:pump', 123]])
+        self.assertTrue(all(not value.process.is_alive() and value.process.exitcode == 0 for value in opened))
+
+    def test_child_exit_after_observation_commit_preserves_real_outbox_and_flags_lost_comparator_transcript(self):
+        from types import SimpleNamespace
+        from meme_machine.runtime.evidence_worker import owner_thread_fairness
+        from meme_machine.solana_evidence_plane import EvidenceWriter
+        from meme_machine.solana_selective_history import SelectiveHistory
+        from meme_machine.solana_candidate_lifecycle import CandidateLifecycle
+        from meme_machine.solana_rolling_history import RollingHistory
+        from meme_machine.solana_prewarm_startup import PrewarmStartup
+        from meme_machine.solana_history_delivery import CaptureActor
+        from meme_machine.operational.managed_pump_qualification import QualificationReader
+        from meme_machine.operational.managed_qualification_replay import NoNetworkProvider
+        from tests.test_publication_accounting_turn import OwnedWork
+        parcel = CapturedParcel(); records, batches, _ = concurrent.freeze(parcel, 2)
+        admitted = threading.Event(); admissions = [0]; entered_ack = [False]
+        native_capture, native_work = CaptureActor.capture, OwnedWork.__call__
+        crash = self.root/'commit-before-reply'
+        def capture(actor, *args, **kwargs):
+            if Path(actor.context.canonical_path).parent == crash:
+                if not admitted.wait(10):raise AssertionError('all_inputs_admission_deadline')
+            return native_capture(actor, *args, **kwargs)
+        async def scenario():
+            never_ack = asyncio.Event()
+            async def work(value, function, *args, **kwargs):
+                if kwargs.get('label') == 'candidate_delivery_ack':
+                    entered_ack[0] = True
+                    # FULL is already visible, but this ACK has not entered
+                    # the real owner. Reader success cannot manufacture it.
+                    await never_ack.wait()
+                answer = await native_work(value, function, *args, **kwargs)
+                if kwargs.get('component') == 'candidate':
+                    admissions[0] += 1
+                    if admissions[0] == 2:admitted.set()
+                return answer
+            with patch.object(CaptureActor, 'capture', capture), patch.object(OwnedWork, '__call__', work), \
+                    patch.object(concurrent, '_placement_reader_child', _committed_exit_qualification_child):
+                with self.assertRaisesRegex(ValueError, 'concurrent_reader_experiment_boundary_failure'):
+                    await concurrent.run_arm(parcel, records, batches, crash, concurrent=True, rate=5,
+                        seconds=20, reader_placement='spawn', placement_probe=True)
+        old_umask = os.umask(0o077)
+        try:
+            with original.no_network(), owner_thread_fairness():
+                control = asyncio.run(concurrent.run_arm(parcel, records, batches, self.root/'crash-control',
+                    concurrent=True, rate=5, seconds=20))
+                asyncio.run(scenario())
+                self.assertTrue(entered_ack[0])
+                at = max(item['first_seen'] for item in parcel.inputs)
+                config = SimpleNamespace(root=crash, evidence=crash/'canonical.sqlite',
+                    history=crash/'history.sqlite', generation='concurrent-engineering-v1',
+                    source_revision=original.RUNTIME_BASELINE)
+                with sqlite3.connect(config.evidence) as db:
+                    self.assertGreater(db.execute('SELECT count(*) FROM candidate_history_outbox '
+                        'WHERE consumed IS NULL').fetchone()[0], 0)
+                with sqlite3.connect(crash/'qualification.sqlite') as db:
+                    before = list(db.execute('SELECT * FROM observations ORDER BY sequence'))
+                self.assertEqual(len(before), len(parcel.inputs))
+                reader = QualificationReader(config, clock=lambda:at, provider=NoNetworkProvider())
+                writer = None; recovered_intents = []
+                try:
+                    self.assertTrue(reader._open())
+                    reader.plane.acknowledge = lambda *args:recovered_intents.append(args)
+                    resumed = reader.step()
+                    self.assertEqual(resumed['processed_this_turn'], 0)
+                    self.assertEqual(resumed['native_event_backlog'], 0)
+                    self.assertEqual(list(reader.db.execute('SELECT * FROM observations ORDER BY sequence')), before)
+                    writer = EvidenceWriter(config.evidence, clock=lambda:at)
+                    history = SelectiveHistory(writer, 'a'*64, clock=lambda:at)
+                    history.lifecycle = CandidateLifecycle(history, candidate_path=config.history)
+                    history.lifecycle.delivery_separated = True
+                    history.rolling = RollingHistory(history); history.startup = PrewarmStartup(history)
+                    original.publish(history.lifecycle)
+                    self.assertEqual(writer.db.execute('SELECT count(*) FROM candidate_history_outbox '
+                        'WHERE consumed IS NULL').fetchone()[0], 0)
+                    self.assertEqual(concurrent.stores(SimpleNamespace(writer=writer), reader), control['store_fingerprints'])
+                    semantic = original._semantic(reader, {r['identity']:r for r in parcel.inputs})
+                    self.assertEqual(semantic, {key:control[key] for key in semantic})
+                    # Actual six-store recovery is proven separately. Existing
+                    # reader cursor replay does NOT recover the lost diagnostic
+                    # transcript, so the 22-field experiment remains FAILED.
+                    self.assertEqual(recovered_intents, [])
+                    self.assertNotEqual(original.sha(original.canonical(recovered_intents)),
+                        original.sha(original.canonical([['program:pump', 123]])))
+                    self.assertFalse((crash/'report.json').exists())
+                finally:
+                    reader.close()
+                    if writer is not None:writer.close()
+        finally:os.umask(old_umask)
 
     def test_real_owner_actor_and_qualifier_overlap_preserve_all_semantics_and_restart(self):
         parcel = CapturedParcel()

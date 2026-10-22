@@ -13,6 +13,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 import json
 import math
+import multiprocessing
 import os
 from pathlib import Path
 import signal
@@ -35,6 +36,179 @@ CANDIDATE_METADATA = ('source', 'creator', 'pool', 'structural_scout', 'recovera
                       'provider_promotion', 'evidence_state', 'volume_quality')
 MAX_CANDIDATE_DETAILS = 16
 MAX_CANDIDATE_DIFFERENCE_BYTES = 64 * 1024
+READER_OPERATIONS = frozenset(('open', 'step', 'snapshot', 'cut', 'semantic', 'fingerprints', 'close'))
+MAX_READER_REPLY = 32 * 1024**2
+
+
+class _ReaderStop:
+    def __init__(self, event, until):self.event, self.until = event, until
+    def is_set(self):return self.event.is_set() or time.monotonic() >= self.until
+
+
+def _reader_fingerprints(reader):
+    import sqlite3
+    db = sqlite3.connect(reader.config.evidence.as_uri()+'?mode=ro', uri=True, isolation_level=None)
+    try:
+        db.execute('PRAGMA query_only=ON')
+        return stores(SimpleNamespace(writer=SimpleNamespace(db=db)), reader)
+    finally:db.close()
+
+
+def _reader_cut(reader, inputs, originals):
+    """The existing terminal cut, performed where its SQLite handles belong."""
+    expected = {item['identity']:item for item in inputs}
+    events = [reader.history.event(lane, candidate, identity) for lane, candidate, identity in
+              reader.history.db.execute('SELECT lane,candidate,identity FROM canonical_event_refs '
+                                        'ORDER BY lane,candidate,identity')]
+    state = {table:original.sha(original.canonical(list(reader.history.db.execute(
+        'SELECT * FROM '+table+' ORDER BY '+order)))) for table, order in
+        (('candidates', 'lane,candidate'), ('source_receipts', 'id'))}
+    for table in ('funding', 'decisions'):
+        original.need(reader.history.db.execute('SELECT count(*) FROM '+table).fetchone()[0] == 0,
+                      'concurrent_financial_state')
+    return dict(semantic=original._semantic(reader, expected),
+        history_semantic_sha256=original.sha(original.canonical(events)), history_state=state,
+        original_comparison=original.original_comparison(reader,
+            SimpleNamespace(inputs=inputs, original_qualifications=originals)))
+
+
+def _placement_reader_child(channel, config, at, inputs, originals, until, cancelled):
+    """One reader owner, fixed commands over a private pipe, no callable IPC."""
+    reader = None; acknowledgements = []; commands = []
+    try:
+        allowed = ('PATH', 'LANG', 'LC_ALL', 'TZ', 'PYTHONNOUSERSITE', 'PYTHONHASHSEED',
+                   'OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS')
+        environment = {key:value for key, value in os.environ.items() if key in allowed}
+        tracking = os.environ.get('RUNNER_TRACKING_ID')
+        if tracking is not None:
+            original.need(0 < len(tracking) <= 256 and all(c.isascii() and
+                (c.isalnum() or c in '_-') for c in tracking), 'concurrent_reader_tracking_identity')
+            environment['RUNNER_TRACKING_ID'] = tracking
+        os.environ.clear(); os.environ.update(environment); os.umask(0o077)
+        with original.no_network():
+            from meme_machine.operational.managed_pump_qualification import QualificationReader
+            from meme_machine.operational.managed_qualification_replay import NoNetworkProvider
+            provider = NoNetworkProvider(); sequence = 0
+            while time.monotonic() < until:
+                if not channel.poll(max(0, until-time.monotonic())):break
+                request = original.loads(channel.recv_bytes(4096))
+                original.need(set(request) == {'sequence', 'operation'} and
+                    type(request['sequence']) is int and request['sequence'] == sequence+1 and
+                    request['operation'] in READER_OPERATIONS,
+                    'concurrent_reader_operation')
+                sequence += 1; op = request['operation']
+                if op == 'open':
+                    original.need(reader is None, 'concurrent_reader_already_open')
+                    reader = QualificationReader(config, clock=lambda:at, provider=provider, decision_target=None)
+                    reader.cancelled = _ReaderStop(cancelled, until)
+                    original.need(reader._open(), 'concurrent_reader_open')
+                    reader.plane.acknowledge = lambda *args:acknowledgements.append(args)
+                    def refused(**request):
+                        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+                        commands.append(request)
+                        raise EvidenceUnavailable('concurrent_engineering_ipc_refused')
+                    reader.plane.command = refused
+                    value = dict(pid=os.getpid(), thread=threading.get_ident(),
+                        started_monotonic_ns=time.monotonic_ns())
+                else:
+                    original.need(reader is not None, 'concurrent_reader_not_open')
+                    if op == 'step':value = reader.step()
+                    elif op == 'snapshot':value = reader.snapshot()
+                    elif op == 'cut':value = _reader_cut(reader, inputs, originals)
+                    elif op == 'semantic':value = original._semantic(reader, {r['identity']:r for r in inputs})
+                    elif op == 'fingerprints':value = _reader_fingerprints(reader)
+                    else:
+                        reader.close(); reader = None
+                        value = dict(acknowledgements=acknowledgements, commands=commands)
+                response = original.canonical(dict(sequence=sequence, operation=op, value=value,
+                    cpu_nanoseconds=time.process_time_ns(), sampled_monotonic_ns=time.monotonic_ns(),
+                    missing=provider.missing))
+                original.need(len(response) <= MAX_READER_REPLY, 'concurrent_reader_reply_bound')
+                channel.send_bytes(response)
+                if op == 'close':return
+    finally:
+        try:
+            if reader is not None:reader.close()
+        finally:channel.close()
+
+
+class SpawnReader:
+    """Only the opt-in experiment uses this single physically owned worker."""
+    def __init__(self, config, at, parcel, until):
+        # The private executor can load this file under an importlib alias.
+        # Spawn resolves a function by module name, so use only the same file's
+        # canonical engineering namespace, never that dynamic alias.
+        from engineering.diagnostics import replay_concurrent_pump_window as canonical
+        original.need(Path(canonical.__file__).resolve() == Path(__file__).resolve(),
+                      'concurrent_reader_source_module')
+        context = multiprocessing.get_context('spawn')
+        self.channel, child = context.Pipe()
+        self.cancelled = context.Event(); self.until = until
+        self.process = context.Process(target=canonical._placement_reader_child,
+            args=(child, config, at, parcel.inputs, getattr(parcel, 'original_qualifications', {}),
+                  until, self.cancelled), name='track-a-qualification')
+        self.child_channel = child; self.sequence = 0; self.closed = False; self.failed = False
+        self.cpu_nanoseconds = 0; self.sampled_monotonic_ns = 0; self.missing = 0
+        self.acknowledgements = []; self.commands = []; self.identity = None
+
+    def request(self, operation):
+        original.need(operation in READER_OPERATIONS and not self.closed, 'concurrent_reader_operation')
+        self.sequence += 1
+        try:
+            self.channel.send_bytes(original.canonical(dict(sequence=self.sequence, operation=operation)))
+            if not self.channel.poll(max(0, self.until-time.monotonic())):
+                raise ValueError('original_window_concurrent_reader_deadline')
+            response = original.loads(self.channel.recv_bytes(MAX_READER_REPLY))
+            original.need(set(response) == {'sequence', 'operation', 'value', 'cpu_nanoseconds',
+                'sampled_monotonic_ns', 'missing'} and response['sequence'] == self.sequence and
+                type(response['sequence']) is int and response['operation'] == operation and
+                type(response['sampled_monotonic_ns']) is int and
+                response['sampled_monotonic_ns'] >= self.sampled_monotonic_ns and
+                type(response['cpu_nanoseconds']) is int and
+                response['cpu_nanoseconds'] >= self.cpu_nanoseconds and type(response['missing']) is int
+                and response['missing'] >= self.missing, 'concurrent_reader_reply')
+            self.cpu_nanoseconds = response['cpu_nanoseconds']
+            self.sampled_monotonic_ns = response['sampled_monotonic_ns']; self.missing = response['missing']
+            return response['value']
+        except BaseException:
+            self.failed = True; self.shutdown()
+            # Observation commits can precede a lost reply. Comparator ACK
+            # intents are deliberately not a durable production ACK journal;
+            # never report a recovered comparison from that missing transcript.
+            raise ValueError('original_window_concurrent_reader_experiment_boundary_failure') from None
+
+    def open(self):
+        self.process.start(); self.child_channel.close()
+        self.identity = self.request('open')
+        original.need(self.identity['pid'] == self.process.pid and type(self.identity['thread']) is int
+            and self.identity['thread'] > 0 and type(self.identity['started_monotonic_ns']) is int,
+            'concurrent_reader_identity')
+        return self
+
+    def step(self):return self.request('step')
+    def snapshot(self):return self.request('snapshot')
+    def cut(self):return self.request('cut')
+    def semantic(self):return self.request('semantic')
+    def fingerprints(self):return self.request('fingerprints')
+
+    def shutdown(self):
+        self.cancelled.set()
+        if self.process.pid is not None:
+            self.process.join(timeout=max(0, min(1, self.until-time.monotonic())))
+            if self.process.is_alive():
+                self.process.terminate()
+                self.process.join(timeout=max(0, min(1, self.until-time.monotonic())))
+            if self.process.is_alive():self.process.kill(); self.process.join(timeout=1)
+            original.need(not self.process.is_alive(), 'concurrent_reader_unreaped')
+        self.channel.close(); self.child_channel.close(); self.closed = True
+
+    def close(self):
+        if self.closed:return
+        try:
+            if not self.failed:
+                result = self.request('close')
+                self.acknowledgements = result['acknowledgements']; self.commands = result['commands']
+        finally:self.shutdown()
 
 
 def candidate_difference_report(directory):
@@ -215,7 +389,9 @@ def stores(state, reader):
         qualification_candidates=digest(reader.db, 'SELECT * FROM candidate_state ORDER BY mint'))
 
 
-async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seconds):
+async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seconds,
+                  reader_placement='thread', placement_probe=False):
+    if placement_probe:arm_wall, arm_cpu = time.perf_counter_ns(), time.process_time_ns()
     from meme_machine.solana_evidence_plane import EvidenceWriter
     from meme_machine.solana_evidence_service import FinalizedFence
     from meme_machine.solana_evidence_control import PriorityOwner
@@ -246,6 +422,8 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
     intake_finished = False; changed = asyncio.Event(); delivery_changed = asyncio.Event(); latest = None
     provider = NoNetworkProvider(); loop = asyncio.get_running_loop()
     queue = asyncio.Queue(maxsize=ARRIVAL_BATCHES)
+    original.need(reader_placement in ('thread', 'spawn'), 'concurrent_reader_placement')
+    until = loop.time()+seconds; spawned = []; thread_stops = []; initialization = None
 
     def factory():
         writer = EvidenceWriter(config.evidence, clock=lambda: at)
@@ -265,8 +443,18 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             raise
 
     def open_reader():
+        if reader_placement == 'spawn':
+            value = SpawnReader(config, at, parcel, until); spawned.append(value)
+            try:
+                value.open(); thread_ids['qualification'] = value.identity['thread']
+                return value
+            except BaseException:
+                value.shutdown(); raise
         value = QualificationReader(config, clock=lambda: at, provider=provider, decision_target=None)
         try:
+            if placement_probe:
+                event = multiprocessing.get_context('spawn').Event(); thread_stops.append(event)
+                value.cancelled = _ReaderStop(event, until)
             original.need(value._open(), 'concurrent_reader_open')
             value.plane.acknowledge = lambda *args: acknowledgements.append(args)
             def refused(**request):
@@ -288,6 +476,8 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             # A physical qualification read/observation commit owns its SQLite
             # handles until terminal. Do not close them beneath a canceled
             # asyncio waiter or leave a failure unobserved.
+            if spawned:spawned[-1].cancelled.set()
+            elif thread_stops:thread_stops[-1].set()
             while not future.done():
                 try:await asyncio.shield(future)
                 except asyncio.CancelledError:continue
@@ -422,14 +612,23 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             await bootstrap()
             await qualification(install_nonfinancial_history, config)
             await admit_group(parcel.warmup)
+            if placement_probe:setup_wall, setup_cpu = time.perf_counter_ns(), time.process_time_ns()
             reader = await qualification(open_reader, cancel_result=lambda value:value.close())
             initial = await qualification(reader.snapshot)
+            if placement_probe:
+                initialization = dict(wall_nanoseconds=time.perf_counter_ns()-setup_wall,
+                    parent_cpu_nanoseconds=time.process_time_ns()-setup_cpu,
+                    child_cpu_nanoseconds=sum(value.cpu_nanoseconds for value in spawned),
+                    scope='reader_open_and_initial_snapshot_including_spawn_initialization')
             original.need(initial['native_event_backlog'] == len(parcel.warmup) and
                           initial['durably_observed_native_events'] == 0, 'concurrent_initial_state')
             # Record the real consumer executor identity without replacing any
             # capture/delivery function or adding work to the owner pipeline.
             thread_ids['delivery'] = await asyncio.wrap_future(delivery_pool.submit(threading.get_ident))
             started = loop.time(); wall, cpu = time.perf_counter_ns(), time.process_time_ns()
+            if placement_probe:
+                child_cpu_start = sum(value.cpu_nanoseconds for value in spawned)
+                child_start_sample = spawned[-1].sampled_monotonic_ns if spawned else None
             tasks.extend((asyncio.create_task(source.candidate_history_delivery()),
                           asyncio.create_task(source.publish_history()), asyncio.create_task(qualify())))
             feeding = asyncio.create_task(arrivals(started)); producing = asyncio.create_task(intake())
@@ -460,19 +659,37 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             # Their existing accepted-delivery cancellation cleanup must join
             # FULL then fresh owner ACK; no harness-side ACK is manufactured.
             await stop_tasks()
+            if placement_probe:
+                # Both placements include terminal accepted-read drain. Child
+                # CPU samples bracket that same logical interval; their sampled
+                # monotonic endpoints expose the small IPC boundary offset.
+                parent_cpu = time.process_time_ns()-cpu
+                child_cpu = sum(value.cpu_nanoseconds for value in spawned)-child_cpu_start
+                timing = dict(wall_nanoseconds=time.perf_counter_ns()-wall,
+                    process_cpu_nanoseconds=parent_cpu+child_cpu,
+                    parent_cpu_nanoseconds=parent_cpu, child_cpu_nanoseconds=child_cpu,
+                    child_start_sample_monotonic_ns=child_start_sample,
+                    child_end_sample_monotonic_ns=spawned[-1].sampled_monotonic_ns if spawned else None,
+                    scope='normalized_concurrent_pipeline_through_accepted_read_drain_parent_plus_child_CPU')
             final = await qualification(reader.snapshot)
             expected = {item['identity']: item for item in parcel.inputs}
-            semantic = await qualification(original._semantic, reader, expected)
-            history_events = await qualification(lambda: [reader.history.event(lane, candidate, identity)
-                for lane, candidate, identity in reader.history.db.execute(
-                    'SELECT lane,candidate,identity FROM canonical_event_refs ORDER BY lane,candidate,identity')])
-            history_state = await qualification(lambda: {table: original.sha(original.canonical(list(
-                reader.history.db.execute('SELECT * FROM '+table+' ORDER BY '+order))))
-                for table, order in (('candidates', 'lane,candidate'), ('source_receipts', 'id'))})
-            original_result = await qualification(original.original_comparison, reader, parcel)
-            for table in ('funding', 'decisions'):
-                original.need(await qualification(lambda: reader.history.db.execute(
-                    'SELECT count(*) FROM '+table).fetchone()[0]) == 0, 'concurrent_financial_state')
+            if reader_placement == 'spawn':
+                cut = await qualification(reader.cut)
+                semantic = cut['semantic']; history_state = cut['history_state']
+                history_semantic = cut['history_semantic_sha256']; original_result = cut['original_comparison']
+            else:
+                semantic = await qualification(original._semantic, reader, expected)
+                history_events = await qualification(lambda: [reader.history.event(lane, candidate, identity)
+                    for lane, candidate, identity in reader.history.db.execute(
+                        'SELECT lane,candidate,identity FROM canonical_event_refs ORDER BY lane,candidate,identity')])
+                history_semantic = None
+                history_state = await qualification(lambda: {table: original.sha(original.canonical(list(
+                    reader.history.db.execute('SELECT * FROM '+table+' ORDER BY '+order))))
+                    for table, order in (('candidates', 'lane,candidate'), ('source_receipts', 'id'))})
+                original_result = await qualification(original.original_comparison, reader, parcel)
+                for table in ('funding', 'decisions'):
+                    original.need(await qualification(lambda: reader.history.db.execute(
+                        'SELECT count(*) FROM '+table).fetchone()[0]) == 0, 'concurrent_financial_state')
             def canonical_cut(state):
                 original.need(state.writer.db.execute('SELECT count(*) FROM candidate_history_outbox WHERE consumed IS NULL')
                               .fetchone() == (0,), 'concurrent_unacked_outbox')
@@ -487,6 +704,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             # Read canonical data on its owning thread. Qualification/history
             # connections stay on their own thread even for the semantic cut.
             async def fingerprints():
+                if reader_placement == 'spawn':return await qualification(reader.fingerprints)
                 # Quiescent fresh stores have no writer. A short read-only
                 # canonical connection belongs to the qualification worker.
                 def read():
@@ -507,20 +725,53 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             owner.close(); owner = None
             # Reopen the actual canonical owner, seed a new actor and reopen
             # the actual qualification reader, rather than copy prior cursors.
-            await bootstrap(); reader = await qualification(open_reader, cancel_result=lambda value:value.close())
+            await bootstrap()
+            if placement_probe:
+                reopen_wall, reopen_cpu = time.perf_counter_ns(), time.process_time_ns()
+                reopen_child_cpu = sum(value.cpu_nanoseconds for value in spawned)
+            reader = await qualification(open_reader, cancel_result=lambda value:value.close())
+            if placement_probe:
+                restart_initialization = dict(wall_nanoseconds=time.perf_counter_ns()-reopen_wall,
+                    parent_cpu_nanoseconds=time.process_time_ns()-reopen_cpu,
+                    child_cpu_nanoseconds=sum(value.cpu_nanoseconds for value in spawned)-reopen_child_cpu,
+                    scope='reader_reopen_after_actual_owner_and_reader_child_restart')
             tasks.append(asyncio.create_task(source.candidate_history_delivery()))
             await asyncio.sleep(0)
             await stop_tasks()
             restarted = await qualification(reader.step)
             original.need(restarted.get('processed_this_turn') == 0 and
                           {key:value for key,value in restarted.items() if key != 'processed_this_turn'} == final and
-                          await qualification(original._semantic, reader, expected) == semantic and
+                          (await qualification(reader.semantic) if reader_placement == 'spawn'
+                              else await qualification(original._semantic, reader, expected)) == semantic and
                           await fingerprints() == before_restart, 'concurrent_restart_parity')
             original.need(final['native_event_backlog'] == 0 and len(native) == len(parcel.inputs),
                           'concurrent_incomplete_window')
+            if reader_placement == 'spawn':
+                # Close/reap the restarted child before accepting its intents.
+                await qualification(reader.close)
+                for value in spawned:
+                    acknowledgements.extend(value.acknowledgements); commands.extend(value.commands)
+                provider.missing = sum(value.missing for value in spawned)
+            placement = {}
+            if placement_probe:
+                qualification_pid = spawned[-1].identity['pid'] if spawned else os.getpid()
+                placement = dict(reader_placement=reader_placement, reader_initialization=initialization,
+                    reader_restart_initialization=restart_initialization,
+                    lifecycle_timing=dict(wall_nanoseconds=time.perf_counter_ns()-arm_wall,
+                        parent_cpu_nanoseconds=time.process_time_ns()-arm_cpu,
+                        reader_child_cpu_nanoseconds=sum(value.cpu_nanoseconds for value in spawned),
+                        scope='whole_arm_setup_pipeline_cuts_and_restart_not_additive_with_pipeline_timing'),
+                    qualification_process_ids=[value.identity['pid'] for value in spawned],
+                    qualification_process_identities=[value.identity for value in spawned],
+                    reader_process_restart_verified=reader_placement == 'spawn' and len(spawned) == 2 and
+                        len({value.identity['started_monotonic_ns'] for value in spawned}) == 2,
+                    all_reader_children_reaped=all(value.process.exitcode == 0 for value in spawned),
+                    distinct_pipeline_execution_roles=len({(os.getpid(), thread_ids['owner']),
+                        (os.getpid(), thread_ids['delivery']), (qualification_pid, thread_ids['qualification'])}) == 3)
             return dict(implementation='concurrent' if concurrent else 'serial_control', timing=timing,
                 initial=initial, final=final, **semantic,
-                history_semantic_sha256=original.sha(original.canonical(history_events)),
+                history_semantic_sha256=history_semantic if reader_placement == 'spawn'
+                    else original.sha(original.canonical(history_events)),
                 history_state_sha256=history_state, original_comparison=original_result,
                 ack_intents_sha256=original.sha(original.canonical(acknowledgements)),
                 command_intents_sha256=original.sha(original.canonical(commands)),
@@ -532,7 +783,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 decision_target='unavailable_no_original_oracle_retained', missing_provider_inputs=provider.missing,
                 provider_requests=0, financial_authority=False, full_strategy_equivalence_proven=False,
                 original_input_storage_encodings=dict(Counter(row[2] for row in records.values())),
-                fresh_input_storage_encodings=dict(fresh_encodings))
+                fresh_input_storage_encodings=dict(fresh_encodings), **placement)
     finally:
         try:
             await stop_tasks()
@@ -546,7 +797,9 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                     # Existing physical consumer cancellation joins before
                     # owner close, including when a different cleanup fails.
                     delivery_pool.shutdown(wait=True, cancel_futures=True)
-                    qualification_pool.shutdown(wait=True, cancel_futures=True)
+                    try:
+                        for value in spawned:value.shutdown()
+                    finally:qualification_pool.shutdown(wait=True, cancel_futures=True)
 
 
 def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
@@ -595,6 +848,57 @@ def benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
     finally:os.umask(old_umask)
 
 
+def placement_benchmark(parcel, directory, *, batch=1, rate=10, seconds=120):
+    """Opt-in concurrent ABBA: only the qualification reader placement differs."""
+    from meme_machine.runtime.evidence_worker import owner_thread_fairness
+    limits(batch, rate, seconds)
+    directory = Path(directory).absolute()
+    original.need(directory.parent.resolve(strict=True) == directory.parent and not directory.exists(),
+                  'new_output_required')
+    records, batches, _ = freeze(parcel, batch)
+    directory.mkdir(mode=0o700); old_umask = os.umask(0o077)
+    try:
+        with original.no_network(), owner_thread_fairness():
+            runs = [asyncio.run(run_arm(parcel, records, batches, directory/(str(index)+'-'+placement),
+                concurrent=True, rate=rate, seconds=seconds, reader_placement=placement,
+                placement_probe=True)) for index, placement in enumerate(('thread', 'spawn', 'spawn', 'thread'))]
+        comparisons = [compare_arms(runs[0], row) for row in runs[1:]]
+        for prepared, checksum, _ in records.values():
+            original.need(original.sha(original.canonical(prepared.record.body())) == checksum,
+                          'concurrent_normalized_input_mutated')
+        parcel.unchanged()
+        exercised = all(all(row['counters'].get(key, 0) > 0 for key in
+            ('delivery_before_intake_finished', 'observed_before_intake_finished',
+             'intake_turns_without_qualification_drain')) for row in runs)
+        coherent = all(row['coherent'] for row in comparisons)
+        return dict(schema=SCHEMA, coherent=coherent,
+            semantic_fields=list(original.SEMANTIC_FIELDS),
+            different_semantic_fields=sorted({key for row in comparisons for key in row['different_semantic_fields']}),
+            different_stores=sorted({key for row in comparisons for key in row['different_stores']}),
+            engineering_validation_passed=coherent and exercised and
+                all(row['distinct_pipeline_execution_roles'] and row['all_reader_children_reaped'] for row in runs) and
+                all(row['reader_process_restart_verified'] for row in runs if row['reader_placement'] == 'spawn'),
+            concurrency_exercised=exercised, reader_placement_comparison=True,
+            placement_order=['thread', 'spawn', 'spawn', 'thread'], runs=runs,
+            source=parcel.manifest['source'], source_manifest_sha256=parcel.manifest_fingerprint[1],
+            input_parcel_sha256=parcel.fingerprint[1], input_events=len(parcel.inputs),
+            selected_events=len(parcel.measured), consumer_source_sha256=original.sha(Path(__file__).read_bytes()),
+            runtime_baseline_commit=original.RUNTIME_BASELINE,
+            schedule=dict(batch=batch, offered_events_per_second=rate, arrival_queue_batches=ARRIVAL_BATCHES,
+                max_batch_bytes=MAX_BATCH_BYTES, clock=max(item['first_seen'] for item in parcel.inputs)),
+            cpu_scope='parent_process_plus_child_process_same_logical_pipeline_and_accepted_drain_interval',
+            cpu_sampling_scope='child_quiescent_reply_samples_with_explicit_monotonic_endpoints_not_atomic_cross_process_samples',
+            auxiliary_cpu_scope='Python_multiprocessing_housekeeping_not_separately_measured',
+            initialization_scope='reader_open_and_initial_snapshot_separate_from_pipeline_not_hidden',
+            context_rows_imported_as_state=0, original_inputs_unchanged=True,
+            native_acquisition_join_repair_exercised=False, provider_requests=0, financial_authority=False,
+            classification_differences_are_failures=True, quote_inputs='unavailable_no_synthetic_quotes',
+            full_qualification_proven=False, full_strategy_equivalence_proven=False,
+            throughput_readiness_proven=False,
+            concurrency_scope='same_concurrent_schedule_thread_vs_spawn_placement_not_GIL_causation_or_production_lane_equivalence')
+    finally:os.umask(old_umask)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     inputs = parser.add_mutually_exclusive_group(required=True)
@@ -605,6 +909,8 @@ def main():
     parser.add_argument('--batch', type=int)
     parser.add_argument('--rate', type=float)
     parser.add_argument('--seconds', type=float, default=120)
+    parser.add_argument('--reader-placement-comparison', action='store_true',
+                        help='Opt-in concurrent thread/spawn/spawn/thread placement experiment.')
     parser.add_argument('--worker', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.batch is None:args.batch = 1 if args.public_fixture else 64
@@ -623,6 +929,7 @@ def main():
                 '--rate', str(args.rate), '--seconds', str(args.seconds)]
             command += (['--parcel', str(args.parcel.absolute()), '--manifest-sha256', args.manifest_sha256]
                         if args.parcel else ['--public-fixture'])
+            if args.reader_placement_comparison:command.append('--reader-placement-comparison')
             child = subprocess.Popen(command, start_new_session=True, stdout=subprocess.DEVNULL)
             until = time.monotonic() + 2*args.seconds
             try:
@@ -648,7 +955,8 @@ def main():
             from tests.test_original_pump_window_replay import CapturedParcel
             parcel = CapturedParcel()
         else:parcel = original.Parcel(args.parcel, args.manifest_sha256)
-        result = benchmark(parcel, args.new_output_directory, batch=args.batch, rate=args.rate, seconds=args.seconds)
+        run = placement_benchmark if args.reader_placement_comparison else benchmark
+        result = run(parcel, args.new_output_directory, batch=args.batch, rate=args.rate, seconds=args.seconds)
         original._report(args.new_output_directory/'report.json', original.canonical(result)+b'\n')
     print(json.dumps(dict(schema=SCHEMA, engineering_validation_passed=result['engineering_validation_passed'],
         coherent=result['coherent'], concurrency_exercised=result['concurrency_exercised'],
