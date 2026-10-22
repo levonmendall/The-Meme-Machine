@@ -89,8 +89,8 @@
       "status": "M"
     },
     "meme_machine/solana_candidate_join.py": {
-      "after_bytes": 35553,
-      "after_sha256": "d9a15b71b0db1100e185a06a23511a81fddff8164d0b26a3f4722f1e4c019abe",
+      "after_bytes": 42876,
+      "after_sha256": "57862ad91917ba59d19b952c5e5787b09a9cffc9fd97a81f083d710701ef2eae",
       "before_bytes": 22910,
       "before_sha256": "cd570e5ed58519bf61ccfc553910d1a5093952e7754a9cab80d517f3e7269699",
       "changed_nodes": [
@@ -98,13 +98,20 @@
         "CandidateTransactionJoin.__layout__",
         "CandidateTransactionJoin._finish_drain",
         "CandidateTransactionJoin._prepare_drain",
+        "CandidateTransactionJoin.begin_required_log_read",
         "CandidateTransactionJoin.complete_deferred_log",
+        "CandidateTransactionJoin.complete_required_log",
         "CandidateTransactionJoin.defer_log",
         "CandidateTransactionJoin.deferred_log_witness",
         "CandidateTransactionJoin.diagnostic",
         "CandidateTransactionJoin.drain",
+        "CandidateTransactionJoin.end_required_log_read",
         "CandidateTransactionJoin.feed",
+        "CandidateTransactionJoin.feed_log",
+        "CandidateTransactionJoin.head_has_finalized_child",
         "CandidateTransactionJoin.hold_complete_log",
+        "CandidateTransactionJoin.required_log_checksum",
+        "CandidateTransactionJoin.required_log_witness",
         "__statement_15",
         "__statement_16",
         "__statement_17",
@@ -270,8 +277,8 @@
       "status": "A"
     },
     "meme_machine/solana_selective_history.py": {
-      "after_bytes": 73041,
-      "after_sha256": "de0030c1127fb46c56815bd323c05df53a6a21b04b8486dd028b08b0a8c573f0",
+      "after_bytes": 73893,
+      "after_sha256": "3daae4ef26602a125cf4a1a23b574242b5a97a15f8a92feb832edd44420bedc7",
       "before_bytes": 68510,
       "before_sha256": "d7b79f1a25b687cadc0ebe16f81ddc1ffba222402c3433378658ba39a5734ae3",
       "changed_nodes": [
@@ -283,13 +290,14 @@
         "SelectiveHistory.request",
         "__statement_20",
         "_archive_log_join",
-        "economic_records"
+        "economic_records",
+        "validate_log_supplement_fields"
       ],
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 191160,
-      "after_sha256": "af35ec77e75093e4bafc1d63b1454224c0736c3d372121c85d4b1c6b2571995a",
+      "after_bytes": 193478,
+      "after_sha256": "65f73596516314c139e9da2e588e4b6550a674f6cdb907663c606e4df96c685e",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -346,8 +354,8 @@
       "status": "M"
     },
     "meme_machine/solana_stream_log_repair.py": {
-      "after_bytes": 5407,
-      "after_sha256": "0039bfec8abe3cc2f8a67c1e9896a1a3c7621880f4200e04b7c262f8574ff273",
+      "after_bytes": 8273,
+      "after_sha256": "d13fe3090e8faaa4c20dd97f513af25f37bc5247d4e7da5c244a88ed4a180c43",
       "status": "A"
     }
   },
@@ -382,8 +390,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "28f8e31b6e1f3bed7ab105f7ebc0a024df83d3c4",
-  "implementation_tree": "038be03e3224bf31ef610eed333139a591e81794",
+  "implementation": "d0d38b6d3ade6d4d69c78b2da3427733a2414d59",
+  "implementation_tree": "bb8df463a103b9950772393def8e4669b48a0759",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 10024,
