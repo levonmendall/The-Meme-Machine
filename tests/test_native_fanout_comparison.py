@@ -359,9 +359,10 @@ async def run_native_arm(path, frames, *, deferred, restart_before_apply=False):
                                 raise AssertionError('native_comparison_early_canonical_delivery')
                             targets = db.execute('SELECT count(*) FROM candidate_fanout_targets').fetchone()[0]
                             checkpoints = db.execute('SELECT count(*) FROM candidate_checkpoints').fetchone()[0]
-                            return dict(placeholders=len(rows), targets=targets, checkpoints=checkpoints)
+                            metadata_pending = db.execute("SELECT count(*) FROM candidate_history_outbox WHERE consumed IS NULL AND id NOT GLOB 'fanout:*'").fetchone()[0]
+                            return dict(placeholders=len(rows), targets=targets, metadata_pending=metadata_pending, checkpoints=checkpoints)
                         restart_reserved = await source.work(reserved, 0, label=None)
-                        if (restart_reserved['targets'] != restart_pending[2]
+                        if (restart_reserved['targets']+restart_reserved['metadata_pending'] != restart_pending[2]
                                 or restart_reserved['placeholders'] != restart_pending[2]
                                 or restart_reserved['checkpoints'] != 0 or source.preparation_lock.locked()):
                             raise AssertionError('native_comparison_reservation_or_lock_changed')
@@ -459,6 +460,6 @@ class NativeFanoutComparisonTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(restarted['semantics'], baseline['semantics'])
         self.assertEqual(restarted['restart_pending'][0], restarted['expected_records'])
         self.assertGreater(restarted['restart_pending'][1], 0)
-        self.assertEqual(restarted['restart_pending'][2], restarted['restart_reserved']['targets'])
+        self.assertEqual(restarted['restart_pending'][2], restarted['restart_reserved']['targets']+restarted['restart_reserved']['metadata_pending'])
         self.assertGreater(restarted['restart_reserved']['placeholders'], 0)
         self.assertTrue(restarted['restart_equal'])
