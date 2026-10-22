@@ -148,9 +148,9 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.h.lifecycle.delivery_separated=old.lifecycle.delivery_separated=True
         frames=(envelope_frame(100),)
         products,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
-        target=next(p for f in products for p in f.outbox if p.record.scope==program_scope('pump'))
-        mint=target.record.payload['event']['mint']
-        for h in (self.h,old):h.bind('pump','late-recipient',market_address=mint)
+        target=next(p for f in products for p in f.outbox)
+        family,_,market=target.recipients[0]
+        for h in (self.h,old):h.bind(family,'late-recipient',market_address=market)
         baseline,_=prepare_candidate_frames(frames,self.addresses,'same',old.endpoint_identity)
         commit_candidate_batch(reference,frames,self.addresses,'same',prepared=baseline,publish=False)
         with patch.object(self.h.lifecycle,'emit_raw',wraps=self.h.lifecycle.emit_raw) as emit:
@@ -193,9 +193,9 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         from meme_machine.solana_economic_preparation import prepare_candidate_frames
         self.h.lifecycle.delivery_separated=True;frames=(envelope_frame(100),)
         initial,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
-        target=next(p for f in initial for p in f.outbox if p.record.scope==program_scope('pump'))
-        mint=target.record.payload['event']['mint'];aliases={'alias-'+str(n) for n in range(65)}
-        for address in sorted(aliases):self.h.bind('pump',address,market_address=mint)
+        target=next(p for f in initial for p in f.outbox)
+        family,_,market=target.recipients[0];aliases={'alias-'+str(n) for n in range(65)}
+        for address in sorted(aliases):self.h.bind(family,address,market_address=market)
         products,_=prepare_candidate_frames(frames,self.addresses,'same',self.h.endpoint_identity,self.state.writer.path)
         self.assertFalse(any(p.record.identity==target.record.identity for f in products for p in f.outbox))
         with patch.object(self.h.lifecycle,'emit_raw',wraps=self.h.lifecycle.emit_raw) as emit:
