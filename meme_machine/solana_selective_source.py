@@ -290,7 +290,7 @@ def skipped_prefix(history,scope,frame):
         method='native_finalized_parent_proves_no_block_in_replay_prefix',native_order=True)
     history.lifecycle.defer_proof(IntervalProof(scope,lo,b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,frame.seen))
 
-def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None,timing=None):
+def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None,timing=None,defer_fanout=False):
     with candidate_phase(timing,'validate'):
         history=install(state);b=frame.update.block;seen=frame.seen
         if prepared is not None:
@@ -327,8 +327,9 @@ def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None
                             if previous and previous.body()!=row.body():raise EvidenceUnavailable('candidate_economic_content_conflict')
                             rows[row.identity]=row
         material=rows if prepared is not None else rows.values()
-        if timing is None:history.ingest(material)
-        else:history.ingest(material,timing=timing)
+        options=dict(defer_fanout=True) if defer_fanout else {}
+        if timing is None:history.ingest(material,**options)
+        else:history.ingest(material,timing=timing,**options)
         with candidate_phase(timing,'coverage_receipt'):
             for scope,census in censuses.items():
                 old=state.writer.db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
@@ -355,11 +356,12 @@ def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None
     if publish:history.lifecycle.publish()
 
 
-def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None):
+def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None,defer_fanout=False):
     """The original ordered frames, under one atomic durable owner command."""
     if not 0<len(frames)<=CANDIDATE_COMMIT_BATCH:
         raise EvidenceUnavailable('candidate_commit_batch_bound')
     history=install(state)
+    from .solana_derived_fanout import FanoutBackpressure
     if prepared is not None and (grouped or len(prepared)!=len(frames)):
         raise EvidenceUnavailable('candidate_preparation_batch_shape')
     try:
@@ -368,7 +370,11 @@ def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publis
             for index,frame in enumerate(frames):
                 if grouped:commit_rolling_group(state,frame,addresses,session,publish=False)
                 else:commit_candidates(state,frame,addresses,session,publish=False,
-                    prepared=None if prepared is None else prepared[index],timing=timing)
+                    prepared=None if prepared is None else prepared[index],timing=timing,defer_fanout=defer_fanout)
+    except FanoutBackpressure:
+        # The original frame reservation remains owned by its producer. This
+        # pre-admission pressure rolls back atomically and creates no false gap.
+        raise
     except Exception:
         # A discontinuity inside the enclosing batch rolls back with it.
         # Retain its unavailable interval outside that rollback, before retry.
@@ -575,6 +581,7 @@ def source_work(work,stop,observe=None):
     resumable.candidate_delivery_continuation=getattr(work,'candidate_delivery_continuation',False) is True
     resumable.candidate_delivery_capture_actor=getattr(work,'candidate_delivery_capture_actor',False) is True
     resumable.candidate_delivery_publication_handoff=getattr(work,'candidate_delivery_publication_handoff',False) is True
+    resumable.candidate_delivery_fanout=getattr(work,'candidate_delivery_fanout',False) is True
     return resumable
 
 
@@ -602,6 +609,7 @@ class SelectiveSource:
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
         self.proof_publication_handoff=ProofPublicationHandoff()
         self.archive_preparation_wakeup=WorkPulse()
+        self.fanout_wakeup=WorkPulse();self.fanout_space=WorkPulse();self.fanout_done=asyncio.Event()
         self.delivery_urgent=WorkPulse();self.delivery_revision=0
         self.delivery_capture_context=None;self.delivery_owner_hint=None
         self.source_drain=dict(state='RUNNING',terminal=False,source_pid=os.getpid(),run_identity=uuid.uuid4().hex,
@@ -687,6 +695,7 @@ class SelectiveSource:
         if delivery:
             self.delivery_revision=getattr(self,'delivery_revision',0)+1
             self.delivery_wakeup.notify()
+            self.fanout_wakeup.notify()
         if delivery and urgent_delivery:self.delivery_urgent.notify()
 
     def retain_join_state(self,plane,session,body,queue,*,state,monotonic):
@@ -1056,11 +1065,26 @@ class SelectiveSource:
             def durable(state):
                 claimed.append(time.monotonic())
                 commit_candidate_batch(state,frames,addresses,session,
-                    grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases)
+                    grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases,
+                    defer_fanout=getattr(self.work,'candidate_delivery_fanout',False) is True)
                 if rolling and not native_announced:
                     install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
                 claimed.append(time.monotonic());finished_wall.append(time.time())
-            await self.work(durable,priority,label='source_commit',component='candidate')
+            from .solana_derived_fanout import FanoutBackpressure
+            while True:
+                space=self.fanout_space.epoch
+                try:
+                    await self.work(durable,priority,label='source_commit',component='candidate')
+                    break
+                except FanoutBackpressure:
+                    # Keep the same prepared evidence and eight-frame/byte
+                    # reservation. The mandatory derived consumer can continue
+                    # while source producers finish their accepted shutdown.
+                    worker=getattr(self,'fanout_task',None)
+                    if worker is None or worker.done():
+                        if worker is not None:worker.result()
+                        raise EvidenceUnavailable('candidate_fanout_worker_unavailable')
+                    await self.fanout_space.wait(space,self.fanout_done)
             for frame,_,ready,ready_wall in rows:
                 self.observe('evidence_timing',plane='rolling' if rolling else 'candidate',session=session,slot=frame.update.block.slot,
                     native_last_receipt_wall=frame.seen,
@@ -1418,6 +1442,10 @@ class SelectiveSource:
                 self.observation_drain_boundary=begin_source_observation(state,self.retained_source_drain,
                     self.drain_snapshot(),handler_boundary=self.retained_handler_recovery)
             h=install(state)
+            from .solana_derived_fanout import pending_counts
+            if (pending_counts(h.lifecycle)[0] and
+                    getattr(work,'candidate_delivery_fanout',False) is not True):
+                raise EvidenceUnavailable('candidate_fanout_executor_required')
             from .solana_history_notifications import install as notifications
             actor=getattr(work,'candidate_delivery_capture_actor',False) is True
             notifications(h,loop,self.history_changed,capture_hints=actor)
@@ -1471,7 +1499,11 @@ class SelectiveSource:
             if census is not None:background.append(census)
             if not operational():producers.append(asyncio.create_task(self.activity_manager(channel)))
             consumers=[self.control_commit_task,scout_commit]
-            tasks=[*producers,*consumers,*background,stop_task];primary=None
+            fanout=getattr(work,'candidate_delivery_fanout',False) is True
+            self.fanout_task=asyncio.create_task(self.derived_fanout()) if fanout else None
+            if self.fanout_task is not None:background_failure_watch=[self.fanout_task]
+            else:background_failure_watch=[]
+            tasks=[*producers,*consumers,*background,*background_failure_watch,stop_task];primary=None
             try:
                 remaining=set(tasks)
                 while not stop.is_set():
@@ -1519,11 +1551,17 @@ class SelectiveSource:
                             except BaseException as exc:failures.append(exc)
                         results=await asyncio.gather(*consumers,return_exceptions=True)
                         failures.extend(result for result in results if isinstance(result,BaseException))
+                        self.fanout_done.set();self.fanout_wakeup.notify()
+                        if self.fanout_task is not None:
+                            result=await asyncio.gather(self.fanout_task,return_exceptions=True)
+                            failures.extend(r for r in result if isinstance(r,BaseException)
+                                and not isinstance(r,asyncio.CancelledError))
                         await self.flush_delivery();await self.flush_diagnostics()
                         if failures:raise failures[0]
                     except BaseException as exc:
                         drain_error=exc
                     finally:
+                        self.fanout_done.set();self.fanout_wakeup.notify();self.fanout_space.notify()
                         remaining=[*tasks,*self.optional_stops]
                         for task in remaining:
                             if not task.done():task.cancel()
@@ -1543,7 +1581,10 @@ class SelectiveSource:
                                 assert_source_drain_boundary(state,self.retained_source_drain,
                                     handler_boundary=self.retained_handler_recovery)
                                 preserve_handlers(state,self.handlers,unresolved,None)
-                                body['pending_history']=h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0]
+                                from .solana_derived_fanout import pending_counts
+                                fanout_count,fanout_bytes,fanout_outputs=pending_counts(h.lifecycle)
+                                body['pending_fanout_count']=fanout_count;body['pending_fanout_bytes']=fanout_bytes
+                                body['pending_history']=h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL AND id NOT GLOB 'fanout:*'").fetchone()[0]+fanout_outputs
                                 body['pending_proofs']=h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0]
                                 publish_source_drain(state,self.retained_source_drain,body,
                                     handler_boundary=self.retained_handler_recovery,
@@ -1805,6 +1846,60 @@ class SelectiveSource:
                 await self.work(lambda state:install(state).historical_tasks.defer(
                     job,reason,**diagnostic),2,label='history_apply')
                 await asyncio.sleep(.1)
+
+    async def derived_fanout(self):
+        """One existing preparation slot; owner waits never hold that slot.
+
+        This mandatory consumer survives stop until accepted source frames
+        finish. Unprepared obligations are durable and may resume on restart;
+        a physical preparation is always joined before this task terminates.
+        """
+        try:
+            from .solana_derived_fanout import prepare,apply
+            context=getattr(self,'delivery_capture_context',None)
+            if context is None:raise EvidenceUnavailable('candidate_delivery_capture_seed_required')
+            seen=-1
+            while True:
+                seen=await self.fanout_wakeup.wait(seen,self.fanout_done)
+                seen=self.fanout_wakeup.epoch
+                # The original FIFO lock protects only accepted physical native
+                # preparation. A bounded fanout shares it fairly, then releases it
+                # BEFORE any owner admission, mutation or retry wait.
+                try:
+                    async with self.preparation_lock:
+                        future=asyncio.wrap_future(self.preparation_executor.submit(prepare,
+                            context.canonical_path,context.endpoint_identity,context.source_identity))
+                        try:prepared=await asyncio.shield(future)
+                        except asyncio.CancelledError:
+                            while not future.done():
+                                try:await asyncio.shield(future)
+                                except asyncio.CancelledError:continue
+                                except BaseException:break
+                            if not future.cancelled():future.exception()
+                            raise
+                except sqlite3.OperationalError as exc:
+                    if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+                    # Retain the durable page and original shutdown deadline. A
+                    # wakeup never bypasses SQLite's existing bounded backoff.
+                    await asyncio.sleep(.1);self.fanout_wakeup.notify();continue
+                if prepared is None:
+                    # Producers closed is not consumer completion. Only a coherent
+                    # empty read after all accepted intakes have settled can exit.
+                    if self.fanout_done.is_set():return
+                    continue
+                accepted=await self.work(lambda state:apply(install(state).lifecycle,prepared),2,
+                    label='source_commit')
+                if accepted:self.fanout_space.notify()
+                else:
+                    # Fresh binding/source changes reject only this transform.
+                    # The original recipients and obligation remain for reprepare.
+                    await asyncio.sleep(.01)
+                self.fanout_wakeup.notify()
+        finally:
+            # Wake a producer retaining its original reservation if this
+            # mandatory consumer fails; it must observe failure, never wait
+            # forever for capacity which can no longer be released.
+            self.fanout_space.notify()
 
     async def _complete_history_delivery(self,snapshot,result,*,continuation=None):
         """ACK then schedule this exact durable proof batch, in separate turns.

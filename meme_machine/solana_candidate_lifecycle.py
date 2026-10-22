@@ -81,6 +81,8 @@ class CandidateLifecycle:
             self.writer.path.parent/'solana-candidate-history.sqlite'))
         if str(self.path)==str(self.writer.path):raise EvidenceUnavailable('candidate_history_store_must_be_separate')
         self.db.executescript(SCHEMA)
+        from .solana_derived_fanout import SCHEMA as FANOUT_SCHEMA
+        self.db.executescript(FANOUT_SCHEMA)
         if 'priority' not in {r[1] for r in self.db.execute('PRAGMA table_info(candidate_history_outbox)')}:
             self.db.execute('ALTER TABLE candidate_history_outbox ADD COLUMN priority INTEGER NOT NULL DEFAULT 3')
             self.db.execute("UPDATE candidate_history_outbox SET priority=CASE kind WHEN 'canonical' THEN 0 WHEN 'promotion' THEN 1 ELSE 3 END")
@@ -214,30 +216,37 @@ class CandidateLifecycle:
             self.db.execute("UPDATE candidate_lifecycle SET state='demoted' WHERE family=? AND address=?",(family,address))
             self.emit(family,address,'demoted',dict(reason=reason,at=self.clock(),recoverable=True))
 
-    @measured('owner.history_outbox')
-    def queue_records(self,rows):
-        """Called inside the canonical ingestion transaction."""
-        for row in rows:
-            recipients=self.db.execute('''SELECT DISTINCT family,
+    def record_recipients(self,row):
+        """Original as-of routing, shared by inline and durable fanout paths."""
+        recipients=self.db.execute('''SELECT DISTINCT family,
                 substr(coverage_scope,length('candidate:'||family||':')+1),market_address
                 FROM evidence_bindings WHERE canonical_scope=? AND market_address IN ('''+','.join('?' for _ in row.addresses)+')',
                 (row.scope,*row.addresses)).fetchall()
-            if (hasattr(self.history,'rolling') and row.scope==FAMILIES['pump']
+        if (hasattr(self.history,'rolling') and row.scope==FAMILIES['pump']
                     and row.kind=='event'):
-                # The global native discovery cursor includes trades whose
-                # mint was created before this source generation. A binding is
-                # evidence of a known creation/curve identity, not admission to
-                # durable history. Waiting for that absent binding strands the
-                # first discovery row and every later consumer input forever.
-                # Reuse this exact decoded event's mint and the existing
-                # outbox/delivery writer. It grants no creation, coverage,
-                # prospect, financial authority or new provider work.
-                mint=row.payload['event']['mint']
-                if not any(family=='pump' and market==mint
+            # The global native discovery cursor includes trades whose
+            # mint was created before this source generation. A binding is
+            # evidence of a known creation/curve identity, not admission to
+            # durable history. Waiting for that absent binding strands the
+            # first discovery row and every later consumer input forever.
+            # Reuse this exact decoded event's mint and the existing
+            # outbox/delivery writer. It grants no creation, coverage,
+            # prospect, financial authority or new provider work.
+            mint=row.payload['event']['mint']
+            if not any(family=='pump' and market==mint
                            for family,_,market in recipients):
-                    recipients.append(('pump',mint,mint))
-            for family,address,market in recipients:
-                if market not in row.addresses:continue
+                recipients.append(('pump',mint,mint))
+        return [recipient for recipient in recipients if recipient[2] in row.addresses]
+
+    @measured('owner.history_outbox')
+    def queue_records(self,rows,*,defer=False):
+        """Called inside the canonical ingestion transaction."""
+        if defer:
+            from .solana_derived_fanout import freeze
+            freeze(self,rows)
+            return
+        for row in rows:
+            for family,address,market in self.record_recipients(row):
                 # Preserve the original first availability on duplicate delivery.
                 stored=self.db.execute('SELECT body,first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()
                 if getattr(self,'delivery_separated',False) and hasattr(self.history,'rolling'):
@@ -259,8 +268,10 @@ class CandidateLifecycle:
         """
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
         if getattr(self,'delivery_separated',False):return 0
-        rows=self.db.execute('''SELECT id,family,address,kind,body,hash,created FROM candidate_history_outbox
-            WHERE '''+active_sql('family',solana=True)+''' AND consumed IS NULL ORDER BY priority,created,rowid LIMIT ?''',(limit,)).fetchall()
+        from .solana_derived_fanout import DISPATCH_GUARD
+        rows=self.db.execute('''SELECT id,family,address,kind,body,hash,created FROM candidate_history_outbox o
+            WHERE '''+active_sql('o.family',solana=True)+''' AND consumed IS NULL AND id NOT GLOB 'fanout:*' AND '''+
+            DISPATCH_GUARD+''' ORDER BY priority,created,rowid LIMIT ?''',(limit,)).fetchall()
         if not rows:return 0
         bindings={(family,address):self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',
             (family,address)).fetchone() for _,family,address,*_ in rows}
@@ -461,6 +472,8 @@ class CandidateLifecycle:
         self.db.execute('INSERT OR REPLACE INTO candidate_checkpoints VALUES(?,?,?,?)',(scope,slot,receipt,self.clock()))
 
     def unconsumed(self,scope,*,through=None):
+        from .solana_derived_fanout import pending
+        if pending(self,scope,through):return True
         family,address=scope.split(':',2)[1:]
         from .solana_rolling_history import program_scope
         bound='' if through is None else " AND (kind!='canonical' OR json_extract(body,'$.record.slot')<=?)"

@@ -280,9 +280,11 @@ def capture(life,*,revision=None,schedule=False):
     if life.db.in_transaction and not actor:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
     if actor and not life.db.in_transaction:raise EvidenceUnavailable('candidate_delivery_capture_transaction_required')
     rows=[];size=0;references={}
+    from .solana_derived_fanout import DISPATCH_GUARD
     for full in life.db.execute('''SELECT id,family,address,kind,body,hash,created,
-        body -> '$.record.identity',body -> '$.record.slot',body -> '$.available' FROM candidate_history_outbox
-        WHERE '''+active_sql('family',solana=True)+''' AND consumed IS NULL ORDER BY priority,created,rowid LIMIT 64'''):
+        body -> '$.record.identity',body -> '$.record.slot',body -> '$.available' FROM candidate_history_outbox o
+        WHERE '''+active_sql('o.family',solana=True)+''' AND consumed IS NULL AND id NOT GLOB 'fanout:*' AND '''+
+        DISPATCH_GUARD+''' ORDER BY priority,created,rowid LIMIT 64'''):
         row=full[:7]
         row_bytes=len(row[4].encode())
         if size+row_bytes>MAX_BYTES:

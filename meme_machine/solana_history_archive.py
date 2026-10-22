@@ -53,6 +53,8 @@ def apply(history,plan,result):
         if (None if actual is None else actual[0])!=plan['hot_table_before']:return False
     with closing(readonly_history(history.lifecycle.path)) as shared:
         for identity,row in result['selected'].items():
+            from .solana_derived_fanout import record_pending
+            if record_pending(db,identity):return False
             if plan['selected'].get(identity)!=row or db.execute('SELECT * FROM canonical_evidence WHERE identity=?',(identity,)).fetchone()!=row:return False
             if result['body_hashes'].get(identity)!=row[10]:raise EvidenceConflict('local_evidence_hash_mismatch')
             if not db.execute("SELECT 1 FROM candidate_history_outbox WHERE kind='canonical' AND consumed IS NOT NULL AND json_extract(body,'$.record.identity')=? LIMIT 1",(identity,)).fetchone():return False
