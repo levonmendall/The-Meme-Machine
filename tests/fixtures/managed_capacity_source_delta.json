@@ -174,8 +174,8 @@
       "status": "M"
     },
     "meme_machine/solana_evidence_service.py": {
-      "after_bytes": 86882,
-      "after_sha256": "f054dc319d4f52635d56936f776063d5d74c0a48b7cb0be2ac518e1296cf9342",
+      "after_bytes": 86935,
+      "after_sha256": "1982d10d68181b9ac67bb6329ccec75856dfcabc028864589286a7e4279e7306",
       "before_bytes": 85144,
       "before_sha256": "2644baf4b6396608bde735e29d00adc22e5a67a39a4eb94c22d2bdc998ce1f84",
       "changed_nodes": [
@@ -241,8 +241,8 @@
       "status": "M"
     },
     "meme_machine/solana_history_notifications.py": {
-      "after_bytes": 3241,
-      "after_sha256": "2e7bc7d8f52937cc0b3b20b8a35c8901f83df002914b63a78ef71a2f1dfaa201",
+      "after_bytes": 4998,
+      "after_sha256": "d738f74958bb59d409609a8365e11661494d776a3796c63bbabee6925ddca821",
       "before_bytes": 2401,
       "before_sha256": "15e45839bff5984300b8c41af3fc0637d5e62677eba6142ced6c404844201df6",
       "changed_nodes": [
@@ -250,7 +250,15 @@
         "DeliveryHint.__statement_0",
         "DeliveryHint.__statement_1",
         "DeliveryHint.__statement_2",
+        "ProofPublicationHandoff.__init__",
+        "ProofPublicationHandoff.__layout__",
+        "ProofPublicationHandoff.__statement_0",
+        "ProofPublicationHandoff.complete",
+        "ProofPublicationHandoff.offer",
+        "ProofPublicationHandoff.ready",
+        "ProofPublicationHandoff.take",
         "__statement_2",
+        "__statement_3",
         "delivery_hint",
         "install"
       ],
@@ -280,8 +288,8 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 189004,
-      "after_sha256": "9230378e9354adf60a5f6bc3e61d3ee9822adf1524b6eadeec6af06de17fc6ba",
+      "after_bytes": 191160,
+      "after_sha256": "af35ec77e75093e4bafc1d63b1454224c0736c3d372121c85d4b1c6b2571995a",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -302,6 +310,7 @@
         "SelectiveSource.measured_rpc",
         "SelectiveSource.observe",
         "SelectiveSource.prepare_archive_page",
+        "SelectiveSource.publish_history",
         "SelectiveSource.rolling_programs",
         "SelectiveSource.run",
         "__statement_15",
@@ -373,8 +382,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "df8db7ef6ee16e4495e53d1e8ee7e7857fd164e7",
-  "implementation_tree": "fdaea9d5db6f8f9d6c36c146dee9bedd97361bf5",
+  "implementation": "3abfc5f4d02df3d3fc5f4a7268c0f79e74c8938c",
+  "implementation_tree": "b29c80ccdb2084cc1130ab2b6e5983a152794c84",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 10024,

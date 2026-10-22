@@ -5,6 +5,7 @@ always visits the durable outbox. Committed changes wake publication/delivery,
 while diagnostics and unrelated accounting deliberately do not.
 """
 import asyncio
+import time
 from dataclasses import dataclass
 
 
@@ -38,6 +39,46 @@ class WorkPulse:
             for task in (work,end):task.cancel()
             await asyncio.gather(work,end,return_exceptions=True)
         return self.epoch
+
+
+class ProofPublicationHandoff:
+    """Bounded scheduling hints; pending canonical proofs remain authoritative.
+
+    One publisher holds at most64 identities while one following batch waits.
+    Duplicate hints share that work. Cancellation can abandon hints, never the
+    consumer's FULL receipt or the canonical pending-proof restart obligation.
+    """
+    def __init__(self):
+        self.queue=asyncio.Queue(maxsize=1);self.outstanding=set();self.space=WorkPulse()
+        self.active=None;self.retry_at=None
+
+    async def offer(self,identities,stop):
+        while not stop.is_set():
+            pending=tuple(dict.fromkeys(identity for identity in identities
+                if identity not in self.outstanding))
+            if not pending:return
+            if len(pending)>64:raise ValueError('candidate_publication_handoff_bound')
+            seen=self.space.epoch
+            try:self.queue.put_nowait(pending)
+            except asyncio.QueueFull:
+                await self.space.wait(seen,stop);continue
+            # No await between queue admission and duplicate suppression.
+            self.outstanding.update(pending);return
+
+    def take(self):
+        if self.active is not None:
+            return self.active if self.retry_at is None or time.monotonic()>=self.retry_at else None
+        try:
+            self.active=self.queue.get_nowait();self.space.notify();return self.active
+        except asyncio.QueueEmpty:return None
+
+    def complete(self,identities):
+        self.outstanding.difference_update(identities)
+        self.active=None;self.retry_at=None
+
+    def ready(self):
+        if self.active is not None:return self.retry_at is None or time.monotonic()>=self.retry_at
+        return not self.queue.empty()
 
 
 def changed(history,*,publication=True,delivery=True,urgent_delivery=True):
