@@ -10,6 +10,7 @@ import asyncio
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
+from functools import wraps
 import copy
 import hashlib
 import json
@@ -88,20 +89,14 @@ class MeasuredExecutor:
     """Only observes calls to the actual worker functions, without replacing them."""
     def __init__(self, workers, name):
         self.pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix=name)
-        self.costs = {}; self.lock = threading.Lock(); self.results = Counter()
+        self.costs = {}; self.lock = threading.Lock()
 
     def submit(self, function, *args, **kwargs):
         submitted = time.perf_counter_ns()
         name = function.__module__ + '.' + getattr(function, '__name__', type(function).__name__)
         def measured():
             started = time.perf_counter_ns(); cpu = time.thread_time_ns()
-            try:
-                answer = function(*args, **kwargs)
-                if getattr(function, '__name__', '') == 'prepare_candidate_frames':
-                    with self.lock:
-                        self.results['native_preparation_calls'] += 1
-                        self.results['prepared_outbox_records'] += sum(len(frame.outbox) for frame in answer[0])
-                return answer
+            try:return function(*args, **kwargs)
             finally:
                 with self.lock:
                     row = self.costs.setdefault(name, Counter())
@@ -182,12 +177,14 @@ async def run_native_arm(path, frames, *, prepared, restart_before_ack=False):
     """Same bounded arrival schedule, actual owner/queues, and strict terminal cut."""
     from meme_machine import solana_history_delivery as delivery
     from meme_machine.solana_candidate_lifecycle import CandidateLifecycle
+    from meme_machine import solana_economic_preparation as economic
     products, _ = prepare_candidate_frames(frames, ADDRESSES, 'matched-native-session', 'a'*64)
     expected = {row.record.identity:row for product in products for row in product.rows}
     source = owner = work = None; tasks = []; samples = []; stage_counts = []; pipelines = []
     gate = asyncio.Event(); ready = asyncio.Event(); done = asyncio.Event()
     offered = committed = 0; intake_peak = 0; restart_pending = None; restart_reserved = None
     sample_count = 0; peaks = Counter(); probe_count = Counter(); outbox_paths = Counter()
+    preparation_results = Counter(); preparation_result_lock = threading.Lock()
     loop = asyncio.get_running_loop()
     preparation = MeasuredExecutor(2, 'native-comparison-preparation')
     delivery_executor = MeasuredExecutor(1, 'native-comparison-delivery')
@@ -314,10 +311,22 @@ async def run_native_arm(path, frames, *, prepared, restart_before_ack=False):
         for result in results:
             if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):raise result
 
+    original_prepare = economic.prepare_candidate_frames
+    @wraps(original_prepare)
+    def observed_prepare(*args, **kwargs):
+        answer = original_prepare(*args, **kwargs)
+        with preparation_result_lock:
+            preparation_results['native_preparation_calls'] += 1
+            preparation_results['prepared_outbox_records'] += sum(len(frame.outbox) for frame in answer[0])
+            mode = 'inline_calls' if threading.current_thread() is threading.main_thread() else 'worker_calls'
+            preparation_results[mode] += 1
+        return answer
+
     original_emit = CandidateLifecycle.emit_raw
     def observed_emit(life, *args, **kwargs):
+        answer = original_emit(life, *args, **kwargs)
         if kwargs.get('_prepared') is not None:outbox_paths['fresh_owner_validated_prepared_hits'] += 1
-        return original_emit(life, *args, **kwargs)
+        return answer
 
     started = time.perf_counter_ns(); cpu = time.process_time_ns()
     try:
@@ -325,7 +334,8 @@ async def run_native_arm(path, frames, *, prepared, restart_before_ack=False):
         # Only delivery receipt availability is fixed. Timers in PriorityOwner,
         # source scheduling and MeasuredExecutor remain their actual clocks.
         with (patch.object(delivery, 'time', receipt_clock),
-              patch.object(CandidateLifecycle, 'emit_raw', observed_emit)):
+              patch.object(CandidateLifecycle, 'emit_raw', observed_emit),
+              patch.object(economic, 'prepare_candidate_frames', observed_prepare)):
             async with asyncio.timeout(30):
                 await open_source()
                 queue = CandidateCommitQueue()
@@ -369,6 +379,16 @@ async def run_native_arm(path, frames, *, prepared, restart_before_ack=False):
                     if not consumer.done():consumer.cancel()
                     if not probing.done():probing.cancel()
                     await asyncio.gather(consumer, probing, return_exceptions=True)
+                # Freeze measured costs BEFORE semantic/reopen verification.
+                # Background capture may finish between these short snapshots;
+                # this is a checkpoint, not an atomic cross-thread census.
+                with preparation.lock:measured_preparation = copy.deepcopy(preparation.costs)
+                with delivery_executor.lock:measured_delivery = copy.deepcopy(delivery_executor.costs)
+                measured_owner = copy.deepcopy(stage_counts+[dict(work.counts)])
+                measured_pipelines = copy.deepcopy(pipelines+[source.pipeline_metrics])
+                measured_backlog = copy.deepcopy(samples)
+                measured_sample_count = sample_count
+                measured_peaks = dict(peaks)
                 wall_ns = time.perf_counter_ns()-started; cpu_ns = time.process_time_ns()-cpu
                 before = await source.work(semantic_cut, 0)
                 raw_native = await source.work(lambda state:dict(state.writer.db.execute(
@@ -382,11 +402,11 @@ async def run_native_arm(path, frames, *, prepared, restart_before_ack=False):
                 await close_source()
         return dict(semantics=before, timing=dict(wall_nanoseconds=wall_ns,
             parent_process_cpu_nanoseconds=cpu_ns, scope='instrumented_private_threads_setup_through_terminal_drain'),
-            stages={**{key:dict(value) for key,value in preparation.costs.items()},
-                    **{key:dict(value) for key,value in delivery_executor.costs.items()}},
-            preparation_results=dict(preparation.results), outbox_paths=dict(outbox_paths), owner_stages=stage_counts, backlog=samples, intake_peak_frames=intake_peak,
-            source_pipeline=pipelines,
-            backlog_samples_total=sample_count, backlog_sample_limit=128, backlog_peaks=dict(peaks),
+            stages={**{key:dict(value) for key,value in measured_preparation.items()},
+                    **{key:dict(value) for key,value in measured_delivery.items()}},
+            preparation_results=dict(preparation_results), outbox_paths=dict(outbox_paths), owner_stages=measured_owner, backlog=measured_backlog, intake_peak_frames=intake_peak,
+            source_pipeline=measured_pipelines,
+            backlog_samples_total=measured_sample_count, backlog_sample_limit=128, backlog_peaks=measured_peaks,
             owner_probe_calls=dict(probe_count),
             restart_pending=restart_pending, restart_reserved=restart_reserved,
             expected_records=len(expected), frames=len(frames),
@@ -398,6 +418,7 @@ async def run_native_arm(path, frames, *, prepared, restart_before_ack=False):
             receipt_availability_clock='fixed_NOW_all_stage_queue_service_clocks_real',
             measurement_limits=[
                 'all_arms_instrumented_includes_private_setup_and_coarse_read_only_backlog_probes',
+                'costs_frozen_before_semantic_reopen_checks_checkpoint_not_atomic_cross_thread_snapshot',
                 'private_preparation_threads_exclude_production_spawn_transfer_and_child_cpu',
                 'source_evidence_timing_repeats_batch_duration_per_frame_use_owner_stages_for_physical_callbacks',
                 'owner_components_are_nested_in_source_commit_do_not_sum_parent_and_children',
