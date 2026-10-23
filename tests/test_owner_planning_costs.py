@@ -255,8 +255,9 @@ async def run_owner_planning_costs(directory, *, schedule=None):
             'The selected helper schedule is unchanged; callback-ticks is an adversarial schedule, not matched market time.',
             'Fresh synthetic SQLite fixtures do not authenticate original market or historical recovery evidence.'])
     encoded = json.dumps(summary, sort_keys=True, separators=(',', ':'), allow_nan=False)
-    checks.assertLessEqual(len(encoded.encode()), MAX_OUTPUT_BYTES)
-    print('OWNER_PLANNING_COSTS '+encoded, flush=True)
+    record = 'OWNER_PLANNING_COSTS '+encoded
+    checks.assertLessEqual(len((record+'\n').encode()), MAX_OUTPUT_BYTES)
+    print(record, flush=True)
     return summary
 
 
