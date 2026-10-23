@@ -531,6 +531,8 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             # Reopen the actual canonical owner, seed a new actor and reopen
             # the actual qualification reader, rather than copy prior cursors.
             await bootstrap(); reader = await qualification(open_reader, cancel_result=lambda value:value.close())
+            if owner_workload is not None:
+                owner_workload_cut['restart'] = await owner_workload.verify_restart(owner_workload_cut['final'])
             tasks.append(asyncio.create_task(source.candidate_history_delivery()))
             await asyncio.sleep(0)
             await stop_tasks()

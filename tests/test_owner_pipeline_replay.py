@@ -49,6 +49,8 @@ class OwnerPipelineReplayTests(unittest.TestCase):
         self.assertEqual(workload['final']['preparation_tickets'],0)
         self.assertFalse(workload['final']['transaction_open'])
         self.assertEqual(workload['final']['synchronous'],2)
+        self.assertTrue(workload['restart']['verified'])
+        self.assertEqual(workload['restart']['final'],workload['final'])
         self.assertGreater(workload['counters']['planning_callbacks'],0)
         self.assertGreater(workload['counters']['checkpoint_calls'],0)
         self.assertGreater(workload['counters']['urgent_probes'],0)

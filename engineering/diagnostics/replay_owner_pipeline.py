@@ -259,6 +259,11 @@ class OwnerWorkload:
         if self.worker is not None:
             self.worker.close(); self.worker = None
 
+    async def verify_restart(self, before):
+        restored = await self.source.work(self.snapshot,0,label='health_scheduler')
+        original.need(restored == before,'owner_pipeline_fixture_restart_parity')
+        return dict(verified=True,final=restored)
+
     @contextmanager
     def physical_probe(self):
         from meme_machine import solana_checkpoint
