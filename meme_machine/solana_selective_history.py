@@ -551,6 +551,12 @@ class SelectiveHistory:
         self.install_planner()
         scheduler=self.acquisition_scheduler
         only_urgent=urgent_only or position_only()
+        # An exact transactional zero skips only urgent admission/expiry. It is
+        # not a coverage verdict; optional expiry, preparation and dispatch keep
+        # their original path, and a positive count retains full urgent checks.
+        if only_urgent and scheduler.urgent_pending_count()==0:
+            scheduler.validate_selection(excluding=excluding,urgent=only_urgent)
+            return PlanningStep(IDLE)
         with self.writer.transaction():
             # Expiry is an original obligation, including position-only
             # operation. Fixed indexed streams retire at most sixteen rows;

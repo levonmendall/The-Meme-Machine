@@ -27,6 +27,7 @@ STATE = 'acquisition_schedule_state_v1'
 URGENT_STATE = 'acquisition_schedule_urgent_v1'
 FANOUT = 'acquisition_schedule_fanout_v1'
 SIGNALS = 'acquisition_schedule_signals_v1'
+URGENT_COUNT = 'acquisition_schedule_urgent_count_v1'
 JOB_FIELDS = ('id', 'family', 'address', 'lo', 'hi', 'priority', 'deadline',
               'token', 'pages', 'last_slot', 'last_index', 'lineage', 'created',
               'updated', 'error')
@@ -125,6 +126,7 @@ class AcquisitionScheduler:
                 index = 'acquisition_schedule_retry_rank'+str(rank)+'_v1'
                 self._ddl(f'''CREATE INDEX IF NOT EXISTS {index}
                     ON {QUEUE}(retry_at,id) WHERE ready=0 AND rank={rank}''', 'index', index)
+            self._install_urgent_count()
             self._install_fanout()
             insert = f'''UPDATE {STATE} SET revision=revision+1 WHERE id=1;
                 INSERT INTO {QUEUE}
@@ -167,6 +169,54 @@ class AcquisitionScheduler:
                     +CASE WHEN NEW.status='pending' THEN 1 ELSE 0 END
                     -CASE WHEN OLD.status='pending' THEN 1 ELSE 0 END WHERE id=1; END''',
                 'trigger', 'acquisition_schedule_count_status_v1')
+
+    def _install_urgent_count(self):
+        # This additive singleton has scheduling authority only: zero avoids
+        # repeated empty urgent scans, never proves history or completion.
+        # Only a genuinely new table may reconcile. An existing missing or
+        # malformed row is a refusal, never an invented zero or silent repair.
+        existed=self.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (URGENT_COUNT,)).fetchone() is not None
+        trigger_names=tuple('acquisition_schedule_urgent_count_'+kind+'_v1'
+            for kind in ('insert','delete','update'))
+        present=tuple(self.db.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?",
+            (name,)).fetchone() is not None for name in trigger_names)
+        # A partial retained counter could have missed old-source writes while
+        # one trigger was absent. Recreating that trigger cannot authenticate
+        # its old zero. First install and all three triggers commit atomically.
+        _require(all(present) if existed else not any(present),
+            'acquisition_schedule_urgent_count_schema')
+        self._ddl(f'''CREATE TABLE IF NOT EXISTS {URGENT_COUNT}(
+            id INTEGER PRIMARY KEY CHECK(id=1),pending_urgent INTEGER NOT NULL
+            CHECK(typeof(pending_urgent)='integer' AND pending_urgent>=0))''','table',URGENT_COUNT)
+        if not existed:
+            pending=self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending' AND priority<=2").fetchone()[0]
+            self.db.execute(f'INSERT INTO {URGENT_COUNT} VALUES(1,?)',(pending,))
+        self.urgent_pending_count()
+        self._ddl(f'''CREATE TRIGGER IF NOT EXISTS acquisition_schedule_urgent_count_insert_v1
+            AFTER INSERT ON acquisition_jobs WHEN NEW.status='pending' AND NEW.priority<=2
+            BEGIN UPDATE {URGENT_COUNT} SET pending_urgent=pending_urgent+1 WHERE id=1; END''',
+            'trigger','acquisition_schedule_urgent_count_insert_v1')
+        self._ddl(f'''CREATE TRIGGER IF NOT EXISTS acquisition_schedule_urgent_count_delete_v1
+            AFTER DELETE ON acquisition_jobs WHEN OLD.status='pending' AND OLD.priority<=2
+            BEGIN UPDATE {URGENT_COUNT} SET pending_urgent=pending_urgent-1 WHERE id=1; END''',
+            'trigger','acquisition_schedule_urgent_count_delete_v1')
+        old="(OLD.status='pending' AND OLD.priority<=2)"
+        new="(NEW.status='pending' AND NEW.priority<=2)"
+        self._ddl(f'''CREATE TRIGGER IF NOT EXISTS acquisition_schedule_urgent_count_update_v1
+            AFTER UPDATE OF status,priority ON acquisition_jobs WHEN {old} IS NOT {new}
+            BEGIN UPDATE {URGENT_COUNT} SET pending_urgent=pending_urgent
+                +CASE WHEN {new} THEN 1 ELSE 0 END-CASE WHEN {old} THEN 1 ELSE 0 END WHERE id=1; END''',
+            'trigger','acquisition_schedule_urgent_count_update_v1')
+
+    def urgent_pending_count(self):
+        # All families and all pending deadlines count, including expired jobs
+        # until their honest retirement. Inactive families are conservative:
+        # they can retain the full urgent path, never manufacture empty work.
+        row=self.db.execute(f'SELECT pending_urgent FROM {URGENT_COUNT} WHERE id=1').fetchone()
+        _require(row is not None and len(row)==1 and type(row[0]) is int and row[0]>=0,
+            'acquisition_schedule_urgent_count_unavailable')
+        return row[0]
 
     def _install_fanout(self):
         # These are resumable scheduling dependencies, never coverage. Signals
@@ -528,6 +578,12 @@ class AcquisitionScheduler:
                 return False
         return True
 
+    def validate_selection(self, *, excluding=(), urgent=False):
+        # Shared with the history zero shortcut so proven empty work cannot
+        # turn malformed original controls into a successful IDLE result.
+        _require(type(urgent) is bool, 'acquisition_schedule_urgent')
+        return _excluded(excluding)
+
     def next(self, *, excluding=(), urgent=False):
         """Return one original fresh job, DEFERRED, or IDLE; never a proof.
 
@@ -535,28 +591,35 @@ class AcquisitionScheduler:
         bounded optional backfill. Optional work starts only after every old
         pending job has joined the same globally ordered ready population.
         """
-        _require(type(urgent) is bool, 'acquisition_schedule_urgent')
-        excluded = _excluded(excluding)
-        progress = self._seed_urgent()
-        self.wake_fanout()
-        remaining = STEP
-        for rank in range(3):
-            due = self._wake_rank(rank, limit=remaining)
-            remaining -= due['processed']
-            now = self._now()
-            head = self._ready_head(now, excluded, urgent=True, rank=rank)
-            frontier = progress['frontier']
-            if self._proved_head(head, now, rank, more_due=due['more'], seed_frontier=frontier):
-                return head if head['deadline'] > self._now() else DEFERRED
-            # An unfinished same/higher rank must make bounded progress before
-            # any lower rank can be selected. Higher proved ready heads already
-            # returned without touching lower-rank retry bookkeeping.
-            if due['more'] or (frontier is not None and frontier['priority'] <= rank):
-                return DEFERRED
-            if remaining == 0 and rank < 2:
-                return DEFERRED
-        if urgent:
+        excluded=self.validate_selection(excluding=excluding,urgent=urgent)
+        urgent_count=self.urgent_pending_count()
+        if urgent and urgent_count==0:
             return IDLE
+        if urgent_count:
+            progress = self._seed_urgent()
+            self.wake_fanout()
+            remaining = STEP
+            for rank in range(3):
+                due = self._wake_rank(rank, limit=remaining)
+                remaining -= due['processed']
+                now = self._now()
+                head = self._ready_head(now, excluded, urgent=True, rank=rank)
+                frontier = progress['frontier']
+                if self._proved_head(head, now, rank, more_due=due['more'], seed_frontier=frontier):
+                    return head if head['deadline'] > self._now() else DEFERRED
+                # An unfinished same/higher rank must make bounded progress before
+                # any lower rank can be selected. Higher proved ready heads already
+                # returned without touching lower-rank retry bookkeeping.
+                if due['more'] or (frontier is not None and frontier['priority'] <= rank):
+                    return DEFERRED
+                if remaining == 0 and rank < 2:
+                    return DEFERRED
+            if urgent:
+                return IDLE
+        else:
+            # Optional dependency wakes and dispatch remain active even when
+            # the exact urgent population is empty.
+            self.wake_fanout()
         progress = self.backfill()
         if not progress['complete']:
             return DEFERRED
