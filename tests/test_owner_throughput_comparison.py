@@ -48,6 +48,43 @@ def _digest(value):
         separators=(',', ':'), default=lambda value: {'bytes': value.hex()}).encode()).hexdigest()
 
 
+def emit_owner_throughput_report(report, arm):
+    """One bounded stdout record; root records Git heads/run IDs externally.
+
+    Byte hashes identify this identical harness and the affected loaded runtime
+    modules, not a complete source census. No database rows or file paths leave
+    this projection. Uninstrumented commit/VM values remain explicitly null.
+    """
+    modules = ('solana_selective_source', 'solana_selective_history',
+        'solana_evidence_control', 'solana_evidence_plane', 'solana_rolling_history',
+        'solana_history_work', 'solana_candidate_development', 'solana_acquisition_scheduler')
+    sources = {}
+    for name in modules:
+        module = sys.modules.get('meme_machine.'+name)
+        sources[name] = (None if module is None else
+            hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest())
+    final = report['final']
+    summary = dict(schema='synthetic-owner-throughput-comparison-summary-v1',
+        arm=arm, report_schema=report['schema'], scope=report['scope'],
+        provenance=dict(harness_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            affected_runtime_module_sha256=sources, full_source_census=False),
+        cohort=report['cohort'], runtime=report['runtime'], measured=report['measured'],
+        vm_quantum=report['vm_quantum'], counters=report['counters'],
+        turns=report['turns'], maximum_turns=report['maximum_turns'],
+        fingerprints=dict(initial_functional=report['before']['functional_sha256'],
+            final_functional=final['functional_sha256'],
+            initial_canonical_order=report['before']['canonical_order_sha256'],
+            final_canonical_order=final['canonical_order_sha256']),
+        final=dict((key, final[key]) for key in ('complete', 'deadlines_preserved',
+            'pending_jobs', 'pending_history', 'inflight', 'preparation_tickets',
+            'transaction_open', 'synchronous')),
+        cancellation_probe=report['cancellation_probe'], scheduling=report['scheduling'],
+        provider_calls=report['provider_calls'], financial_authority=report['financial_authority'])
+    print('OWNER_THROUGHPUT_COMPARISON '+json.dumps(summary,
+        sort_keys=True, separators=(',', ':'), allow_nan=False), flush=True)
+    return summary
+
+
 class _OfflineDispatchRefused(RuntimeError):
     pass
 
@@ -425,7 +462,9 @@ class OwnerThroughputComparisonTests(unittest.IsolatedAsyncioTestCase):
     async def test_actual_population_is_conserved_and_vm_probe_preserves_semantics(self):
         with tempfile.TemporaryDirectory() as temporary:
             plain = await run_owner_throughput_comparison(Path(temporary)/'plain', measured=False)
+            emit_owner_throughput_report(plain, 'optional_plain')
             measured = await run_owner_throughput_comparison(Path(temporary)/'measured', measured=True)
+            emit_owner_throughput_report(measured, 'optional_measured')
         for report in (plain, measured):self.assert_conserved(report)
         self.assertEqual(plain['cohort'], measured['cohort'])
         self.assertEqual(plain['final'], measured['final'])
@@ -438,6 +477,7 @@ class OwnerThroughputComparisonTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as temporary:
             report = await run_owner_throughput_comparison(Path(temporary)/'cancel',
                 measured=True, urgent=True, cancel_dispatch=True)
+            emit_owner_throughput_report(report, 'optional_then_postconvergence_cancellation')
         self.assert_conserved(report)
         self.assertEqual(report['counters']['urgent_commands'], 1)
         self.assertEqual(report['counters']['dispatch_cancellations'], 1)
