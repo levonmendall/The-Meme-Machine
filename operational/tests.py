@@ -180,6 +180,7 @@ FAST=[
 ]
 OPERATIONAL=FAST+[
  'tests.test_owner_quantum_publication',
+ 'tests.test_owner_pipeline_replay',
  'tests.test_owner_transaction_boundaries',
  'tests.test_owner_planning_costs',
  'tests.test_owner_throughput_profile',
