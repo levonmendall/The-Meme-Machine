@@ -398,7 +398,9 @@ class PriorityOwner:
         The lease is an owner-queue operation, so already admitted urgent work
         retains priority and older nonurgent work retains FIFO order. Reception
         and decoding continue; subsequent database operations stay bounded in the
-        existing queue. Only an explicit matching release resumes mutation.
+        existing queue. The already-ready checkpoint worker receives this token
+        directly and releases it after I/O, before notifying its asyncio waiter.
+        Only an explicit matching release resumes mutation.
         """
         if threading.get_ident()!=self.thread.ident:
             raise EvidenceUnavailable('checkpoint_handoff_owner_thread')

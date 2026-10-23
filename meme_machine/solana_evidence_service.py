@@ -1103,9 +1103,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                 except (OSError,TimeoutError,RuntimeError):pass
                 clients.discard(task)
 
-    server=None;tasks=[]
+    server=None;tasks=[];checkpoint_worker=None
     storage_ready=asyncio.Event()
     try:
+        from .solana_checkpoint import CheckpointWorker,reclaim_at_boundary
+        checkpoint_worker=CheckpointWorker(owner,path)
+        await asyncio.shield(asyncio.wrap_future(checkpoint_worker.ready))
         server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
         os.chmod(socket_path,0o600)
         async def health():
@@ -1265,9 +1268,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                             # mutation boundary, not another chance at idle time.
                             # It never waits for pinned readers; incomplete copy
                             # releases the boundary and preserves their snapshots.
-                            from .solana_checkpoint import reclaim_at_boundary
                             boundary_started=time.monotonic()
-                            final=await reclaim_at_boundary(owner,path)
+                            final=await reclaim_at_boundary(owner,path,worker=checkpoint_worker)
                             boundary_us=int((time.monotonic()-boundary_started)*1_000_000)
                             counts['checkpoint.boundary_calls']=counts.get('checkpoint.boundary_calls',0)+1
                             counts['checkpoint.boundary_total_microseconds']=counts.get('checkpoint.boundary_total_microseconds',0)+boundary_us
@@ -1339,6 +1341,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         if server:server.close();await server.wait_closed()
         for task in tasks:task.cancel()
         await asyncio.gather(*tasks,return_exceptions=True)
+        if checkpoint_worker is not None:checkpoint_worker.close()
         if clients:await asyncio.gather(*list(clients),return_exceptions=True)
         # Persist the final bounded counters after producers stop; a short drain
         # can otherwise finish between maintenance snapshots and hide pressure.
