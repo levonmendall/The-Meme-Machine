@@ -1,0 +1,93 @@
+name: marginfi-Drift compiled SVM IDL targeted retry 2026-10-23
+on:
+  push:
+    branches:
+      - research/offline-solana-svm-20261023
+    paths:
+      - .github/workflows/marginfi-drift-offline-retry-20261023.yml
+permissions:
+  contents: read
+jobs:
+  marginfi_drift_compiled:
+    name: marginfi-to-Drift compiled LiteSVM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+      - name: Fetch pinned upstream and install toolchains
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/0dotxyz/marginfi-v2.git marginfi-v2
+          git -C marginfi-v2 fetch --depth 1 origin aeafee702d1b807f717db75f87996a67e1977c04
+          git -C marginfi-v2 checkout --detach aeafee702d1b807f717db75f87996a67e1977c04
+          test "$(git -C marginfi-v2 rev-parse HEAD)" = aeafee702d1b807f717db75f87996a67e1977c04
+          rustup toolchain install 1.90.0 --profile minimal
+          corepack enable
+          corepack prepare yarn@4.14.1 --activate
+          sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.13/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          cargo +1.90.0 install avm --git https://github.com/solana-foundation/anchor --locked
+          echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
+      - name: Build actual marginfi ELF and prepare LiteSVM fixture tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          avm install 1.0.2
+          avm use 1.0.2
+          cd marginfi-v2
+          yarn install --immutable
+          anchor build -p marginfi --ignore-keys
+          anchor build -p mocks --ignore-keys
+          anchor build -p test_transfer_hook --ignore-keys --no-idl
+          test -s target/idl/marginfi.json
+          test -s target/idl/mocks.json
+          test -s target/deploy/marginfi.so
+          test -s tests/fixtures/drift.so
+          readelf -h target/deploy/marginfi.so | grep -Ei 'Machine:.*BPF'
+          readelf -h tests/fixtures/drift.so | grep -Ei 'Machine:.*BPF'
+          sha256sum target/deploy/marginfi.so tests/fixtures/drift.so
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tests/specs/drift/d07_driftDeposit.spec.ts")
+          s = path.read_text()
+          needle = "    const scaledBalanceAfter = spotPositionAfter.scaledBalance;"
+          assert needle in s, "expected upstream test assertion site"
+          s = s.replace(needle, needle + """
+              console.log("SVM_ACCOUNT_STATE before_scaled=" + scaledBalanceBefore.toString()
+                + " after_scaled=" + scaledBalanceAfter.toString()
+                + " user_before=" + userUsdcBefore.toString()
+                + " user_after=" + userUsdcAfter.toString());
+          """, 1)
+          path.write_text(s)
+          PY
+      - name: Execute marginfi-to-Drift and oracle-collateral transactions in network-disabled LiteSVM
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd marginfi-v2
+          docker pull ubuntu:24.04
+          NODE_ROOT="$(dirname "$(dirname "$(command -v node)")")"
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            -v "$PWD":/workspace:rw -v "$NODE_ROOT":/opt/node:ro -w /workspace \
+            -e PATH=/opt/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            ubuntu:24.04 bash -c '
+              set -Eeuo pipefail
+              test "$(find /sys/class/net -mindepth 1 -maxdepth 1 ! -name lo | wc -l)" -eq 0
+              echo "OFFLINE_NETWORK_INTERFACES=$(ls /sys/class/net)"
+              node --version
+              ./node_modules/.bin/ts-mocha -p ./tsconfig.json -t 1000000 \
+                tests/specs/drift/d*.spec.ts tests/specs/basic/0*.spec.ts \
+                tests/specs/basic/1*.spec.ts tests/specs/basic/2*.spec.ts \
+                --exit --require tests/rootHooks.ts
+            ' 2>&1 | tee ../marginfi_drift_actual_svm.log
+          grep -q SVM_ACCOUNT_STATE ../marginfi_drift_actual_svm.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marginfi-drift-compiled-svm-evidence
+          path: marginfi_drift_actual_svm.log
+          if-no-files-found: ignore
+          retention-days: 7
