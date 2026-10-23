@@ -263,7 +263,7 @@ async def run_owner_planning_costs(directory, *, schedule=None):
 class OwnerPlanningCostsTests(unittest.IsolatedAsyncioTestCase):
     async def test_actual_owner_planner_costs_are_nested_and_conserved(self):
         with tempfile.TemporaryDirectory() as temporary:
-            summary = await run_owner_planning_costs(Path(temporary)/'costs')
+            summary = await run_owner_planning_costs(Path(temporary)/'costs', schedule='idle-epochs')
         self.assertEqual(len(summary['rows']), 8)
         self.assertEqual(summary['provider_calls'], 0)
         self.assertFalse(summary['financial_authority'])
