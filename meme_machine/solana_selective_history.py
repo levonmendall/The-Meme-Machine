@@ -626,17 +626,6 @@ class SelectiveHistory:
                         return PlanningStep(DEFERRED)
                 interval=required[0]
             a,b=interval
-            if not job['pages'] and interval!=(job['lo'],job['hi']):
-                if probe is not None and not self.dispatch_probe.current(job,probe):
-                    return PlanningStep(DEFERRED)
-                # Materialize independent children over committed quanta before
-                # waiting for any physical page. Never move the original job's
-                # cursor, bounds, deadline or coverage status. Reusing the same
-                # verified probe permits parallel archive workers to acquire
-                # later pieces while the earliest child remains in flight.
-                self.request(job['family'],job['address'],a,b,priority=job['priority'],deadline=job['deadline'])
-                scheduler.fanout_advance(job,b)
-                return PlanningStep(DEFERRED)
             # At most the eight bounded archive workers can own physical pages.
             overlapping=[]
             for identity in excluding:
@@ -650,10 +639,20 @@ class SelectiveHistory:
                     self.db.execute('UPDATE acquisition_jobs SET priority=MIN(priority,?),deadline=MIN(deadline,?) WHERE id=?',
                         (job['priority'],job['deadline'],identity))
                     self._archive_preparation_tightened(identity,job['priority'],job['deadline'])
-                scheduler.defer(job,now+.1)
-                if probe is not None:self.dispatch_probe.reset()
-                return PlanningStep(DEFERRED)
+                if job['pages'] or interval==(job['lo'],job['hi']):
+                    scheduler.defer(job,now+.1)
+                    if probe is not None:self.dispatch_probe.reset()
+                    return PlanningStep(DEFERRED)
             if probe is not None and not self.dispatch_probe.current(job,probe):
+                return PlanningStep(DEFERRED)
+            if not job['pages'] and interval!=(job['lo'],job['hi']):
+                # Materialize independent children over committed quanta before
+                # waiting for any physical page. Never move the original job's
+                # cursor, bounds, deadline or coverage status. Reusing the same
+                # verified probe permits parallel archive workers to acquire
+                # later pieces while the earliest child remains in flight.
+                self.request(job['family'],job['address'],a,b,priority=job['priority'],deadline=job['deadline'])
+                scheduler.fanout_advance(job,b)
                 return PlanningStep(DEFERRED)
             if probe is not None:self.dispatch_probe.reset()
             config=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',
