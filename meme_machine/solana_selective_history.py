@@ -552,20 +552,27 @@ class SelectiveHistory:
         scheduler=self.acquisition_scheduler
         only_urgent=urgent_only or position_only()
         with self.writer.transaction():
-            expiry_more=False
-            if not only_urgent:
-                # Fixed family streams merge without sorting the full retained
-                # population. Each source range is an indexed seek.
-                expired=[];now=self.clock()
-                for family in sorted(self.active_families):
+            # Expiry is an original obligation, including position-only
+            # operation. Fixed indexed streams retire at most sixteen rows;
+            # remaining expiry debt never prevents selecting a fresh urgent
+            # head in this same quantum.
+            expired=[];now=self.clock()
+            for family in sorted(self.active_families):
+                if only_urgent:
+                    for priority in range(3):
+                        expired.extend(self.db.execute("SELECT id,deadline FROM acquisition_jobs "
+                            "INDEXED BY acquisition_schedule_source_urgent_v1 WHERE family=? AND status='pending' "
+                            "AND priority=? AND deadline<=? ORDER BY deadline,created,id LIMIT 17",
+                            (family,priority,now)).fetchall())
+                else:
                     expired.extend(self.db.execute("SELECT id,deadline FROM acquisition_jobs "
                         "INDEXED BY acquisition_expiry_quantum_v1 WHERE family=? AND status='pending' "
                         "AND deadline<=? ORDER BY deadline,id LIMIT 17",(family,now)).fetchall())
-                expiry_more=len(expired)>16
-                for identity,_ in sorted(expired,key=lambda row:(row[1],row[0]))[:16]:
-                    self.db.execute("UPDATE acquisition_jobs SET status='deadline_missed',updated=?,"
-                        "error='candidate_decision_deadline_missed' WHERE id=?",(now,identity))
-                    self._observation(identity,'deadline_missed',dict(economic_rejection=False))
+            expiry_more=len(expired)>16
+            for identity,_ in sorted(expired,key=lambda row:(row[1],row[0]))[:16]:
+                self.db.execute("UPDATE acquisition_jobs SET status='deadline_missed',updated=?,"
+                    "error='candidate_decision_deadline_missed' WHERE id=?",(now,identity))
+                self._observation(identity,'deadline_missed',dict(economic_rejection=False))
             job=scheduler.next(excluding=excluding,urgent=only_urgent)
             if job==SCHEDULE_DEFERRED:return PlanningStep(DEFERRED)
             if job==SCHEDULE_IDLE:return PlanningStep(DEFERRED if expiry_more else IDLE)

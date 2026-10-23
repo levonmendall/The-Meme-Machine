@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 import zlib
 
 from meme_machine.solana_candidate_lifecycle import CandidateLifecycle
@@ -73,6 +74,60 @@ class DispatchProbeTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT lo,hi,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
             (self.job['id'],)).fetchone(),(10,100,NOW+150,None,0,'pending'))
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE lo=10 AND hi=20 AND status='pending'").fetchone(),(1,))
+        self.assertFalse(self.db.in_transaction)
+
+    def test_position_only_retires_bounded_original_expiry_and_dispatches_fresh_urgent_head(self):
+        self.h.install_planner()
+        expired=[]
+        for number in range(40):
+            expired.append(self.h.request('pump',self.job['address'],200+number,200+number,
+                priority=number%3,deadline=NOW-1))
+        optional=self.h.request('pump',self.job['address'],700,710,priority=3,deadline=NOW-2)
+        fresh=self.h.request('pump',self.job['address'],300,310,priority=0,deadline=NOW+10)
+        with patch('meme_machine.operational.position_continuation.position_only',return_value=True):
+            result=self.h.plan_step()
+            self.assertEqual(result.state,'DISPATCH')
+            self.assertEqual(result.plan[0]['id'],fresh)
+            self.assertEqual(result.plan[0]['deadline'],NOW+10)
+            self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='deadline_missed'").fetchone(),(16,))
+            self.assertEqual(self.db.execute('SELECT status FROM acquisition_jobs WHERE id=?',(optional,)).fetchone(),('pending',))
+            for _ in range(4):
+                self.h.plan_step(excluding=(fresh,))
+        statuses=[self.db.execute('SELECT status,deadline FROM acquisition_jobs WHERE id=?',(identity,)).fetchone()
+            for identity in expired]
+        self.assertEqual(statuses,[('deadline_missed',NOW-1)]*40)
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='deadline_missed'").fetchone(),(40,))
+        self.assertEqual(self.db.execute('SELECT status,token,pages FROM acquisition_jobs WHERE id=?',(fresh,)).fetchone(),('pending',None,0))
+        self.assertFalse(self.db.in_transaction)
+
+    def test_urgent_expiry_index_seeks_do_not_scan_retained_optional_expiry_population(self):
+        self.h.install_planner()
+        rows=[]
+        for number in range(5000):
+            lo=400000+number
+            identity=digest(['retained-optional-expired',number])
+            rows.append((identity,'pump',self.job['address'],lo,lo,3,NOW-2,'pending',None,0,None,None,
+                digest([]),NOW-10,NOW-10,None))
+        with self.writer.transaction():
+            self.db.executemany('INSERT INTO acquisition_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',rows)
+        for number in range(40):
+            self.h.request('pump',self.job['address'],200+number,200+number,
+                priority=number%3,deadline=NOW-1)
+        fresh=self.h.request('pump',self.job['address'],300,310,priority=0,deadline=NOW+10)
+        work=[0]
+        def bounded():
+            work[0]+=100
+            return int(work[0]>75000)
+        self.db.set_progress_handler(bounded,100)
+        try:
+            result=self.h.plan_step(urgent_only=True)
+        finally:
+            self.db.set_progress_handler(None,0)
+        self.assertEqual(result.state,'DISPATCH')
+        self.assertEqual(result.plan[0]['id'],fresh)
+        self.assertLessEqual(work[0],75000)
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE priority=3 AND deadline<? AND status='pending'",(NOW,)).fetchone(),(5000,))
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE priority<=2 AND status='deadline_missed'").fetchone(),(16,))
         self.assertFalse(self.db.in_transaction)
 
     def close_writer(self):
