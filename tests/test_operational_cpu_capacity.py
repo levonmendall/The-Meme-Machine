@@ -113,7 +113,8 @@ class SupervisorCpuTests(unittest.TestCase):
         service.shared_capital=SimpleNamespace(ledger=lambda:dict(positions={}))
         service.last_native_health=dict(pons=dict(progress_at=now,reconciled=True))
         sample=dict(robinhood=dict(state='CURRENT',queue_depth=queue_depth,oldest_wait_seconds=queue_wait))
-        files={'memory.current':'1024','cpu.stat':'usage_usec 2000000\n','cpu.max':quota,
+        files={'cgroup':'0::/system.slice/meme-machine-paper.service\n',
+            'memory.current':'1024','cpu.stat':'usage_usec 2000000\n','cpu.max':quota,
             'memory.high':str(memory_high),'memory.max':str(memory_max)}
         with patch('meme_machine.operational.position_continuation.os.cpu_count',return_value=host), \
                 patch('meme_machine.operational.position_continuation.os.sched_getaffinity',

@@ -19,6 +19,16 @@ from meme_machine.runtime.usd_valuation import ValuationUnavailable,utc
 SOURCE_ROOT=Path(__file__).resolve().parents[2]
 
 
+def current_service_cgroup():
+    """Use kernel membership, never another service's resource allowance."""
+    raw=Path('/proc/self/cgroup').read_text(encoding='ascii')
+    allowed=('0::/system.slice/meme-machine-paper.service',
+             '0::/system.slice/meme-machine-pons-pilot.service')
+    if len(raw)>4096 or raw.strip() not in allowed:
+        raise ValueError('fixed_operational_service_cgroup_required')
+    return Path('/sys/fs/cgroup')/raw.strip()[4:]
+
+
 @dataclass(frozen=True)
 class ProviderHealthSample:
     collected_at: float
@@ -729,7 +739,7 @@ class Supervisor:
                 reason='authenticated_solana_position_evidence_unavailable'
         try:
             configured_cpu=cpu_capacity(budget.envelope)
-            group=Path('/sys/fs/cgroup/system.slice/meme-machine-paper.service')
+            group=current_service_cgroup()
             memory=int((group/'memory.current').read_text())
             use=int(dict(line.split() for line in (group/'cpu.stat').read_text().splitlines())['usage_usec'])
             prior=getattr(self,'resource_prior',(now,use))
