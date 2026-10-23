@@ -5,6 +5,7 @@ advance only after its native transaction commits, and may restart from zero.
 No transaction, proof verdict or mutable financial state crosses that boundary.
 """
 from dataclasses import dataclass
+import copy
 import time
 
 from .runtime.operation_costs import operation
@@ -16,6 +17,8 @@ DISPATCH = 'DISPATCH'
 DEFERRED = 'DEFERRED'
 IDLE = 'IDLE'
 DEVELOPMENT_QUANTUM = 16
+MICROBATCH_TRANSITIONS = 16
+MICROBATCH_SECONDS = .005
 
 
 @dataclass(frozen=True)
@@ -47,7 +50,10 @@ class DevelopmentCandidates:
             self.db.execute(f'''CREATE TABLE IF NOT EXISTS {self.STATE}(
                 id INTEGER PRIMARY KEY CHECK(id=1),minimum INTEGER NOT NULL,
                 after_address TEXT NOT NULL,complete INTEGER NOT NULL CHECK(complete IN (0,1)))''')
-            self.db.execute(f"INSERT OR IGNORE INTO {self.STATE} VALUES(1,?,'',0)", (minimum,))
+            # Empty installation needs no future rebuild: exact-key triggers
+            # below already account for every subsequent live insertion.
+            empty=self.db.execute("SELECT 1 FROM market_observations WHERE family='pump' LIMIT 1").fetchone() is None
+            self.db.execute(f"INSERT OR IGNORE INTO {self.STATE} VALUES(1,?,'',?)", (minimum,int(empty)))
             if self.db.execute(f'SELECT minimum FROM {self.STATE} WHERE id=1').fetchone() != (minimum,):
                 raise EvidenceUnavailable('candidate_development_policy_migration_required')
             criterion = DEVELOPMENT_BOUND.replace('fields', 'NEW.fields')
@@ -90,7 +96,7 @@ class DevelopmentCandidates:
 
     def backfill(self, timing):
         from .solana_selective_history import DEVELOPMENT_BOUND
-        with timing.transaction_exit(self.history.writer.transaction(), phase_name='commit'):
+        with self.history.writer.transaction():
             with timing.phase('selection'):
                 after, complete = self.db.execute(
                     f'SELECT after_address,complete FROM {self.STATE} WHERE id=1').fetchone()
@@ -152,19 +158,55 @@ class CandidateDevelopment:
         self.candidates = DevelopmentCandidates(history, POLICY.min_curve_progress_bps)
         history.install_planner()
 
+    def _microbatch(self, timing, frontier, excluding, batched, *, housekeeping):
+        # Stage all actor state locally. No other owner turn can observe a
+        # cursor that belongs to an uncommitted quantum; COMMIT failure leaves
+        # the original actor unchanged. Probe's durable turn tag independently
+        # discards any volatile reads from an aborted outer transaction.
+        staged=copy.copy(self)
+        staged.cursors=dict(self.cursors)
+        cutoff=time.perf_counter()+MICROBATCH_SECONDS
+        result=PlanningStep(DEFERRED)
+        urgent=True
+        with timing.transaction_exit(self.history.writer.transaction(),phase_name='commit'):
+            for _ in range(MICROBATCH_TRANSITIONS):
+                if urgent:
+                    with timing.phase('plan'):
+                        result=self.history.plan_step(excluding=excluding,urgent_only=True)
+                    if result.state==DISPATCH:
+                        break
+                    if result.state==IDLE:
+                        urgent=False
+                        result=PlanningStep(DEFERRED)
+                    # A retired/blocked urgent head is bounded committed work;
+                    # continue inside this same quantum instead of paying a
+                    # separate FULL commit for every harmless completion.
+                elif housekeeping:
+                    result=staged._step(timing,frontier,excluding=excluding,batched=batched)
+                else:
+                    result=staged._plan(timing,excluding,batched)
+                if result.state==DISPATCH or (result.state==IDLE and not urgent):
+                    break
+                if time.perf_counter()>=cutoff:
+                    break
+        self.phase,self.poll_at,self.cursors=staged.phase,staged.poll_at,staged.cursors
+        return result
+
     def step(self, timing, frontier, *, excluding=(), batched=True):
+        return self._microbatch(timing,frontier,excluding,batched,housekeeping=True)
+
+    def plan(self, timing, excluding, batched):
+        return self._microbatch(timing,None,excluding,batched,housekeeping=False)
+
+    def _step(self, timing, frontier, *, excluding=(), batched=True):
         h = self.history
         db = h.db
-        with timing.phase('plan'):
-            urgent=h.plan_step(excluding=excluding,urgent_only=True)
-        if urgent.state!=IDLE:
-            return urgent
         if self.phase == 4:
-            result = self.plan(timing, excluding, batched)
+            result = self._plan(timing, excluding, batched)
             self.phase = 0
             return result
         if self.phase == 0 and self.clock() < self.poll_at:
-            return self.plan(timing, excluding, batched)
+            return self._plan(timing, excluding, batched)
         phase = self.phase
         if phase == 0 and not self.candidates.backfill(timing):
             # Projection reconstruction cannot monopolize all future turns.
@@ -172,7 +214,7 @@ class CandidateDevelopment:
             self.phase = 1
             return PlanningStep(DEFERRED)
         cursor = None
-        with timing.transaction_exit(h.writer.transaction(), phase_name='commit'):
+        with h.writer.transaction():
             if phase == 0:
                 with timing.phase('selection'):
                     for address, in self.candidates.next():
@@ -222,7 +264,7 @@ class CandidateDevelopment:
         # A successful housekeeping quantum is progress, never an empty plan.
         return PlanningStep(DEFERRED)
 
-    def plan(self, timing, excluding, batched):
+    def _plan(self, timing, excluding, batched):
         h = self.history
         with timing.phase('plan'):
             if not batched:

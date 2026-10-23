@@ -96,16 +96,17 @@ class AcquisitionScheduler:
                 # families. Polls and process restarts never recount the table.
                 pending = self.db.execute(
                     "SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone()[0]
-                self.db.execute(f"INSERT INTO {STATE} VALUES(1,'',0,0,?)", (pending,))
+                self.db.execute(f"INSERT INTO {STATE} VALUES(1,'',?,0,?)", (int(pending==0),pending))
             self._ddl(f'''CREATE TABLE IF NOT EXISTS {URGENT_STATE}(
                 family TEXT NOT NULL,priority INTEGER NOT NULL,
                 after_deadline REAL NOT NULL,after_created REAL NOT NULL,after_id TEXT NOT NULL,
                 complete INTEGER NOT NULL CHECK(complete IN (0,1)),PRIMARY KEY(family,priority))''',
                 'table', URGENT_STATE)
+            empty=self.db.execute("SELECT 1 FROM acquisition_jobs WHERE status='pending' LIMIT 1").fetchone() is None
             for family in self.families:
                 for priority in range(3):
-                    self.db.execute(f"INSERT OR IGNORE INTO {URGENT_STATE} VALUES(?,?,-1,-1,'',0)",
-                                    (family, priority))
+                    self.db.execute(f"INSERT OR IGNORE INTO {URGENT_STATE} VALUES(?,?,-1,-1,'',?)",
+                                    (family, priority,int(empty)))
             self._ddl('''CREATE INDEX IF NOT EXISTS acquisition_schedule_source_cursor_v1
                 ON acquisition_jobs(status,id)''', 'index', 'acquisition_schedule_source_cursor_v1')
             self._ddl('''CREATE INDEX IF NOT EXISTS acquisition_schedule_source_urgent_v1
