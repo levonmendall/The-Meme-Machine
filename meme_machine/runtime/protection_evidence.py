@@ -652,7 +652,9 @@ def _verify_window(db, w, resolver, limits):
             # before this acceptance window are retained, but do not retroactively
             # fail a later separately recovered interval.
             if t['completed_ns'] < w.start_ns:continue
-            if t['started_ns'] > w.end_ns:continue
+            # A known original deadline inside the window still owns coverage
+            # when its actual dispatch starts after the window has ended.
+            if t['started_ns'] > w.end_ns and t['deadline_ns'] > w.end_ns:continue
             consumed = _turn(p, resolver, life, cadence, w.identity, offset)
             not_consumed += int(not consumed); turns += 1
         boundary = min(w.end_ns, s['close']['at_ns']) if s['close'] else w.end_ns
