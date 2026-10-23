@@ -19,8 +19,11 @@ import unittest
 from unittest.mock import patch
 
 from meme_machine.runtime import sqlite_failure
+from meme_machine.runtime.candidate_history import CandidateHistory
 from meme_machine.solana_acquisition_scheduler import AcquisitionScheduler
 from meme_machine.solana_dispatch_probe import DispatchProbe
+from meme_machine.solana_evidence_plane import EvidenceWriter
+from meme_machine.solana_rolling_history import RollingHistory
 from meme_machine.solana_selective_history import SelectiveHistory
 from tests import test_owner_throughput_comparison as comparison
 
@@ -28,18 +31,20 @@ from tests import test_owner_throughput_comparison as comparison
 MAX_OUTPUT_BYTES = 16 * 1024
 MAX_STACK = 32
 # Fixed names and count: no SQL, arguments, rows, exceptions or file paths are
-# copied into the report. The eighth row discriminates diagnostic ring costs
-# without wrapping transaction context managers or changing their semantics.
+# copied into the report. Controls measure only the original transaction
+# manager's entry/exit, never the body between them.
 TARGETS = (
     ('history.plan_step', SelectiveHistory, 'plan_step'),
     ('scheduler.next', AcquisitionScheduler, 'next'),
-    ('scheduler._seed_urgent', AcquisitionScheduler, '_seed_urgent'),
     ('scheduler.wake_fanout', AcquisitionScheduler, 'wake_fanout'),
-    ('scheduler._wake_rank', AcquisitionScheduler, '_wake_rank'),
-    ('scheduler.backfill', AcquisitionScheduler, 'backfill'),
     ('dispatch_probe.step', DispatchProbe, 'step'),
     ('sqlite_failure._breadcrumb', sqlite_failure, '_breadcrumb'),
+    ('rolling.repair_required_checkpoint_prefixes', RollingHistory,
+        'repair_required_checkpoint_prefixes'),
+    ('candidate_history.__init__', CandidateHistory, '__init__'),
+    ('writer.transaction_controls', EvidenceWriter, 'transaction'),
 )
+TRANSACTION_INDEX = 7
 
 
 class _OwnerCosts:
@@ -53,6 +58,7 @@ class _OwnerCosts:
         self.callback_cpu_ns = 0
         self.callback_wall_ns = 0
         self.max_depth = 0
+        self.active_families = None
         self.rows = [dict(name=name, calls=0, raised=0,
             inclusive_cpu_ns=0, exclusive_cpu_ns=0,
             inclusive_wall_ns=0, exclusive_wall_ns=0)
@@ -61,6 +67,22 @@ class _OwnerCosts:
     def error(self, code):
         if len(self.errors) < 8:
             self.errors.append(code)
+
+    def capture_families(self, history):
+        # Read only the actual owner history's bounded configuration metadata.
+        # It is reported, never rewritten or used to select work.
+        families = history.active_families
+        if (type(families) not in (tuple, list, set, frozenset)
+                or len(families) > 3
+                or any(family not in ('pump', 'pumpswap', 'meteora')
+                    for family in families)):
+            self.error('active_families_invalid')
+            return
+        current = tuple(sorted(families))
+        if self.active_families is None:
+            self.active_families = current
+        elif current != self.active_families:
+            self.error('active_families_changed')
 
     @contextmanager
     def callback(self):
@@ -99,6 +121,10 @@ class _OwnerCosts:
             if len(self.stack) >= MAX_STACK:
                 self.error('frame_depth_bound')
                 return original(*args, **kwargs)
+            if index == 0:
+                self.capture_families(args[0])
+            elif index == 5:
+                self.capture_families(args[0].history)
             frame = dict(index=index, child_cpu_ns=0, child_wall_ns=0)
             self.stack.append(frame)
             self.max_depth = max(self.max_depth, len(self.stack))
@@ -131,6 +157,29 @@ class _OwnerCosts:
                     self.stack[-1]['child_cpu_ns'] += cpu_elapsed
                     self.stack[-1]['child_wall_ns'] += wall_elapsed
         return measured
+
+
+class _TransactionControls:
+    """Delegate real entry/exit exactly; no timing frame spans the yield body."""
+    def __init__(self, costs, manager):
+        self.enter = costs.wrap(TRANSACTION_INDEX, manager.__enter__)
+        self.exit = costs.wrap(TRANSACTION_INDEX, manager.__exit__)
+
+    def __enter__(self):
+        return self.enter()
+
+    def __exit__(self, *error):
+        return self.exit(*error)
+
+
+def _transaction_controls(costs, original):
+    @wraps(original)
+    def transaction(*args, **kwargs):
+        manager = original(*args, **kwargs)
+        if not costs.active or threading.get_ident() != costs.owner_ident:
+            return manager
+        return _TransactionControls(costs, manager)
+    return transaction
 
 
 def _is_candidate_callback(fn):
@@ -177,8 +226,10 @@ async def run_owner_planning_costs(directory, *, schedule=None):
     costs = _OwnerCosts()
     with ExitStack() as stack:
         for index, (_, owner, name) in enumerate(TARGETS):
-            stack.enter_context(patch.object(owner, name,
-                costs.wrap(index, getattr(owner, name))))
+            original = getattr(owner, name)
+            wrapped = (_transaction_controls(costs, original)
+                if index == TRANSACTION_INDEX else costs.wrap(index, original))
+            stack.enter_context(patch.object(owner, name, wrapped))
         stack.enter_context(patch.object(comparison, 'PriorityOwner',
             _recording_owner(comparison.PriorityOwner, costs)))
         attributed = await comparison.run_owner_throughput_comparison(
@@ -201,7 +252,9 @@ async def run_owner_planning_costs(directory, *, schedule=None):
     checks.assertEqual(costs.callbacks, attributed['counters']['callbacks'])
     checks.assertIsNotNone(costs.owner_ident)
     checks.assertIsNotNone(costs.owner_native_id)
+    checks.assertIsNotNone(costs.active_families)
     checks.assertGreater(costs.rows[0]['calls'], 0)
+    checks.assertGreater(costs.rows[TRANSACTION_INDEX]['calls'], 0)
     checks.assertEqual(len(costs.rows), 8)
     exclusive_cpu_ns = sum(row['exclusive_cpu_ns'] for row in costs.rows)
     exclusive_wall_ns = sum(row['exclusive_wall_ns'] for row in costs.rows)
@@ -230,6 +283,7 @@ async def run_owner_planning_costs(directory, *, schedule=None):
     summary = dict(schema='synthetic-owner-planning-costs-v1',
         scope='OWNER_THREAD_DIRECT_WRAPPERS_SYNTHETIC_NOT_CAPACITY_ACCEPTANCE',
         scheduling=attributed['scheduling'],
+        active_families=costs.active_families,
         provenance=dict(harness_sha256=hashlib.sha256(
             Path(comparison.__file__).read_bytes()).hexdigest(),
             diagnostic_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -252,6 +306,7 @@ async def run_owner_planning_costs(directory, *, schedule=None):
         provider_calls=attributed['provider_calls'], financial_authority=attributed['financial_authority'],
         rows=rows, limitations=[
             'Direct wrappers perturb the real five-ms quantum; this is mechanism attribution, not capacity evidence.',
+            'Transaction controls time only delegated entry/exit, never the yield body; original FULL and suppression/error semantics remain active.',
             'The selected helper schedule is unchanged; callback-ticks is an adversarial schedule, not matched market time.',
             'Fresh synthetic SQLite fixtures do not authenticate original market or historical recovery evidence.'])
     encoded = json.dumps(summary, sort_keys=True, separators=(',', ':'), allow_nan=False)
