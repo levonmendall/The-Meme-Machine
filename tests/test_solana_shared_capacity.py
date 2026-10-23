@@ -278,6 +278,7 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
         from tests.test_solana_closure import state_at,NOW
         from tests.test_solana_prewarm_startup import quiet_model_b
         from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_candidate_development import DEVELOPMENT_QUANTUM
         class Captured(Exception):pass
         with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_OPERATIONAL_PHASE='continuous'):
             state,h=state_at(Path(td)/'canonical.sqlite')
@@ -287,18 +288,45 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                 with state.writer.transaction():
                     for n in range(32):h.observe('pump','development-'+str(n),slot=100,signature='',seen=NOW,fields={})
                 source=SelectiveSource(SimpleNamespace(credential='offline'),None)
-                source.batched=True;source.stop=asyncio.Event();statements=[];turns=[]
+                source.batched=True;source.stop=asyncio.Event();statements=[];turns=[];prepared=[]
+                clock=[100.];h.development.clock=lambda:clock[0]
                 state.writer.db.set_trace_callback(statements.append)
+                prepare=h.rolling.prepare
+                def first_prepare(family,address,*args,**kwargs):
+                    self.assertTrue(h.db.in_transaction)
+                    self.assertIsNotNone(h.db.execute('SELECT 1 FROM evidence_bindings WHERE family=? AND address=?',
+                        (family,address)).fetchone(),'initial preparation ran before its binding')
+                    prepared.append((family,address,kwargs['deadline']))
+                    return prepare(family,address,*args,**kwargs)
                 async def capture(fn,*args,**kwargs):
-                    for turn in range(2):
+                    for _ in range(128):
+                        before={row[0] for row in h.db.execute("SELECT address FROM evidence_bindings WHERE address LIKE 'development-%'")}
                         statements.clear()
-                        with patch('time.monotonic',return_value=100+turn*.11):fn(state)
-                        turns.append((h.db.execute("SELECT COUNT(*) FROM evidence_bindings WHERE address LIKE 'development-%'").fetchone()[0],
-                            sum(sql=='COMMIT' for sql in statements)))
-                    raise Captured()
+                        result=fn(state)
+                        after={row[0] for row in h.db.execute("SELECT address FROM evidence_bindings WHERE address LIKE 'development-%'")}
+                        self.assertFalse(h.db.in_transaction)
+                        self.assertEqual(sum(sql=='COMMIT' for sql in statements),1)
+                        self.assertLessEqual(len(after-before),DEVELOPMENT_QUANTUM)
+                        for address in after-before:
+                            waits=h.db.execute('SELECT deadline FROM acquisition_jobs WHERE family=? AND address=? UNION ALL '
+                                'SELECT deadline FROM rolling_boundary_waits WHERE family=? AND address=? UNION ALL '
+                                'SELECT deadline FROM rolling_publication_waits WHERE family=? AND address=?',
+                                ('pump',address)*3).fetchall()
+                            self.assertTrue(waits,'binding committed without an original preparation obligation')
+                            self.assertEqual({row[0] for row in waits},{NOW+150})
+                        turns.append((len(after-before),result.state))
+                        clock[0]+=.11
+                        if len(after)==32:raise Captured()
+                    self.fail('bounded development quanta did not retain all32 candidates')
                 source.work=capture
-                with self.assertRaises(Captured):await source.acquire()
-                self.assertEqual(turns,[(16,2),(32,2)])
+                with patch('meme_machine.solana_candidate_development.MICROBATCH_TRANSITIONS',2),\
+                        patch('meme_machine.solana_candidate_development.time.perf_counter',return_value=0),\
+                        patch.object(h.rolling,'prepare',side_effect=first_prepare):
+                    with self.assertRaises(Captured):await source.acquire()
+                self.assertEqual([count for count,_ in turns if count],[16,16])
+                self.assertEqual({address for family,address,_ in prepared if family=='pump'},
+                    {'development-'+str(n) for n in range(32)})
+                self.assertEqual({deadline for _,_,deadline in prepared},{NOW+150})
                 self.assertEqual(h.db.execute("SELECT COUNT(*) FROM evidence_bindings WHERE address LIKE 'development-%'").fetchone()[0],32)
                 self.assertEqual({r[0] for r in h.db.execute('SELECT deadline FROM acquisition_jobs')},{NOW+150})
                 self.assertEqual(h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
@@ -308,6 +336,7 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
         from tests.test_solana_closure import state_at,NOW
         from tests.test_solana_prewarm_startup import quiet_model_b
         from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_candidate_development import DISPATCH,DEFERRED,IDLE,DEVELOPMENT_QUANTUM
         class Captured(Exception):pass
         with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_OPERATIONAL_PHASE='continuous'):
             state,h=state_at(Path(td)/'canonical.sqlite')
@@ -321,58 +350,110 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                 before=h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0]
                 source=SelectiveSource(SimpleNamespace(credential='offline'),None)
                 source.stop=asyncio.Event();source.batched=True
-                results=[]
+                results=[];steps=[];clock=[100.];h.development.clock=lambda:clock[0]
                 async def capture(fn,*args,**kwargs):
                     if fn.__name__!='request_development':return fn(state)
-                    with patch('time.monotonic',return_value=100):
-                        results.extend(fn(state) for _ in range(8))
+                    for _ in range(256):
+                        step=fn(state);steps.append(step.state)
+                        if step.state==DISPATCH:results.append(step.plan)
+                        else:self.assertEqual(step.state,DEFERRED,'planner became idle before all8 distinct claims')
+                        if len(results)==8:break
+                    else:self.fail('bounded planning did not claim all8 retained jobs')
+                    self.assertEqual(state.acquisition_inflight,{row[0]['id'] for row in results})
                     urgent_scope=h.bind('pump','urgent-position')
                     h.gap(urgent_scope,103,103,'offline_protective_missing')
                     h.request('pump','urgent-position',103,103,priority=0,deadline=NOW+3)
-                    with patch('time.monotonic',return_value=100.05):results.append(fn(state))
-                    with patch('time.monotonic',return_value=100.11):results.append(fn(state))
+                    # A newly held obligation must win the very next owner
+                    # quantum, even if optional housekeeping is incomplete.
+                    urgent=fn(state);self.assertEqual(urgent.state,DISPATCH)
+                    results.append(urgent.plan)
+                    for _ in range(256):
+                        step=fn(state);steps.append(step.state)
+                        self.assertIn(step.state,(DEFERRED,IDLE))
+                        if step.state==IDLE:break
+                    else:self.fail('excluded claims never converged to an honest idle plan')
                     raise Captured()
                 source.work=capture
                 with patch.object(h.rolling,'resume_boundaries',wraps=h.rolling.resume_boundaries) as boundaries,\
                         patch.object(h.lifecycle,'publish',wraps=h.lifecycle.publish) as publisher,\
                         patch.object(h.rolling,'repair_required_checkpoint_prefixes') as paused:
-                    with self.assertRaises(Captured):await source.acquire()
-                    self.assertEqual(boundaries.call_count,2)
+                    with patch('meme_machine.solana_candidate_development.MICROBATCH_TRANSITIONS',2),\
+                            patch('meme_machine.solana_candidate_development.time.perf_counter',return_value=0):
+                        with self.assertRaises(Captured):await source.acquire()
+                    self.assertTrue(boundaries.call_args_list)
+                    self.assertTrue(all(call.kwargs['limit']==DEVELOPMENT_QUANTUM for call in boundaries.call_args_list))
                     self.assertEqual(publisher.call_count,0)
                     self.assertEqual(paused.call_count,0)
                 self.assertEqual(len({row[0]['id'] for row in results[:8]}),8)
                 self.assertEqual([row[0]['deadline'] for row in results[:8]],[NOW+150+i for i in range(8)])
                 self.assertEqual((results[8][0]['address'],results[8][0]['priority'],results[8][0]['deadline']),
                     ('urgent-position',0,NOW+3))
-                self.assertIsNone(results[9])
+                self.assertIn(DEFERRED,steps)
+                self.assertEqual(steps[-1],IDLE)
                 self.assertEqual(h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],before)
                 self.assertEqual(h.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone()[0],9)
             finally:state.writer.close()
 
     async def test_idle_archive_workers_share_one_poll_without_caching_evidence(self):
-        from tests.test_solana_closure import state_at
+        from tests.test_solana_closure import state_at,NOW
         from tests.test_solana_prewarm_startup import quiet_model_b
         from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_candidate_development import DEFERRED,IDLE
         with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_OPERATIONAL_PHASE='continuous'):
             state,h=state_at(Path(td)/'canonical.sqlite')
             source=SelectiveSource(SimpleNamespace(credential='offline'),None)
-            source.stop=asyncio.Event();source.batched=True;polls=[]
+            source.stop=asyncio.Event();source.batched=True;polls=[];first_idle=asyncio.Event();pool=None
+            clock=[100.];h.development.clock=lambda:clock[0]
             async def work(fn,*args,**kwargs):
-                if fn.__name__=='request_development':
-                    polls.append(time.monotonic())
-                    await asyncio.sleep(.005)
-                return fn(state)
+                result=fn(state)
+                if fn.__name__!='request_development':return result
+                marker=h.db.execute("SELECT value FROM meta WHERE key='fixture_idle_revision'").fetchone()
+                polls.append((result.state,clock[0],marker))
+                if result.state==DEFERRED:
+                    self.assertLessEqual(source.acquisition_idle_until,clock[0],
+                        'unfinished actor progress was suppressed as an idle plan')
+                else:
+                    self.assertEqual(result.state,IDLE)
+                    if not first_idle.is_set():first_idle.set()
+                    else:
+                        self.assertEqual(marker,('fresh-owner-read',))
+                        source.stop.set()
+                return result
             source.work=work
             try:
                 done=asyncio.Event();done.set();await quiet_model_b(work,done)
-                async def stop():
-                    await asyncio.sleep(.05);source.stop.set()
-                stopper=asyncio.create_task(stop())
-                await source.acquire_pool();await stopper
-                self.assertEqual(len(polls),1)
+                coverage=h.db.execute('SELECT * FROM candidate_coverage ORDER BY rowid').fetchall()
+                # Replace only this source module's clock object. The real
+                # asyncio deadline clock keeps running while the owner cadence
+                # remains fixed, so eight workers cannot outrun this witness.
+                source_clock=SimpleNamespace(monotonic=lambda:clock[0],time=lambda:NOW,
+                    perf_counter=time.perf_counter)
+                with patch('meme_machine.solana_selective_source.time',source_clock),\
+                        patch('meme_machine.solana_candidate_development.MICROBATCH_TRANSITIONS',2),\
+                        patch('meme_machine.solana_candidate_development.time.perf_counter',return_value=0):
+                    pool=asyncio.create_task(source.acquire_pool())
+                    await asyncio.wait_for(first_idle.wait(),1)
+                    first=len(polls)
+                    self.assertGreater(first,1,'fixture never traversed deferred housekeeping')
+                    self.assertTrue(all(state==DEFERRED for state,_,_ in polls[:-1]))
+                    self.assertEqual(source.acquisition_idle_until,100.1)
+                    with state.writer.transaction():
+                        h.db.execute("INSERT INTO meta VALUES('fixture_idle_revision','fresh-owner-read')")
+                    await asyncio.sleep(.01)
+                    self.assertEqual(len(polls),first,'workers duplicated the converged idle poll')
+                    clock[0]=100.11
+                    await asyncio.wait_for(pool,2)
+                self.assertEqual([marker for state,_,marker in polls if state==IDLE],
+                    [None,('fresh-owner-read',)])
+                self.assertEqual(h.db.execute('SELECT * FROM candidate_coverage ORDER BY rowid').fetchall(),coverage)
                 self.assertFalse(state.acquisition_inflight)
                 self.assertFalse(h.db.execute('SELECT 1 FROM acquisition_jobs').fetchone())
-            finally:state.writer.close()
+            finally:
+                source.stop.set()
+                if pool is not None:
+                    if not pool.done():pool.cancel()
+                    await asyncio.gather(pool,return_exceptions=True)
+                state.writer.close()
 
     async def test_optional_archive_fault_does_not_terminate_canonical_source_or_prove_history(self):
         from tests.test_solana_closure import state_at,NOW

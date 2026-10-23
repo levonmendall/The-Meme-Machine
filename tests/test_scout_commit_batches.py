@@ -147,6 +147,7 @@ class ScoutCommitBatchTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_development_slices_retain_all_candidates_and_rollback_cursors(self):
         from meme_machine.solana_selective_source import DEVELOPMENT_BATCH
+        from meme_machine.solana_candidate_development import PlanningStep,IDLE
         from meme_machine.solana_selective_runtime import CONTROL
         h=self.history;db=h.db
         from meme_machine.solana_scoped_retirement import ScopedRetirement
@@ -160,25 +161,67 @@ class ScoutCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         h.observe('pump','quiet',slot=100,signature='quiet',seen=NOW,
             fields=dict(complete=False,development_upper_bps=0))
         source=SelectiveSource(SimpleNamespace(credential='offline'),None)
-        source.stop=asyncio.Event();source.batched=True;slices=[]
+        source.stop=asyncio.Event();source.batched=True;slices=[];failed=[];boundary_results=[]
+        clock=[100.];h.development.clock=lambda:clock[0]
+        db.execute('CREATE TABLE fixture_development_rollback_witness(value TEXT)')
+        real_boundaries=h.rolling.resume_boundaries;real_publication=h.rolling.resume_publication
+        def boundaries(**options):
+            result=real_boundaries(**options);boundary_results.append(result)
+            return result
+        def fail_publication(**options):
+            real_publication(**options)
+            # Private disposable fixture write: a failed quantum must roll it
+            # back along with its staged cursor, without erasing prior commits.
+            db.execute("INSERT INTO fixture_development_rollback_witness VALUES('uncommitted')")
+            raise EvidenceUnavailable('offline_slice_fault')
         async def work(fn,priority,**kwargs):
             before=db.execute("SELECT COUNT(*) FROM candidate_lifecycle WHERE state='queued'").fetchone()[0]
-            result=fn(self.state)
+            sql_before=tuple(db.iterdump())
+            actor_before=(h.development.phase,h.development.poll_at,dict(h.development.cursors))
+            statements=[];db.set_trace_callback(statements.append)
+            try:result=fn(self.state)
+            except EvidenceUnavailable:
+                db.set_trace_callback(None)
+                self.assertEqual(tuple(db.iterdump()),sql_before,'failed quantum changed durable rows')
+                self.assertEqual((h.development.phase,h.development.poll_at,h.development.cursors),actor_before)
+                self.assertFalse(db.in_transaction)
+                self.assertEqual(sum(sql=='BEGIN IMMEDIATE' for sql in statements),1)
+                self.assertEqual(sum(sql=='ROLLBACK' for sql in statements),1)
+                self.assertEqual(sum(sql=='COMMIT' for sql in statements),0)
+                failed.append((before,sql_before,actor_before))
+                raise
+            finally:db.set_trace_callback(None)
             after=db.execute("SELECT COUNT(*) FROM candidate_lifecycle WHERE state='queued'").fetchone()[0]
             slices.append(after-before)
+            self.assertFalse(db.in_transaction)
+            self.assertEqual(sum(sql=='COMMIT' for sql in statements),1)
+            clock[0]+=.11
             if after==50:source.stop.set()
             return result
         source.work=work
-        with patch.object(h.startup,'snapshot',return_value=dict(released=True)),patch.object(h,'plan',return_value=None),patch('meme_machine.solana_selective_source.time.time',return_value=NOW):
-            with patch.object(h.rolling,'resume_publication',side_effect=EvidenceUnavailable('offline_slice_fault')):
+        # This fixture isolates development/rollback; actual dispatch is covered
+        # by the acquisition scheduler tests. Urgent IDLE plus two housekeeping
+        # transitions retain a real prior commit before publication fails.
+        with patch.object(h.startup,'snapshot',return_value=dict(released=True)),\
+                patch.object(h,'plan_step',return_value=PlanningStep(IDLE)),\
+                patch('meme_machine.solana_candidate_development.MICROBATCH_TRANSITIONS',3),\
+                patch('meme_machine.solana_candidate_development.time.perf_counter',return_value=0),\
+                patch('meme_machine.solana_selective_source.time.time',return_value=NOW):
+            with patch.object(h.rolling,'resume_boundaries',side_effect=boundaries),\
+                    patch.object(h.rolling,'resume_publication',side_effect=fail_publication):
                 with self.assertRaisesRegex(EvidenceUnavailable,'offline_slice_fault'):
                     await source.acquire()
-            self.assertEqual(db.execute('SELECT COUNT(*) FROM evidence_bindings').fetchone()[0],0)
-            self.assertFalse(hasattr(self.state,'development_cursors'))
-            self.assertFalse(hasattr(self.state,'development_poll_at'))
+            self.assertEqual(len(failed),1)
+            self.assertGreater(failed[0][0],0,'fixture had no earlier committed candidates to preserve')
+            self.assertGreater(failed[0][2][2]['reactivated'],0)
+            self.assertTrue(any(cursor>0 for cursor in boundary_results),'failed quantum never staged cursor progress')
+            self.assertEqual(tuple(db.iterdump()),failed[0][1])
             await asyncio.wait_for(source.acquire(),2)
-        self.assertTrue(all(0<count<=DEVELOPMENT_BATCH for count in slices),slices)
+        self.assertTrue(all(0<=count<=DEVELOPMENT_BATCH for count in slices),slices)
+        self.assertIn(0,slices,'housekeeping progress was incorrectly counted as candidate selection')
         self.assertEqual(sum(slices),50)
+        self.assertEqual({row[0] for row in db.execute("SELECT address FROM candidate_lifecycle WHERE state='queued'")},
+            {'candidate-'+str(n) for n in range(50)})
         self.assertEqual(db.execute("SELECT COUNT(*) FROM candidate_lifecycle WHERE state='queued' AND deadline=?",(NOW+150,)).fetchone()[0],50)
         self.assertIsNone(db.execute("SELECT 1 FROM evidence_bindings WHERE address='quiet'").fetchone())
         self.assertEqual(db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
