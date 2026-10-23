@@ -270,7 +270,8 @@ class BoundedDevelopmentTests(unittest.TestCase):
                     raise sqlite3.OperationalError('original commit failure')
                 return original.execute(statement, *args, **kwargs)
 
-        with patch.object(self.writer, 'db', FailingCommit()):
+        failing=FailingCommit()
+        with patch.object(self.writer,'db',failing), patch.object(self.h,'db',failing):
             with self.assertRaisesRegex(sqlite3.OperationalError, 'original commit failure'):
                 self.phase_step(actor)
         self.assertEqual(actor.phase, 2)
