@@ -1,3 +1,65 @@
+# Superseding operational-first checkpoint — October23, 21:40UTC
+
+The owner selected delivery of a restricted autonomous PAPER pilot over further
+Pump throughput refinement. **Pons Current only** is now the first operating
+scope; its existing unfunded Survivor startup/recovery worker remains mandatory.
+The ordinary CONTINUOUS supervisor already selects Pons alone. Retained live
+Pons acquisition1164/1164 blocks with zero debt supports this selection but does
+not prove financial execution or held protection. Pump/combined-lane throughput,
+extra regimes and optimization are deferred; no evidence or branch is discarded.
+
+This branch preserves the complete bounded planning quantum plus checkpoint
+worker. Runtime `b05f4ae8` integrates f1252a63/ffed79a0/365ea065: once-per-quantum
+prelude, fresh per-decision authority, external publication before fresh planning,
+ordinary savepoints and honest deadline-exhaustion yield. Independent static
+review passed f125+ffed. The initial31-case run passed30 with one fixture proxy
+identity error; test-only df699 fixed it. The next34-case combined run passed33
+but failed the representative pipeline's existing owner-capture invariant:
+`original_window_concurrent_owner_capture_reintroduced`. It is **NOT a throughput
+PASS**, is not promoted/deployed, and further benchmark repair is deferred.
+Actual quantum/actor/publication cases passed; no claim of live improvement.
+Logs: planning-quantum-first-targeted-20261023.log,
+planning-quantum-pipeline-targeted-20261023.log,
+planning-quantum-consistency-validation-20261023.log in retained engineering
+workspace `/workspace/scratch/meme-evidence`. Representative consumer and restart
+fixtures are preserved through0448c550; no host comparison was dispatched.
+
+Pilot development is separate on `engineering/pons-operational-pilot-20261023`,
+starting from installed f0 without the unfinished Pump runtime. A workflow-only
+focused Linux check atf57592eb verifies runtime/tests/requirements identical tof0
+and exercises actual Pons money/restart plus protective deadline/provider cases.
+Local financial cases2PASS; three protection cases hit the known unavailable
+kernel clock identity, not a demonstrated application failure. Hosted validation
+is pending, never silently treated as PASS.
+
+**A (pilot blockers):** explicitly separate host authority/UID/state/epoch while
+original$1000/$500 andUNKNOWN2 remain frozen; own Pons recovery and financial
+binding; actual Current entry/exit/USD and protection readiness; protected live
+shadow and truthful monitoring/safe stop. Existing EC2 observation/capacity
+controls cannot start this financial pilot; original ops_preflight intentionally
+hardcodes safe_for_normal=false. A reviewed successor must establish a distinct
+pilot authority, not weaken that gate. Preparation of fixed protected pilot
+controls is underway; no installation or activation is claimed.
+
+**B (expanded capability):** Pump, concurrent Pump/Pons, additional selected
+regimes, original historical recovery (still preserved/investigated), full one-hour
+and24-hour final acceptance before full-readiness claims. **C:** further urgent
+query/savepoint/fanout optimizations, general benchmarking and extra analytics.
+
+Original EC2 stopped/disabled and$1000/zero obligations remain independently
+verified by40023764163. No runtime deployment/provider diagnostic followed it.
+Historical audit correction [adminPR201](https://github.com/levonmendall/meme-machine-admin/pull/201)
+merged8b1b4c041afc13b86d8325a4c3f90fb86936847a after38localtestsPASS/1.293s,
+independent reviewPASS and hosted40027717109PASS. It selects literal original
+physical-release diagnostics, reports missing optional directory explicitly and
+never follows /opt/meme-machine symlink. Script SHA256
+b2b7fdf245ffbfd677d45144b3e9eac6d933f6952fd8ad02018d1867659ed5c2.
+No owner-root rerun is claimed. Historical work does not delay Pons pilot work.
+
+The prior engineering evidence follows unchanged.
+
+---
+
 # Owner throughput checkpoint — October23, 21:15UTC
 
 **Mission INCOMPLETE. Candidate WITHHELD: performance FAIL.** No application
