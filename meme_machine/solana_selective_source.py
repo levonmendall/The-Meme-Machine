@@ -2296,6 +2296,10 @@ class SelectiveSource:
                     step=h.development.step(timing,frontier,
                         excluding=tuple(state.acquisition_inflight),batched=self.batched)
                 if step.state!=DISPATCH:return step
+                # The actor has committed its canonical quantum and completed
+                # any legacy publication BEFORE this fresh plan was selected.
+                # Nothing may publish or await between selection and this claim.
+                if db.in_transaction:raise EvidenceUnavailable('acquisition_claim_before_canonical_commit')
                 result=step.plan
                 result[0]['finalized_hint']=frontier
                 ticket=ArchivePreparationTicket(result[0]['priority'],result[0]['deadline'],

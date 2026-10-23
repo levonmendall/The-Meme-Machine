@@ -59,7 +59,7 @@ class BoundedDevelopmentTests(unittest.TestCase):
             resume_publication=lambda **options: self.phase_effect('publication', 23, **options),
             repair_required_checkpoint_prefixes=lambda: None)
 
-    def plan_step(self, *, excluding=(), urgent_only=False):
+    def plan_step(self, *, excluding=(), urgent_only=False, quantum=None):
         self.plan_calls.append((urgent_only, tuple(excluding), self.db.in_transaction))
         return self.urgent_result if urgent_only else self.optional_result
 
@@ -444,7 +444,7 @@ class BoundedDevelopmentTests(unittest.TestCase):
         urgent_id = self.h.request('pump', 'new-held-obligation', 10, 20,
             priority=0, deadline=NOW+30)
 
-        def durable_plan(*, excluding=(), urgent_only=False):
+        def durable_plan(*, excluding=(), urgent_only=False, quantum=None):
             self.plan_calls.append((urgent_only, tuple(excluding), self.db.in_transaction))
             row = self.db.execute("SELECT id,lo,hi,priority,deadline FROM acquisition_jobs "
                 "WHERE status='pending' AND priority<=2 ORDER BY priority,deadline,id LIMIT 1").fetchone()

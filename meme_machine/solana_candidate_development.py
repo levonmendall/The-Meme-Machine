@@ -25,6 +25,7 @@ MICROBATCH_SECONDS = .005
 class PlanningStep:
     state: str
     plan: tuple | None = None
+    yield_quantum: bool = False
 
 
 class DevelopmentCandidates:
@@ -153,42 +154,61 @@ class CandidateDevelopment:
         self.clock = clock
         self.phase = 0
         self.poll_at = 0
+        self.external_poll_at = 0
+        self.external_started = False
         self.cursors = dict(reactivated=0, boundary=0, publication=0)
         from .lanes.pump.pump_acceleration_strategy import POLICY
         self.candidates = DevelopmentCandidates(history, POLICY.min_curve_progress_bps)
         history.install_planner()
 
+    def _external_hooks(self, timing, batched, housekeeping):
+        h=self.history
+        if h.db.in_transaction:
+            raise EvidenceUnavailable('candidate_hooks_before_canonical_commit')
+        # Legacy publishers own separate transactions. They must see committed
+        # preparations and finish BEFORE any fresh dispatch/claim is selected.
+        boundary=self.phase==4
+        admitted=not housekeeping and self.clock()>=self.external_poll_at
+        if not batched and (boundary or admitted or not self.external_started):
+            with timing.phase('publication'):
+                h.lifecycle.publish()
+        if 'meteora' in h.active_families and (boundary or admitted):
+            # Preserve the original legacy EDF repair contract. Its retained
+            # population cost is outside the operating Pump/Pons bound.
+            with timing.phase('plan'):
+                h.rolling.repair_required_checkpoint_prefixes()
+        if boundary or admitted or not self.external_started:
+            self.external_started=True
+            self.external_poll_at=self.clock()+.1
+
     def _microbatch(self, timing, frontier, excluding, batched, *, housekeeping):
-        # Stage all actor state locally. No other owner turn can observe a
-        # cursor that belongs to an uncommitted quantum; COMMIT failure leaves
-        # the original actor unchanged. Probe's durable turn tag independently
-        # discards any volatile reads from an aborted outer transaction.
+        from .solana_planning_quantum import PlanningQuantum
+        self._external_hooks(timing,batched,housekeeping)
+        # Only successfully committed scalar cursors become actor state.
         staged=copy.copy(self)
         staged.cursors=dict(self.cursors)
         cutoff=time.perf_counter()+MICROBATCH_SECONDS
         result=PlanningStep(DEFERRED)
         urgent=True
         with timing.transaction_exit(self.history.writer.transaction(),phase_name='commit'):
-            for _ in range(MICROBATCH_TRANSITIONS):
-                if urgent:
-                    with timing.phase('plan'):
-                        result=self.history.plan_step(excluding=excluding,urgent_only=True)
-                    if result.state==DISPATCH:
-                        break
-                    if result.state==IDLE:
-                        urgent=False
-                        result=PlanningStep(DEFERRED)
-                    # A retired/blocked urgent head is bounded committed work;
-                    # continue inside this same quantum instead of paying a
-                    # separate FULL commit for every harmless completion.
-                elif housekeeping:
-                    result=staged._step(timing,frontier,excluding=excluding,batched=batched)
-                else:
-                    result=staged._plan(timing,excluding,batched)
-                if result.state==DISPATCH or (result.state==IDLE and not urgent):
-                    break
-                if time.perf_counter()>=cutoff:
-                    break
+            quantum=PlanningQuantum(self.history,deadline=cutoff)
+            try:
+                for _ in range(MICROBATCH_TRANSITIONS):
+                    if urgent:
+                        with timing.phase('plan'):
+                            result=self.history.plan_step(excluding=excluding,urgent_only=True,quantum=quantum)
+                        if result.state==IDLE:
+                            urgent=False
+                            result=PlanningStep(DEFERRED)
+                    elif housekeeping:
+                        result=staged._step(timing,frontier,excluding=excluding,batched=batched,quantum=quantum)
+                    else:
+                        result=staged._plan(timing,excluding,batched,quantum)
+                    if (result.state==DISPATCH or result.yield_quantum or
+                            result.state==IDLE and not urgent):break
+                    if time.perf_counter()>=cutoff:break
+            finally:
+                quantum.close()
         self.phase,self.poll_at,self.cursors=staged.phase,staged.poll_at,staged.cursors
         return result
 
@@ -198,15 +218,15 @@ class CandidateDevelopment:
     def plan(self, timing, excluding, batched):
         return self._microbatch(timing,None,excluding,batched,housekeeping=False)
 
-    def _step(self, timing, frontier, *, excluding=(), batched=True):
+    def _step(self, timing, frontier, *, excluding=(), batched=True, quantum=None):
         h = self.history
         db = h.db
         if self.phase == 4:
-            result = self._plan(timing, excluding, batched)
+            result = self._plan(timing, excluding, batched, quantum)
             self.phase = 0
             return result
         if self.phase == 0 and self.clock() < self.poll_at:
-            return self._plan(timing, excluding, batched)
+            return self._plan(timing, excluding, batched, quantum)
         phase = self.phase
         if phase == 0 and not self.candidates.backfill(timing):
             # Projection reconstruction cannot monopolize all future turns.
@@ -261,14 +281,13 @@ class CandidateDevelopment:
         self.phase = phase+1
         if self.phase == 4:
             self.poll_at = self.clock()+.1
+            if not batched or 'meteora' in h.active_families:
+                # Commit all canonical preparations first. The next owner turn
+                # performs the external hook, then makes a fresh decision.
+                return PlanningStep(DEFERRED,yield_quantum=True)
         # A successful housekeeping quantum is progress, never an empty plan.
         return PlanningStep(DEFERRED)
 
-    def _plan(self, timing, excluding, batched):
-        h = self.history
+    def _plan(self, timing, excluding, batched, quantum=None):
         with timing.phase('plan'):
-            if not batched:
-                h.lifecycle.publish()
-            if 'meteora' in h.active_families:
-                h.rolling.repair_required_checkpoint_prefixes()
-            return h.plan_step(excluding=excluding)
+            return self.history.plan_step(excluding=excluding,quantum=quantum)

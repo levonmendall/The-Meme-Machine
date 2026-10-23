@@ -227,6 +227,8 @@ class AcquisitionScheduler:
             family TEXT NOT NULL,scope TEXT NOT NULL,after_slot INTEGER,
             waiting INTEGER NOT NULL CHECK(waiting IN (0,1)),observed_revision INTEGER NOT NULL)''',
             'table', FANOUT)
+        self._ddl(f'''CREATE INDEX IF NOT EXISTS acquisition_schedule_fanout_waiting_v1
+            ON {FANOUT}(waiting,job_id)''', 'index', 'acquisition_schedule_fanout_waiting_v1')
         self._ddl(f'''CREATE INDEX IF NOT EXISTS acquisition_schedule_fanout_wait_v1
             ON {FANOUT}(family,scope,waiting,job_id)''', 'index', 'acquisition_schedule_fanout_wait_v1')
         self._ddl(f'''CREATE TABLE IF NOT EXISTS {SIGNALS}(
@@ -311,11 +313,11 @@ class AcquisitionScheduler:
             self.db.execute(f'''UPDATE {FANOUT} SET after_slot=?,waiting=0 WHERE job_id=? AND job_version=?''',
                 (through,job['id'],job['_scheduler_version']))
 
-    def fanout_wait(self, job):
+    def fanout_wait(self, job, *, quantum=None):
         with self.writer.transaction():
-            self._fanout_wait(job)
+            self._fanout_wait(job,quantum=quantum)
 
-    def _fanout_wait(self, job):
+    def _fanout_wait(self, job, *, quantum=None):
         # Called AFTER this parent's child insertions in the same transaction.
         # Its own work therefore cannot wake it ahead of its new children.
         self._fanout_after(job)
@@ -326,7 +328,7 @@ class AcquisitionScheduler:
             (job['family'],self._scope(job))).fetchone()[0]
         self.db.execute(f'''UPDATE {FANOUT} SET after_slot=NULL,waiting=1,observed_revision=?
             WHERE job_id=? AND job_version=?''',(revision,job['id'],job['_scheduler_version']))
-        self.defer(job,job['deadline'])
+        self.defer(job,job['deadline'],quantum=quantum)
 
     def wake_fanout(self):
         with self.writer.transaction():
@@ -448,10 +450,10 @@ class AcquisitionScheduler:
             for identity, version in rows:
                 self.db.execute(f'''UPDATE {QUEUE} SET ready=1,retry_at=0,dependency=NULL
                     WHERE id=? AND version=? AND ready=0''', (identity, version))
-            more = self.db.execute(f'''SELECT 1 FROM {QUEUE} INDEXED BY {index}
-                WHERE ready=0 AND rank={rank} AND retry_at<=?
-                ORDER BY retry_at,id LIMIT 1''', (now,)).fetchone() is not None
-        return dict(processed=len(rows), more=more)
+            frontier = self.db.execute(f'''SELECT retry_at FROM {QUEUE} INDEXED BY {index}
+                WHERE ready=0 AND rank={rank} ORDER BY retry_at,id LIMIT 1''').fetchone()
+        return dict(processed=len(rows), more=bool(frontier and frontier[0]<=now),
+            retry_at=frontier[0] if frontier else None)
 
     @staticmethod
     def _order(job):
@@ -589,7 +591,7 @@ class AcquisitionScheduler:
         _require(type(urgent) is bool, 'acquisition_schedule_urgent')
         return _excluded(excluding)
 
-    def next(self, *, excluding=(), urgent=False):
+    def next(self, *, excluding=(), urgent=False, quantum=None):
         """Return one original fresh job, DEFERRED, or IDLE; never a proof.
 
         Urgent native obligations remain independently selectable during the
@@ -597,18 +599,25 @@ class AcquisitionScheduler:
         pending job has joined the same globally ordered ready population.
         """
         excluded=self.validate_selection(excluding=excluding,urgent=urgent)
+        if quantum is not None:
+            quantum.validate(self.history)
         urgent_count=self.urgent_pending_count()
         if urgent and urgent_count==0:
             self.validate_clock()
             return IDLE
         if urgent_count:
-            progress = self._seed_urgent()
-            self.wake_fanout()
+            if quantum is None:
+                progress=self._seed_urgent()
+            else:
+                if quantum.seed is None:quantum.seed=self._seed_urgent()
+                progress=quantum.seed
+            self._quantum_fanout(quantum)
             remaining = STEP
             for rank in range(3):
-                due = self._wake_rank(rank, limit=remaining)
+                due = self._quantum_rank(rank,remaining,quantum)
                 remaining -= due['processed']
                 now = self._now()
+                if quantum is not None and quantum.yield_required:return DEFERRED
                 head = self._ready_head(now, excluded, urgent=True, rank=rank)
                 frontier = progress['frontier']
                 if self._proved_head(head, now, rank, more_due=due['more'], seed_frontier=frontier):
@@ -617,8 +626,10 @@ class AcquisitionScheduler:
                 # any lower rank can be selected. Higher proved ready heads already
                 # returned without touching lower-rank retry bookkeeping.
                 if due['more'] or (frontier is not None and frontier['priority'] <= rank):
+                    if quantum is not None:quantum.yield_required=True
                     return DEFERRED
                 if remaining == 0 and rank < 2:
+                    if quantum is not None:quantum.yield_required=True
                     return DEFERRED
             if urgent:
                 return IDLE
@@ -626,24 +637,62 @@ class AcquisitionScheduler:
             self.validate_clock()
             # Optional dependency wakes and dispatch remain active even when
             # the exact urgent population is empty.
-            self.wake_fanout()
-        progress = self.backfill()
+            self._quantum_fanout(quantum)
+        if quantum is None:
+            progress=self.backfill()
+        else:
+            if quantum.backfill is None:quantum.backfill=self.backfill()
+            progress=quantum.backfill
         if not progress['complete']:
+            if quantum is not None:quantum.yield_required=True
             return DEFERRED
-        due = self._wake_rank(3)
+        due = self._quantum_rank(3,STEP,quantum)
         now = self._now()
+        if quantum is not None and quantum.yield_required:return DEFERRED
         head = self._optional_head(now, excluded)
         if not self._proved_head(head, now, 3, more_due=due['more']):
+            if due['more'] and quantum is not None:quantum.yield_required=True
             return DEFERRED if due['more'] else IDLE
         return (head if head['deadline'] > self._now() else DEFERRED) if head else IDLE
 
-    def defer(self, job, retry_at, dependency=None):
+    def _quantum_fanout(self, quantum):
+        if quantum is None:
+            self.wake_fanout()
+            return
+        if not quantum.fanout_done:
+            self.wake_fanout()
+            quantum.fanout_done=True
+            quantum.signal_changes=self.db.total_changes
+        elif self.db.total_changes!=quantum.signal_changes:
+            # Own child completions/binding changes may awaken a globally
+            # earlier waiting parent. Yield instead of reusing stale readiness.
+            waiting=self.db.execute(f'SELECT 1 FROM {FANOUT} INDEXED BY acquisition_schedule_fanout_waiting_v1 WHERE waiting=1 LIMIT 1').fetchone()
+            if waiting and self.db.execute(f'SELECT 1 FROM {SIGNALS} WHERE dirty=1 LIMIT 1').fetchone():
+                quantum.yield_required=True
+            quantum.signal_changes=self.db.total_changes
+
+    def _quantum_rank(self, rank, limit, quantum):
+        if quantum is None:return self._wake_rank(rank,limit=limit)
+        if rank not in quantum.ranks:
+            due=self._wake_rank(rank,limit=limit)
+            quantum.ranks[rank]=dict(due)
+            return due
+        due=quantum.ranks[rank]
+        retry=due.get('retry_at')
+        if retry is not None and retry<=self._now():
+            # Even a retry introduced by an earlier decision in this turn must
+            # get its original rank. A fresh prelude will wake it next turn.
+            quantum.yield_required=True
+        return dict(due,processed=0)
+
+    def defer(self, job, retry_at, dependency=None, *, quantum=None):
         """Temporarily remove exactly this job version from dispatch readiness.
 
         The retry clock is scheduling metadata and cannot exceed the original
         obligation deadline. A new/tightened request resets readiness via its
         trigger. Dependency is an optional digest, never a provider body.
         """
+        if quantum is not None:quantum.validate(self.history)
         _require(type(job) is dict and type(job.get('id')) is str and
                  type(job.get('_scheduler_version')) is int and
                  job['_scheduler_version'] > 0, 'acquisition_schedule_job')
@@ -660,4 +709,10 @@ class AcquisitionScheduler:
             self.db.execute(f'''UPDATE {QUEUE} SET ready=0,retry_at=?,dependency=?
                 WHERE id=? AND version=?''',
                 (min(retry_at, row[1]), dependency, job['id'], row[0]))
+        if quantum is not None:
+            rank=min(job['priority'],3)
+            if rank in quantum.ranks:
+                due=quantum.ranks[rank]
+                retry=min(retry_at,row[1])
+                due['retry_at']=retry if due.get('retry_at') is None else min(due['retry_at'],retry)
         return True

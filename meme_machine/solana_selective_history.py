@@ -537,7 +537,17 @@ class SelectiveHistory:
             self.dispatch_probe=DispatchProbe(self)
 
     @measured('owner.history_plan')
-    def plan_step(self,*,excluding=(),urgent_only=False):
+    def plan_step(self,*,excluding=(),urgent_only=False,quantum=None):
+        if quantum is not None:
+            from .solana_candidate_development import PlanningStep, DEFERRED
+            quantum.validate(self)
+            if quantum.exhausted():
+                return PlanningStep(DEFERRED,yield_quantum=True)
+            with quantum.decision(self):
+                return self._plan_step(excluding=excluding,urgent_only=urgent_only,quantum=quantum)
+        return self._plan_step(excluding=excluding,urgent_only=urgent_only)
+
+    def _plan_step(self,*,excluding=(),urgent_only=False,quantum=None):
         """One finite dispatch quantum; DEFERRED never means empty/complete.
 
         The authoritative row, original deadline, local completeness and
@@ -563,26 +573,39 @@ class SelectiveHistory:
             # operation. Fixed indexed streams retire at most sixteen rows;
             # remaining expiry debt never prevents selecting a fresh urgent
             # head in this same quantum.
-            expired=[];now=self.clock()
-            for family in sorted(self.active_families):
-                if only_urgent:
-                    for priority in range(3):
+            if quantum is None or only_urgent not in quantum.expiry:
+                expired=[];now=self.clock()
+                for family in sorted(self.active_families):
+                    if only_urgent:
+                        for priority in range(3):
+                            expired.extend(self.db.execute("SELECT id,deadline FROM acquisition_jobs "
+                                "INDEXED BY acquisition_schedule_source_urgent_v1 WHERE family=? AND status='pending' "
+                                "AND priority=? AND deadline<=? ORDER BY deadline,created,id LIMIT 17",
+                                (family,priority,now)).fetchall())
+                    else:
                         expired.extend(self.db.execute("SELECT id,deadline FROM acquisition_jobs "
-                            "INDEXED BY acquisition_schedule_source_urgent_v1 WHERE family=? AND status='pending' "
-                            "AND priority=? AND deadline<=? ORDER BY deadline,created,id LIMIT 17",
-                            (family,priority,now)).fetchall())
-                else:
-                    expired.extend(self.db.execute("SELECT id,deadline FROM acquisition_jobs "
-                        "INDEXED BY acquisition_expiry_quantum_v1 WHERE family=? AND status='pending' "
-                        "AND deadline<=? ORDER BY deadline,id LIMIT 17",(family,now)).fetchall())
-            expiry_more=len(expired)>16
-            for identity,_ in sorted(expired,key=lambda row:(row[1],row[0]))[:16]:
-                self.db.execute("UPDATE acquisition_jobs SET status='deadline_missed',updated=?,"
-                    "error='candidate_decision_deadline_missed' WHERE id=?",(now,identity))
-                self._observation(identity,'deadline_missed',dict(economic_rejection=False))
-            job=scheduler.next(excluding=excluding,urgent=only_urgent)
-            if job==SCHEDULE_DEFERRED:return PlanningStep(DEFERRED)
-            if job==SCHEDULE_IDLE:return PlanningStep(DEFERRED if expiry_more else IDLE)
+                            "INDEXED BY acquisition_expiry_quantum_v1 WHERE family=? AND status='pending' "
+                            "AND deadline<=? ORDER BY deadline,id LIMIT 17",(family,now)).fetchall())
+                limit=16 if quantum is None else quantum.expiry_remaining
+                expiry_more=len(expired)>limit
+                for identity,_ in sorted(expired,key=lambda row:(row[1],row[0]))[:limit]:
+                    self.db.execute("UPDATE acquisition_jobs SET status='deadline_missed',updated=?,"
+                        "error='candidate_decision_deadline_missed' WHERE id=?",(now,identity))
+                    self._observation(identity,'deadline_missed',dict(economic_rejection=False))
+                if quantum is not None:
+                    quantum.expiry[only_urgent]=expiry_more
+                    quantum.expiry_remaining-=min(limit,len(expired))
+            else:
+                expiry_more=quantum.expiry[only_urgent]
+            job=scheduler.next(excluding=excluding,urgent=only_urgent,quantum=quantum)
+            if job==SCHEDULE_DEFERRED:
+                return PlanningStep(DEFERRED,yield_quantum=bool(quantum and quantum.yield_required))
+            if job==SCHEDULE_IDLE:
+                # Time can cross an original deadline after the once-only
+                # expiry prelude. Do not call that unretired obligation IDLE.
+                if quantum is not None and not expiry_more:
+                    expiry_more=self._planning_expiry_due(only_urgent,scheduler.validate_clock())
+                return PlanningStep(DEFERRED if expiry_more else IDLE,yield_quantum=bool(quantum and expiry_more))
             now=self.clock()
             if job['deadline']<=now:return PlanningStep(DEFERRED)
             if job['priority']>2 and job['error']:
@@ -591,7 +614,7 @@ class SelectiveHistory:
                     "json_extract(error,'$.retry_after') END END FROM acquisition_jobs WHERE id=?",
                     (job['id'],)).fetchone()[0]
                 if type(retry) in (int,float) and retry>now:
-                    scheduler.defer(job,retry)
+                    scheduler.defer(job,retry,quantum=quantum)
                     return PlanningStep(DEFERRED)
             scope=self.scope_for(job['family'],job['address']) if hasattr(self,'rolling') else None
             probe=None
@@ -610,9 +633,9 @@ class SelectiveHistory:
                     return PlanningStep(DEFERRED)
                 if probe.state!=READY:
                     if probe.reason=='FANOUT_COMPLETE' and fanout_after is not None:
-                        scheduler.fanout_wait(job)
+                        scheduler.fanout_wait(job,quantum=quantum)
                     elif not probe.continuation:
-                        scheduler.defer(job,now+.1,probe.dependency)
+                        scheduler.defer(job,now+.1,probe.dependency,quantum=quantum)
                     return PlanningStep(DEFERRED)
                 interval=probe.interval
             else:
@@ -631,12 +654,12 @@ class SelectiveHistory:
                 for lo,hi in publishing:
                     required=[p for a,b in required for p in ((a,min(b,lo-1)),(max(a,hi+1),b)) if p[0]<=p[1]]
                 if not required:
-                    scheduler.defer(job,now+.1)
+                    scheduler.defer(job,now+.1,quantum=quantum)
                     return PlanningStep(DEFERRED)
                 if not job['pages'] and fanout_after is not None:
                     required=[(max(a,fanout_after+1),b) for a,b in required if b>fanout_after]
                     if not required:
-                        scheduler.fanout_wait(job)
+                        scheduler.fanout_wait(job,quantum=quantum)
                         return PlanningStep(DEFERRED)
                 interval=required[0]
             a,b=interval
@@ -654,7 +677,7 @@ class SelectiveHistory:
                         (job['priority'],job['deadline'],identity))
                     self._archive_preparation_tightened(identity,job['priority'],job['deadline'])
                 if job['pages'] or interval==(job['lo'],job['hi']):
-                    scheduler.defer(job,now+.1)
+                    scheduler.defer(job,now+.1,quantum=quantum)
                     if probe is not None:self.dispatch_probe.reset()
                     return PlanningStep(DEFERRED)
             if probe is not None and not self.dispatch_probe.current(job,probe):
@@ -674,6 +697,18 @@ class SelectiveHistory:
                 filters=dict(slot=dict(gte=job['lo'],lte=job['hi'])))
             if job['token'] is not None:config['paginationToken']=job['token']
             return PlanningStep(DISPATCH,(job,config))
+
+    def _planning_expiry_due(self, urgent, now):
+        for family in sorted(self.active_families):
+            if urgent:
+                for priority in range(3):
+                    if self.db.execute("SELECT 1 FROM acquisition_jobs INDEXED BY acquisition_schedule_source_urgent_v1 "
+                            "WHERE family=? AND status='pending' AND priority=? AND deadline<=? "
+                            "ORDER BY deadline,created,id LIMIT 1",(family,priority,now)).fetchone():return True
+            elif self.db.execute("SELECT 1 FROM acquisition_jobs INDEXED BY acquisition_expiry_quantum_v1 "
+                    "WHERE family=? AND status='pending' AND deadline<=? ORDER BY deadline,id LIMIT 1",
+                    (family,now)).fetchone():return True
+        return False
 
     @measured('owner.history_plan')
     def plan(self,*,excluding=()):
