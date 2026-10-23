@@ -173,6 +173,7 @@ FAST=[
  'tests.lanes.ramses.test_ramses_strategy','tests.lanes.ramses.test_ramses_capital_replay',
 ]
 OPERATIONAL=FAST+[
+ 'tests.test_owner_transaction_boundaries',
  'tests.test_original_pump_window_replay',
  'tests.test_workload_efficiency',
  'tests.test_solana_source_intake.LiveIntakeBoundaryTests',
