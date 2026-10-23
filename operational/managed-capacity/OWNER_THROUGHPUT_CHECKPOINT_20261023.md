@@ -1,13 +1,15 @@
-# Owner throughput checkpoint — October23, 20:50UTC
+# Owner throughput checkpoint — October23, 21:15UTC
 
 **Mission INCOMPLETE. Candidate WITHHELD: performance FAIL.** No application
 installation or new provider/market test followed resumption. PAPER remains
 stopped/disabled; original$1,000/zero-obligation state unchanged under protected
-verification40008659812. Native UNKNOWN2 and all original gates remain intact.
+verification40008659812 and original financial preflight40023764163 at21:03UTC.
+Native UNKNOWN2 and all original gates remain intact.
 
 Authoritative integration: `engineering/owner-throughput-20261023`, currently
-runtime cut `34db224c8a093f24be9ca6280fec909d30598d84`; test/profile checkpoint
-`a5436896` before this documentation update. Installed isolated source remains
+runtime cut `00df29b3694eba450aa9fbfb071e615f6328d721`; test/profile checkpoint
+`766115cc762f56f76cd507ebd2e1856bb8870e44` before this documentation update.
+Installed isolated source remains
 `f0bff49b98e1fa5c76544c1e0db0e5074213bce0`, release
 `f70167507f7cc3c7c8d9da2ffa08d2d7ab2292b0b8019823f4a348d2cfab56a1`;
 original source `07c3794d4bcc13395d5d74074a446328280f57ff`.
@@ -15,7 +17,9 @@ original source `07c3794d4bcc13395d5d74074a446328280f57ff`.
 [Durable administration handoff](https://github.com/levonmendall/meme-machine-admin/blob/bddb0423ce83c70ebfae120ef158d00c409e2653/docs/AUTONOMOUS_PAPER_RESUME_20261023.md)
 and its decision register preserve authenticated state, owner-control upgrade,
 health cause, retained profile and historical experiments. The owner bootstrap
-is independently verified complete; no owner-console action is pending.
+is independently verified complete. A separate existing owner-root read-only
+terminal-candidate audit is now pending; it does not block offline engineering or
+an otherwise valid funding-closed isolated diagnostic (details below).
 
 ## Causal evidence and selected corrections
 
@@ -163,6 +167,100 @@ slot before urgent dispatch. This does not prove urgent latency when all physica
 carriers are busy.
 
 ## Preserved source, tests and next action
+
+### October23 owner addendum and complete quantum correction
+
+The owner requires representative sustained-throughput comparison and the
+integrated bounded owner/checkpoint architecture, rather than further isolated
+optimizations. Urgent count9f346d65/33a0f38b integrated010a7fcd/00df29b3:
+independent static PASS, **67 targeted cases PASS/1.574s** including strict
+all-or-none control-set provenance, missed-trigger stale-zero refusal, priority/
+status ABA, rollback/reopen/old SQLite writers,10k-row polling bound, invalid
+clock/control refusal. Exact helper/final fingerprints remain equal. First idle
+comparison CPU0.201630s (30callbacks), measured0.196059s/32COMMITs/143000VM.
+Residual profile plain0.175908s versus previous0.240373s shows a partial20–27%
+CPU reduction, **not sustained throughput acceptance**. Candidate remains withheld.
+
+Bounded count-only comparison uses identical test and helper bytes, same full
+initial/final report hashes and2 idle epochs: baseline164 SAVEPOINT/RELEASE pairs,
+candidate727 pairs,4 versus29 BEGIN/COMMITs. Baseline diagnostic branch
+`test/owner-transaction-boundaries-baseline-20261023` at735ea14f, runtime byte-exact
+44/f0; do not substitute it for the separate CI baselinebe2fed3e without updating
+the pin intentionally.
+
+Final refined direct timing **PASS1/1.257s**,766115cc: plain0.190571s,
+instrumented0.245986s.1530 transaction entry/exit calls consume0.052153s inclusive,
+excluding yielded bodies;66 repair_required_checkpoint_prefixes calls consume
+0.050794s, including66 CandidateHistory constructors0.038628s. Actual fixture
+families are meteora/pump/pumpswap; production pauses Meteora. This extra work
+must be disclosed, never silently removed to obtain an apparent speedup.
+The original monolith invokes that repair hook only twice. The replayed
+population does not primarily exercise large metric parsing:32 probe enqueue
+steps,32 covered urgent jobs,32 expired jobs and32 optional backoff jobs.
+
+**Architectural decision:** retain proven durable ready/probe/count contracts,
+replace repeated one-job planner setup with an explicit transaction-local
+PlanningQuantum. Perform finite expiry/seed/wake/rank setup once, then<=16 ordered
+decisions within the real5ms cutoff and bounded byte/item work; fresh authoritative
+job/deadline/scope/proof/version/inflight checks before dispatch, invalidation or
+yield on internal changes that could invalidate frontier ordering. No cross-
+quantum freshness cache. Keep ordinary SAVEPOINT semantics; generic writer joining
+is not selected because its measured gain alone is insufficient and caught SQLite
+auto-rollback/raw-write safety would require wider changes.
+
+Separate legacy external hooks at a committed boundary BEFORE fresh planning,
+never after selecting DISPATCH before claim. Existing nonbatched _plan calls real
+publish inside the new outer transaction and necessarily raises
+candidate_consumer_before_canonical_commit: a demonstrated compatibility blocker.
+The new architecture must coalesce publication/foreign maintenance at admitted
+housekeeping boundaries, preserve canonical-FULL->consumer-FULL->source-ACK, and
+bound repair selection. Author/reviewer are implementing disjoint runtime/tests;
+root owns integration and all execution.
+
+**Representative comparator in progress:** reuse existing authenticated5081+9
+input parcel on EC2 at /var/lib/meme-machine-market-replay/export-39647376682-1,
+already nonroot group-readable. It contains Pump economic inputs only; native/
+market context remains lineage-only. Reuse concurrent actual canonical owner,
+delivery and classification/restart equality, add disclosed controlled planner
+and actual checkpoint work on that SAME owner. Report CPU/event, classification
+rate, full strategy evaluations separately (UNEXERCISED if0), owner occupancy/
+queue latency, arrival/drain debt, physical checkpoint versus token hold and
+decision/recovery fingerprints. This is not Pons wire/native acquisition proof;
+the authorized120s concurrent Pump/Pons test answers those live-only questions.
+Existing admin replay source pins need a reviewed update after the final cut.
+No raw parcel export or new root bootstrap is needed. Do not reuse5081 outbox
+performance alone as proof of acquire/checkpoint performance.
+
+**Fresh original safety PASS:** protected40023764163, adminbddb0423, original07
+tree8afdc31b, at21:03UTC. Original financial and native-financial objects EXACTLY
+equal40000418224: $1,000, all9 obligations0,12 DBs/6 native books; stopped/disabled,
+restart disabled, cgroup empty, held locks0, writes/provider0. Native semantic
+fields unchanged; only recorded elapsed durations/observation clocks differ.
+safe_for_recovery=true, safe_for_normal/diagnostic=false, recovery_verified=false;
+historical drain NOT reclassified. Receipt SHA
+`a410790d1c1c6c38c5103b799fcf3a73fb10821cadb42befe5e82ea927969b3f`,
+artifact12531508182 ZIP3d406a48c0748483a962c397106b2c4d49a77fc55ad7e175d1b9f4079d686cda.
+
+**Independent historical recovery:** original371357 terminal authenticity and
+UNKNOWN2 remain unresolved; producer3046583 is not a replacement. Existing
+root-only read-only auditce4f5ae3803b8a567e8ca3ff038856526799f1e0758d1823818c9dcbf937308f
+is already merged/reviewed (PR195 review5616581397); hosted40012286923 explicitly
+verified hash and33 audit cases. No new collector is required. Owner asked to
+execute the two pinned blocks in adminbddb0423
+docs/ISSUE124_ROOT_EXTERNAL_AUDIT_EXECUTION_20261020.md, preserving exclusive private
+receipt and returning only sanitized status/hash. Existing automated controls
+cannot invoke this owner-root operation. Expected exit2 is incomplete discovery,
+never terminal authentication or permission to clear UNKNOWN. This pending action
+must not delay an otherwise justified protected funding-closed120s test. Original
+native-recover39361549054 canonical_writes=null remains unknown; don't repeat.
+
+New local receipts: urgent-count-first-component-validation-20261023.log,
+urgent-count-first-idle-comparison-20261023.log,
+urgent-count-residual-direct-costs-20261023.log,
+urgent-count-matched-direct-phases-20261023.log,
+owner-boundary-count-{baseline,candidate}-20261023.log,
+owner-controls-repair-refined-costs-20261023.log,
+pre-native-audit-preflight-40023764163/mm-ec2-control-40023764163.json.
 
 - Baseline `test/owner-throughput-baseline-20261023`,
   `be2fed3e4296a999cf6fcd596c0d06bd4720d7b1`: runtime byte-identical to44c4d556/f0,
