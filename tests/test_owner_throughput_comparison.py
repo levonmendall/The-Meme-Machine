@@ -79,6 +79,7 @@ def emit_owner_throughput_report(report, arm):
             'pending_jobs', 'pending_history', 'inflight', 'preparation_tickets',
             'transaction_open', 'synchronous')),
         cancellation_probe=report['cancellation_probe'], scheduling=report['scheduling'],
+        schedule_observations=report['schedule_observations'],
         provider_calls=report['provider_calls'], financial_authority=report['financial_authority'])
     print('OWNER_THROUGHPUT_COMPARISON '+json.dumps(summary,
         sort_keys=True, separators=(',', ':'), allow_nan=False), flush=True)
@@ -242,7 +243,8 @@ def _snapshot(state, initial, *, full=True):
 
 
 async def run_owner_throughput_comparison(directory, *, retained=256, eligible=32,
-        jobs=128, waits=32, measured=True, urgent=False, cancel_dispatch=False):
+        jobs=128, waits=32, measured=True, urgent=False, cancel_dispatch=False,
+        schedule='callback-ticks'):
     """One bounded arm; compare returned fingerprints before timing arms.
 
     The real owner interrupt handler is chained by the optional VM probe. No
@@ -252,6 +254,8 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
     if (any(type(value) is not int or value < 1 for value in (retained, eligible, jobs, waits))
             or retained+eligible+jobs+2*waits+16 > 1000 or jobs % 4 or waits % 2):
         raise ValueError('bounded fixture population required')
+    if schedule not in ('callback-ticks', 'idle-epochs'):
+        raise ValueError('declared fixture schedule required')
     directory = Path(directory)
     directory.mkdir(exist_ok=False)
     clock = _QuietClock()
@@ -260,6 +264,9 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
         owner_queue_seconds=0., urgent_queue_seconds=0., urgent_commands=0,
         dispatch_refusals=0, dispatch_cancellations=0, background_yields=0)
     callback_rows = []
+    outcomes = dict(IDLE=0, DEFERRED=0, DISPATCH=0)
+    last_outcome = None
+    epochs = 0
     source = SelectiveSource(SimpleNamespace(credential='offline', identity='a'*64), None)
     source.stop = asyncio.Event()
     source.batched = True
@@ -298,6 +305,7 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
             return await asyncio.shield(asyncio.wrap_future(await admit(owner, fn, priority=priority)))
 
         async def work(fn, priority=1, *, accepted=None, **options):
+            nonlocal last_outcome
             submitted = time.perf_counter()
             candidate = options.get('label') == 'candidate_development'
             def timed(state):
@@ -350,6 +358,18 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
                     counters['background_yields'] += 1
                 raise
             if candidate:
+                # Observe the actual completed callback result, never acquire's
+                # eventual None return or a guessed database/queue condition.
+                # _seed has already required actual startup release.
+                if value is None:
+                    last_outcome = 'IDLE'
+                elif isinstance(value, tuple) and len(value) == 2:
+                    last_outcome = 'DISPATCH'
+                else:
+                    last_outcome = getattr(value, 'state', None)
+                    if last_outcome not in outcomes:
+                        raise AssertionError('unknown completed acquisition planning outcome')
+                outcomes[last_outcome] += 1
                 source.stop.set()
             return value
 
@@ -370,9 +390,24 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
             current = before
             cancellation_probe = None
             for turn in range(MAX_TURNS):
-                clock.tick = 1.0+(turn+1)*.101
+                if schedule == 'callback-ticks':
+                    # Preserve the original disclosed schedule byte-for-byte
+                    # in behavior: every driver turn creates another poll tick.
+                    clock.tick = 1.0+(turn+1)*.101
+                    epochs += 1
+                elif turn == 0:
+                    clock.tick = 1.101
+                    epochs = 1
+                elif last_outcome == 'IDLE':
+                    # DEFERRED, dispatch, failure and cancellation do not age
+                    # polling clocks. Advance only before a next genuine idle
+                    # epoch; the evidence clock and deadlines stay fixed.
+                    clock.tick += .101
+                    epochs += 1
+                last_outcome = None
                 source.stop.clear()
-                source.acquisition_idle_until = 0
+                if schedule == 'callback-ticks':
+                    source.acquisition_idle_until = 0
                 task = asyncio.create_task(source.acquire())
                 watching = asyncio.create_task(dispatch.wait())
                 try:
@@ -432,8 +467,14 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
                 driver_wall_seconds=time.perf_counter()-started,
                 before=before, final=current, provider_calls=0, financial_authority=False,
                 scheduling=dict(wall_time=NOW, poll_tick_seconds=.101,
-                    idle_sleep='one_event_loop_yield', owner_clock='real_monotonic'),
+                    idle_sleep='one_event_loop_yield', owner_clock='real_monotonic',
+                    mode=schedule),
+                schedule_observations=dict(epochs=epochs, outcome_counts=outcomes,
+                    initial_scheduler_tick=1.101, final_scheduler_tick=clock.tick),
                 limitations=['Fresh deterministic fixtures, not live population, Btree layout or original availability.',
+                    'Projection installation follows actual constructors on fresh fixtures; this is not a matched retained-state EC2 upgrade.',
+                    'Candidate rebuild and additional idle epochs remain measured work; no scheduler projection is forced complete.',
+                    'callback-ticks advances each driver turn; idle-epochs holds time during actual DEFERRED work and advances only after actual IDLE.',
                     'Archive requests are refused before provider work; incomplete history remains pending.',
                     'Owner timings include optional VM/trace instrumentation only when measured=true.',
                     'Driver wall includes setup, fingerprints and fixture scheduling; it is not a market service rate.'])
@@ -482,4 +523,27 @@ class OwnerThroughputComparisonTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report['counters']['urgent_commands'], 1)
         self.assertEqual(report['counters']['dispatch_cancellations'], 1)
         self.assertTrue(report['cancellation_probe']['injected_after_primary_convergence'])
+
+    async def test_idle_epochs_preserve_population_and_original_deadlines(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            plain = await run_owner_throughput_comparison(Path(temporary)/'idle-plain',
+                measured=False, schedule='idle-epochs')
+            emit_owner_throughput_report(plain, 'optional_idle_epochs_plain')
+            measured = await run_owner_throughput_comparison(Path(temporary)/'idle-measured',
+                measured=True, schedule='idle-epochs')
+            emit_owner_throughput_report(measured, 'optional_idle_epochs_measured')
+        for report in (plain, measured):
+            self.assert_conserved(report)
+            scheduling = report['scheduling']
+            observed = report['schedule_observations']
+            self.assertEqual(scheduling['mode'], 'idle-epochs')
+            self.assertEqual(scheduling['wall_time'], NOW)
+            self.assertGreaterEqual(observed['epochs'], 1)
+            self.assertLessEqual(observed['epochs'], report['turns'])
+            self.assertEqual(observed['outcome_counts']['DISPATCH'], 0)
+            self.assertEqual(sum(observed['outcome_counts'].values()), report['counters']['callbacks'])
+            self.assertAlmostEqual(observed['final_scheduler_tick'],
+                1.101+(observed['epochs']-1)*.101)
+        self.assertEqual(plain['cohort'], measured['cohort'])
+        self.assertEqual(plain['final'], measured['final'])
 
