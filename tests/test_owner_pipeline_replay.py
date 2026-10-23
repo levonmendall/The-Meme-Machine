@@ -44,7 +44,9 @@ class OwnerPipelineReplayTests(unittest.TestCase):
         self.assertTrue(workload['final']['deadlines_preserved'])
         self.assertEqual(workload['final']['complete_jobs'],2)
         self.assertEqual(workload['final']['deadline_missed_jobs'],2)
-        self.assertEqual(workload['final']['local_plans'],2)
+        # Four newly bound scouts retain their own0..frontier preparation,
+        # alongside the two explicit101..103 pending-job preparations.
+        self.assertEqual(workload['final']['local_plans'],6)
         self.assertEqual(workload['final']['inflight'],0)
         self.assertEqual(workload['final']['preparation_tickets'],0)
         self.assertFalse(workload['final']['transaction_open'])
