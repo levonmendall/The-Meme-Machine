@@ -310,7 +310,7 @@ class OwnerThroughputSourceGuard(unittest.TestCase):
                 ignored:b'tests/__pycache__/fixture.cpython-312.pyc\ntests/cache.pyc\n'},
         )
         for replies in cases:
-            def supplied(*args):return replies.get(args,original(*args))
+            def supplied(*args):return replies[args] if args in replies else original(*args)
             with self.subTest(replies=replies),patch(__name__+'.git',side_effect=supplied):
                 current_test_census(self)
         # Each allowed generated path still has a complete independent content
