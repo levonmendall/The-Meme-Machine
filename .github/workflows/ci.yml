@@ -12,7 +12,7 @@ on:
       validation:
         description: Focused development checks or a complete frozen release suite
         type: choice
-        options: [focused, full]
+        options: [focused, owner-comparison, full]
         default: focused
       suite:
         description: Complete offline release suite (finalized candidates only)
@@ -41,7 +41,7 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install -r requirements.txt
       - name: Run focused Stage A offline regressions (not full FAST or OPERATIONAL)
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation != 'full' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || (inputs.validation != 'full' && inputs.validation != 'owner-comparison') }}
         run: |
           sudo env CI=true PYTHONDONTWRITEBYTECODE=1 "$(command -v python)" - <<'PY'
           import os
@@ -65,6 +65,12 @@ jobs:
           group = LinuxGroup(LIMITS)
           group.close()
           modules = [
+              'tests.test_owner_throughput_source_guard',
+              'tests.test_owner_throughput_comparison',
+              'tests.test_bounded_candidate_development',
+              'tests.test_solana_acquisition_scheduler',
+              'tests.test_solana_dispatch_probe',
+              'tests.test_owner_planning_fanout',
               'tests.test_managed_capacity_source_guard',
               'tests.test_pump_restore_source_guard',
               'tests.test_operational_candidate_source_guard',
@@ -74,6 +80,8 @@ jobs:
               'tests.test_restore_reference_pages',
               'tests.test_source_operation_publication',
               'tests.test_solana_health_atomicity',
+              'tests.test_checkpoint_handoff',
+              'tests.test_solana_checkpoint_owner',
               'tests.test_solana_prewarm_startup',
               'tests.test_operation_costs',
               'tests.test_sleeve_prefix_scheduling',
@@ -156,6 +164,77 @@ jobs:
           sys.argv = ['operational.tests', 'OPERATIONAL', '--modules', *modules, '--verbose']
           runpy.run_module('operational.tests', run_name='__main__')
           PY
+      - name: Checkout preserved runtime baseline for a matched synthetic comparison
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'owner-comparison' }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: a5f494465934b9c5d2f8d2171e5985d203c59f33
+          path: owner-throughput-baseline
+          fetch-depth: 5
+          persist-credentials: false
+      - name: Compare identical offline owner workloads in baseline-candidate-candidate-baseline order
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'owner-comparison' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C owner-throughput-baseline rev-parse HEAD)" = a5f494465934b9c5d2f8d2171e5985d203c59f33
+          git -C owner-throughput-baseline diff --exit-code 44c4d556f9d7eb6f0481cbdceabc4c58e8714e65 HEAD -- meme_machine
+          cmp requirements.txt owner-throughput-baseline/requirements.txt
+          cmp tests/test_owner_throughput_comparison.py owner-throughput-baseline/tests/test_owner_throughput_comparison.py
+          python - <<'PY' | tee "$RUNNER_TEMP/owner-comparison-runtime.json"
+          import json,platform,sqlite3,subprocess
+          print(json.dumps(dict(scope='SYNTHETIC_COMPONENT_COMPARISON_NOT_MARKET_ACCEPTANCE',
+              candidate_source=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+              baseline_source='a5f494465934b9c5d2f8d2171e5985d203c59f33',
+              python=platform.python_version(),sqlite=sqlite3.sqlite_version,
+              matches_ec2_versions=(platform.python_version(),sqlite3.sqlite_version)==('3.12.14','3.45.1'))))
+          PY
+          for comparison_arm in baseline-1 candidate-1 candidate-2 baseline-2; do
+            case "$comparison_arm" in
+              baseline-*) comparison_directory="$GITHUB_WORKSPACE/owner-throughput-baseline" ;;
+              candidate-*) comparison_directory="$GITHUB_WORKSPACE" ;;
+            esac
+            (
+              cd "$comparison_directory"
+              PYTHONDONTWRITEBYTECODE=1 python -m operational.tests FAST --cases \
+                tests.test_owner_throughput_comparison.OwnerThroughputComparisonTests.test_actual_population_is_conserved_and_vm_probe_preserves_semantics
+            ) 2>&1 | tee "$RUNNER_TEMP/owner-comparison-$comparison_arm.log"
+          done
+          python - <<'PY'
+          import json,os,pathlib
+          directory=pathlib.Path(os.environ['RUNNER_TEMP'])
+          reports=[]
+          for name in ('baseline-1','candidate-1','candidate-2','baseline-2'):
+              raw=(directory/('owner-comparison-'+name+'.log')).read_bytes()
+              assert len(raw)<=262144,'bounded_comparison_report_required'
+              rows=[]
+              for line in raw.decode().splitlines():
+                  if 'OWNER_THROUGHPUT_COMPARISON ' in line:
+                      row=json.JSONDecoder().raw_decode(line.split('OWNER_THROUGHPUT_COMPARISON ',1)[1])[0]
+                      rows.append(row)
+              assert [r['arm'] for r in rows]==['optional_plain','optional_measured'],'two_exact_arms_required'
+              reports.extend(dict(process=name,report=row) for row in rows)
+          reference=reports[0]['report']
+          def equivalent(row):
+              return all(row[key]==reference[key] for key in
+                  ('cohort','runtime','fingerprints','final','scheduling'))
+          matched=all(equivalent(row['report']) for row in reports)
+          summary=dict(scope='SYNTHETIC_EQUIVALENCE_ONLY_NOT_LIVE_PERFORMANCE_ACCEPTANCE',
+              cross_source_equivalent=matched,reports=reports)
+          (directory/'owner-comparison-summary.json').write_text(json.dumps(summary,sort_keys=True)+'\n')
+          assert matched,'cross_source_cohort_runtime_or_functional_mismatch'
+          PY
+      - name: Retain the four bounded comparison reports
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.validation == 'owner-comparison' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: owner-throughput-comparison-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/owner-comparison-*.log
+            ${{ runner.temp }}/owner-comparison-runtime.json
+            ${{ runner.temp }}/owner-comparison-summary.json
+          if-no-files-found: warn
+          retention-days: 90
       - name: Run complete offline suite with the required Linux containment
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'full' }}
         env:

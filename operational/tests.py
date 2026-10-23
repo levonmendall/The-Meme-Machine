@@ -2,6 +2,12 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_owner_throughput_source_guard',
+ 'tests.test_owner_throughput_comparison',
+ 'tests.test_bounded_candidate_development',
+ 'tests.test_solana_acquisition_scheduler',
+ 'tests.test_solana_dispatch_probe',
+ 'tests.test_owner_planning_fanout',
  'tests.test_managed_capacity_source_guard',
  'tests.test_managed_pump_qualification',
  'tests.test_managed_pump_discovery_publication',
