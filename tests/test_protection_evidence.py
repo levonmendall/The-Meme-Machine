@@ -494,16 +494,35 @@ class ProtectionEvidenceTests(unittest.TestCase):
             p['usd'][key] += shift
         return p
 
-    def assert_resumed_open_does_not_create_grace(self, native, shared):
+    def first_owner_proof_over_existing_native_history(self):
+        # Build another disposable native book through its real API. The first
+        # proof owner sees the same existing entry/mark; no retained proof table
+        # or financial row is deleted to manufacture a new generation.
+        self.book.close()
+        self.book = PaperBook(self.root/'first-owner.sqlite', run_id='proof', lane='survivor',
+                              policy_hash='b'*64, initial=500)
+        self.book.reserve(self.life, 100, 100, {})
+        self.book.transition(self.life, 'filled', 100, amount=100, tokens=10)
+        self.assertEqual(self.native_ref(), self.birth)
+        self.book.transition(self.life, 'mark', 101, amount=99)
+        self.assertEqual(self.native_ref(), self.mark)
+        self.journal = ProtectionJournal(self.book.db, self.identity)
+        self.resolver = SQLiteReceiptResolver(self.book.db, self.shared, self.census,
+            lambda key:self.fixture_read('fixture_acquisition', key),
+            lambda key:self.fixture_read('fixture_usd', key))
+        self.append('OWNER', self.owner_record)
+
+    def assert_open_does_not_create_grace(self, native, shared, *, window_start=10*NS, first_owner=False):
+        if first_owner:self.first_owner_proof_over_existing_native_history()
         retained = list(self.book.db.execute(f'SELECT * FROM {TABLE} ORDER BY sequence'))
         financial = self.book.replay()
-        # This is a replacement owner's first proof record for an already-held
-        # position. Native birth/mark hashes are authentic, but neither supplies
-        # an authenticated protection-clock anchor at the claimed OPEN9.
-        self.owner = dict(self.owner, pid=124, process_start_ticks=789,
-                          generation='resumed-process-generation')
-        self.append('OWNER', dict(self.owner_record, owner=self.owner,
-            at_ns=9*NS, wall_ns=109*NS, sample_end_ns=9*NS))
+        # Native birth/mark hashes are authentic, but neither supplies an
+        # authenticated protection-clock anchor at the claimed OPEN9. The
+        # owner is already present before every requested window boundary.
+        if not first_owner:
+            self.owner = dict(self.owner, pid=124, process_start_ticks=789,
+                              generation='resumed-process-generation')
+            self.append('OWNER', dict(self.owner_record, owner=self.owner))
         self.append('OPEN', dict(self.open_record, owner=self.owner, native_ref=native,
             shared_ref=shared, at_ns=9*NS, wall_ns=109*NS, sample_end_ns=9*NS, due_ns=12*NS))
         p = self.shifted_first_turn(12*NS)
@@ -523,20 +542,29 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.assertEqual(list(self.book.db.execute(
             f'SELECT * FROM {TABLE} WHERE sequence<=? ORDER BY sequence', (len(retained),))), retained)
         self.assertEqual(self.book.replay(), financial)
-        # OPEN9/due12 cannot hide the unmonitored leading interval beginning10,
-        # even though the following real TURN completes on time at12.6.
-        leading = self.check(self.window(start_ns=10*NS, end_ns=13*NS,
-            start_wall_ns=110*NS, end_wall_ns=113*NS,
+        # OPEN9/due12 cannot hide unproved held time before the first complete
+        # TURN12.6, including when OPEN falls at or inside the requested window.
+        leading = self.check(self.window(start_ns=window_start, end_ns=13*NS,
+            start_wall_ns=100*NS+window_start, end_wall_ns=113*NS,
             start_cursor=shared, end_cursor=self.mark_ack))
         self.assertFalse(leading.ok, leading.reason)
         self.assertFalse(leading.held_coverage)
         self.assertNotEqual(leading.reason, 'proof_resolution_unavailable')
 
     def test_resumed_open_on_old_mark_cannot_restart_initial_monitor_grace(self):
-        self.assert_resumed_open_does_not_create_grace(self.mark, self.mark_ack)
+        self.assert_open_does_not_create_grace(self.mark, self.mark_ack)
 
     def test_resumed_open_on_old_birth_cannot_restart_initial_monitor_grace(self):
-        self.assert_resumed_open_does_not_create_grace(self.birth, self.birth_ack)
+        self.assert_open_does_not_create_grace(self.birth, self.birth_ack)
+
+    def test_resumed_open_at_window_start_cannot_restart_initial_monitor_grace(self):
+        self.assert_open_does_not_create_grace(self.birth, self.birth_ack, window_start=9*NS)
+
+    def test_resumed_open_inside_window_cannot_hide_existing_held_interval(self):
+        self.assert_open_does_not_create_grace(self.birth, self.birth_ack, window_start=8*NS)
+
+    def test_first_owner_open_on_old_birth_cannot_restart_initial_monitor_grace(self):
+        self.assert_open_does_not_create_grace(self.birth, self.birth_ack, first_owner=True)
 
     def test_later_recovered_window_accepts_retained_late_failed_dispatch(self):
         financial = self.book.replay()
