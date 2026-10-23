@@ -1,0 +1,42 @@
+name: Pons pilot focused offline safety
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unchanged-runtime-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind unchanged installed application runtime and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code f0bff49b98e1fa5c76544c1e0db0e5074213bce0 HEAD -- meme_machine tests requirements.txt operational/tests.py
+          git rev-parse HEAD HEAD^{tree}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.14'
+      - name: Install pinned runtime requirements
+        run: python -m pip install -r requirements.txt
+      - name: Exercise actual PAPER money, partial exit, restart and late quote refusal
+        env:
+          MM_MODE: PAPER
+        run: |
+          python -m operational.tests OPERATIONAL --cases \
+            tests.test_shared_portfolio_epoch.NewNativeEpochTests.test_actual_pons_current_50_quote_partial_loss_and_restart_reconcile \
+            tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_pons_current_native_partial_settlement_and_replay_use_shared_authority \
+            tests.test_pons_current_exit_sharing.CurrentExitSharingTests.test_execution_admission_deadline_preserves_original_due_quantity_and_money \
+            tests.test_pons_current_shared_owners.CurrentSharedOwnerTests.test_slow_provider_refuses_late_shared_quotes_without_settlement_or_owner_loss \
+            tests.test_pons_protective_capacity.ProtectiveCapacityTests.test_slow_provider_remains_an_explicit_protective_deadline_blocker
+      - name: Exercise native provider recovery and fail-closed funding admission
+        env:
+          MM_MODE: PAPER
+        run: |
+          python -m operational.tests OPERATIONAL --modules \
+            tests.lanes.pons.test_pons_position_provider_recovery \
+            tests.test_paper_bootstrap
