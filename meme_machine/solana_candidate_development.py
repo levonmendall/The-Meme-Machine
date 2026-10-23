@@ -156,6 +156,7 @@ class CandidateDevelopment:
         self.poll_at = 0
         self.external_poll_at = 0
         self.external_started = False
+        self.external_boundary_done = False
         self.cursors = dict(reactivated=0, boundary=0, publication=0)
         from .lanes.pump.pump_acceleration_strategy import POLICY
         self.candidates = DevelopmentCandidates(history, POLICY.min_curve_progress_bps)
@@ -167,7 +168,7 @@ class CandidateDevelopment:
             raise EvidenceUnavailable('candidate_hooks_before_canonical_commit')
         # Legacy publishers own separate transactions. They must see committed
         # preparations and finish BEFORE any fresh dispatch/claim is selected.
-        boundary=self.phase==4
+        boundary=self.phase==4 and not self.external_boundary_done
         admitted=not housekeeping and self.clock()>=self.external_poll_at
         if not batched and (boundary or admitted or not self.external_started):
             with timing.phase('publication'):
@@ -177,6 +178,7 @@ class CandidateDevelopment:
             # population cost is outside the operating Pump/Pons bound.
             with timing.phase('plan'):
                 h.rolling.repair_required_checkpoint_prefixes()
+        if boundary:self.external_boundary_done=True
         if boundary or admitted or not self.external_started:
             self.external_started=True
             self.external_poll_at=self.clock()+.1
@@ -210,6 +212,7 @@ class CandidateDevelopment:
             finally:
                 quantum.close()
         self.phase,self.poll_at,self.cursors=staged.phase,staged.poll_at,staged.cursors
+        self.external_boundary_done=staged.external_boundary_done
         return result
 
     def step(self, timing, frontier, *, excluding=(), batched=True):
@@ -224,6 +227,7 @@ class CandidateDevelopment:
         if self.phase == 4:
             result = self._plan(timing, excluding, batched, quantum)
             self.phase = 0
+            self.external_boundary_done=False
             return result
         if self.phase == 0 and self.clock() < self.poll_at:
             return self._plan(timing, excluding, batched, quantum)

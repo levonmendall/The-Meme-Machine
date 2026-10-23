@@ -314,6 +314,36 @@ class BoundedDevelopmentTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM market_observations').fetchone()[0], 64)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM evidence_bindings').fetchone()[0], 0)
 
+    def test_external_hooks_run_after_commit_once_before_fresh_planning_despite_urgent_dispatch(self):
+        actor=self.build_actor()
+        actor.phase=4
+        self.h.active_families=('pump','meteora')
+        hooks=[]
+        def external(name):
+            self.assertFalse(self.db.in_transaction)
+            hooks.append(name)
+            with self.writer.transaction():
+                self.db.execute('INSERT INTO fixture_phase_effects VALUES(?,?,?,?)',(name,0,0,0))
+        self.h.lifecycle.publish=lambda:external('legacy_publish')
+        self.h.rolling.repair_required_checkpoint_prefixes=lambda:external('legacy_edf')
+        self.urgent_result=PlanningStep(DISPATCH,({'id':'held-original'},{}))
+        with patch('meme_machine.solana_candidate_development.time.perf_counter',return_value=0):
+            for _ in range(2):
+                result=actor.step(self.timing,123,batched=False)
+                self.assertEqual(result.plan[0]['id'],'held-original')
+                self.assertEqual(actor.phase,4)
+            self.assertEqual(hooks,['legacy_publish','legacy_edf'])
+            self.urgent_result=PlanningStep(IDLE)
+            self.optional_result=PlanningStep(DISPATCH,({'id':'fresh-after-hooks'},{}))
+            result=actor.step(self.timing,123,batched=False)
+        self.assertEqual(result.plan[0]['id'],'fresh-after-hooks')
+        self.assertEqual(hooks,['legacy_publish','legacy_edf'])
+        self.assertEqual(actor.phase,0)
+        self.assertFalse(actor.external_boundary_done)
+        self.assertTrue(all(in_transaction for _,_,in_transaction in self.plan_calls))
+        self.assertEqual(self.db.execute('SELECT phase FROM fixture_phase_effects ORDER BY rowid').fetchall(),
+            [('legacy_publish',),('legacy_edf',)])
+
     def test_urgent_dispatch_precedes_projection_backfill_and_all_housekeeping(self):
         self.market('unprocessed-scout')
         actor = self.build_actor()
