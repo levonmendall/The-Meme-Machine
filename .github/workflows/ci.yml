@@ -168,16 +168,16 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'owner-comparison' }}
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: a5f494465934b9c5d2f8d2171e5985d203c59f33
+          ref: be2fed3e4296a999cf6fcd596c0d06bd4720d7b1
           path: owner-throughput-baseline
-          fetch-depth: 5
+          fetch-depth: 8
           persist-credentials: false
       - name: Compare identical offline owner workloads in baseline-candidate-candidate-baseline order
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'owner-comparison' }}
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C owner-throughput-baseline rev-parse HEAD)" = a5f494465934b9c5d2f8d2171e5985d203c59f33
+          test "$(git -C owner-throughput-baseline rev-parse HEAD)" = be2fed3e4296a999cf6fcd596c0d06bd4720d7b1
           git -C owner-throughput-baseline diff --exit-code 44c4d556f9d7eb6f0481cbdceabc4c58e8714e65 HEAD -- meme_machine
           cmp requirements.txt owner-throughput-baseline/requirements.txt
           cmp tests/test_owner_throughput_comparison.py owner-throughput-baseline/tests/test_owner_throughput_comparison.py
@@ -185,7 +185,7 @@ jobs:
           import json,platform,sqlite3,subprocess
           print(json.dumps(dict(scope='SYNTHETIC_COMPONENT_COMPARISON_NOT_MARKET_ACCEPTANCE',
               candidate_source=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-              baseline_source='a5f494465934b9c5d2f8d2171e5985d203c59f33',
+              baseline_source='be2fed3e4296a999cf6fcd596c0d06bd4720d7b1',
               python=platform.python_version(),sqlite=sqlite3.sqlite_version,
               matches_ec2_versions=(platform.python_version(),sqlite3.sqlite_version)==('3.12.14','3.45.1'))))
           PY
@@ -197,7 +197,8 @@ jobs:
             (
               cd "$comparison_directory"
               PYTHONDONTWRITEBYTECODE=1 python -m operational.tests FAST --cases \
-                tests.test_owner_throughput_comparison.OwnerThroughputComparisonTests.test_actual_population_is_conserved_and_vm_probe_preserves_semantics
+                tests.test_owner_throughput_comparison.OwnerThroughputComparisonTests.test_actual_population_is_conserved_and_vm_probe_preserves_semantics \
+                tests.test_owner_throughput_comparison.OwnerThroughputComparisonTests.test_idle_epochs_preserve_population_and_original_deadlines
             ) 2>&1 | tee "$RUNNER_TEMP/owner-comparison-$comparison_arm.log"
           done
           python - <<'PY'
@@ -212,13 +213,19 @@ jobs:
                   if 'OWNER_THROUGHPUT_COMPARISON ' in line:
                       row=json.JSONDecoder().raw_decode(line.split('OWNER_THROUGHPUT_COMPARISON ',1)[1])[0]
                       rows.append(row)
-              assert [r['arm'] for r in rows]==['optional_plain','optional_measured'],'two_exact_arms_required'
+              assert [r['arm'] for r in rows]==['optional_plain','optional_measured',
+                  'optional_idle_epochs_plain','optional_idle_epochs_measured'],'four_exact_arms_required'
               reports.extend(dict(process=name,report=row) for row in rows)
-          reference=reports[0]['report']
+          references={row['report']['scheduling']['mode']:row['report'] for row in reports[:4]}
           def equivalent(row):
-              return all(row[key]==reference[key] for key in
+              reference=references[row['scheduling']['mode']]
+              return (all(row[key]==reference[key] for key in
                   ('cohort','runtime','fingerprints','final','scheduling'))
+                  and row['provenance']['harness_sha256']==reference['provenance']['harness_sha256'])
           matched=all(equivalent(row['report']) for row in reports)
+          idle=[row['report']['schedule_observations'] for row in reports
+              if row['report']['scheduling']['mode']=='idle-epochs']
+          matched=matched and all(row['epochs']==idle[0]['epochs'] and row['final_outcome']=='IDLE' for row in idle)
           summary=dict(scope='SYNTHETIC_EQUIVALENCE_ONLY_NOT_LIVE_PERFORMANCE_ACCEPTANCE',
               cross_source_equivalent=matched,reports=reports)
           (directory/'owner-comparison-summary.json').write_text(json.dumps(summary,sort_keys=True)+'\n')

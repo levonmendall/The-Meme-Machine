@@ -1,4 +1,4 @@
-# Owner throughput checkpoint — October23, 20:36UTC
+# Owner throughput checkpoint — October23, 20:50UTC
 
 **Mission INCOMPLETE. Candidate WITHHELD: performance FAIL.** No application
 installation or new provider/market test followed resumption. PAPER remains
@@ -6,8 +6,8 @@ stopped/disabled; original$1,000/zero-obligation state unchanged under protected
 verification40008659812. Native UNKNOWN2 and all original gates remain intact.
 
 Authoritative integration: `engineering/owner-throughput-20261023`, currently
-runtime cut `a26767ecdc56149d074fe5fa7f8e97d690b80d60`; test/profile checkpoint
-`9fb4a8fa` before this documentation update. Installed isolated source remains
+runtime cut `34db224c8a093f24be9ca6280fec909d30598d84`; test/profile checkpoint
+`a5436896` before this documentation update. Installed isolated source remains
 `f0bff49b98e1fa5c76544c1e0db0e5074213bce0`, release
 `f70167507f7cc3c7c8d9da2ffa08d2d7ab2292b0b8019823f4a348d2cfab56a1`;
 original source `07c3794d4bcc13395d5d74074a446328280f57ff`.
@@ -97,10 +97,75 @@ produced negative exclusive costs and cumulative values exceeding observed owner
 CPU; its timing is **INVALID/INCONCLUSIVE** and must not select a repair. A corrected
 measurement and existing direct phase-counter cross-check are in progress.
 
+### Completed cost discriminator and next shared correction
+
+The original callback-ticks comparison grants another101ms of synthetic time
+after EVERY owner callback: baseline2 callbacks versus candidate54–70 callbacks
+receive different elapsed poll time. Its measured regression remains valid for
+that disclosed adversarial schedule, but is not a10x production-capacity claim.
+Do not select a fix from that ratio alone.
+
+Helperd49d0ae8 adds a separate idle-epochs schedule: actual DEFERRED does not age
+the clock; advance101ms only after actual IDLE, preserving absolute evidence time
+and deadlines. The first pair stopped after selection while candidate was still
+DEFERRED, leaving72 rather than104 history jobs; **INEQUIVALENT/REJECTED**. This
+was a driver completion-boundary defect, not proof of omitted runtime work.
+d900a3b9 now requires the full original completion predicate AND actual IDLE.
+
+Root interleaved baseline/candidate/candidate/baseline using identical helper SHA
+`f27f855623d87d4e733ed4fab5ad4c1f0aaa4d34cf4afe897dd7d222bee9285d`:
+**PASS synthetic equivalence** across all8 plain/measured reports. Both sources
+complete2 epochs,104 pending history/64 pending acquisition jobs, no claimed work,
+no transaction open, FULL synchronous=2, exact initial/final functional and
+canonical fingerprints, original deadlines, provider0/financial authorityfalse.
+**Performance FAIL/withheld:** uninstrumented baseline CPU0.042417/0.043382s,
+candidate0.246620/0.376665s; maximum candidate callback0.010094/0.020069s versus
+baseline0.034453/0.033744s. Measured candidate188000/190000 VM steps versus
+baseline282000;46/49 COMMITs versus4. This is fresh synthetic SQLite3.53.1,
+not retained-state EC2 or a market-speed result. Timing variability and real5ms
+cutoffs affect turn count; no timing threshold is called PASS.
+
+Replacement phase-only diagnostic2002b21c **PASS1/0.874s**: direct phase CPU
+0.335594s fits callback0.367985s; planning0.219088s/143calls, boundaries0.034791s,
+publication0.033962s, reactivation0.012041s, selection0.024349s, commit0.011363s.
+This first valid phase report still uses the adversarial callback-ticks schedule.
+
+Independent direct owner-thread wrappers e0244c7a, integratede9ea1762, selected
+idle-epochs in0df88d61: **PASS1/2.144s**, exact full before/final equality, no
+negative timing, exclusive CPU0.300645s <= actual callback0.499826s. Uninstrumented
+same runner0.240373s/40callbacks; instrumentation perturbs the5ms cutoff to71
+callbacks, so these costs identify mechanisms, not capacity.149 plan calls spend
+0.286763s inclusive; scheduler.next0.181544s, urgent seeding0.042512s, rank waking
+0.057193s/481calls, fanout waking0.027470s, probe0.019693s/32calls.2868 breadcrumb
+calls cost0.044339s, material but not the sole limiting mechanism. Do not disable
+diagnostics or assume physical fsync from these figures.
+
+Selected shared correction: extend the existing transactionally maintained
+scheduling projections with an exact conservative urgent-pending count. Zero
+can skip repeated urgent expiry/seeding/rank scans; positive retains the entire
+fresh authoritative path. Expired urgent rows remain counted until actual
+disposition. Use a NEW additive table/strict triggers so existing v1 DDL remains
+reopenable; prove priority/status ABA, rollback, old SQLite writers, restart,
+missing/malformed-state failure, bounded zero-work queries and urgent ordering.
+The count provides no coverage, financial authority or completion evidence. This
+refactors the measured shared bookkeeping contract; no broker/new database or
+generic writer rewrite is justified. Author implementation/review is pending.
+
+Correctness-only945/4ce/a8 integratedaa966910/e3d1dc6f/34db224c: independent static
+PASS and39 affected cases PASS/2.446s. Real-ticket rollback companion186d6630
+integrated086de7f3 PASS1/0.163s: failed child enqueue restores jobs/fanout/signals/
+observations/actor state and200s original deadline on reopen; retry commits150s
+tightening. Advisory decoder invalidation is conservative, with valid-ticket
+positive control. Four adapted old scheduler fixtures pass (three in initial
+4-case run; archive corrected separately PASS1/0.161s). The initial archive error
+was an unphysical ninth claim; the corrected test frees an actual eight-carrier
+slot before urgent dispatch. This does not prove urgent latency when all physical
+carriers are busy.
+
 ## Preserved source, tests and next action
 
 - Baseline `test/owner-throughput-baseline-20261023`,
-  `a5f494465934b9c5d2f8d2171e5985d203c59f33`: runtime byte-identical to44c4d556/f0,
+  `be2fed3e4296a999cf6fcd596c0d06bd4720d7b1`: runtime byte-identical to44c4d556/f0,
   identical benchmark plus registration only. No runtime modifications.
 - Checkpoint source branch `fix/checkpoint-worker-ownership-20261023` at5944f2b7.
 - Planner author branch `fix/bounded-candidate-development-20261023` now preserves
@@ -108,24 +173,25 @@ measurement and existing direct phase-counter cross-check are in progress.
   integrated througha267/47aae05e. Combined scheduler/probe/fanout42 PASS/0.745s;
   comparison plus those cases44 PASS/3.799s, with performance FAIL as above.
   Correctness-only945a44b4/4ce21292 inflight obligation tightening and
-  a8c0f867 urgent expiry are pending independent review/integration. No deployment
-  eligibility implied.
+  a8c0f867 urgent expiry are integrated/reviewed as above. No deployment eligibility
+  implied.
 - Exact source-proof scaffolde0dbe4a71c48392ddc40435af01863a084c72544 has independent
   static PASS. Root must freeze complete runtime, then generate and run all guards.
   Placeholder deliberately fails before generation. Old managed/native/economic
   proofs remain unchanged; no exemption for managed_native_pump.py.
 - New manual CI comparison mode reuses existing hosted workflow for four fresh
-  baseline/candidate/candidate/baseline processes. It checks identical harness,
-  requirements, cohort and full functional fingerprints; retains runtime/source
-  metadata and reports. Its PASS scope is synthetic equivalence, not performance
-  or release acceptance. Normal focused/full modes are preserved. Not yet run.
+  baseline/candidate/candidate/baseline processes. It now compares both disclosed
+  schedules independently, checking identical harness, requirements, cohort,
+  full fingerprints and idle epoch boundaries; retains runtime/source metadata
+  and reports. Its PASS scope is synthetic equivalence, not performance or release
+  acceptance. Normal focused/full modes are preserved. Not yet run hosted.
 - Existing local closure/shared-capacity WIP run130/19.147s FAILED4+45errors;
   representative unchanged44 baseline reproduces SQLite no-query-solution,
   provider clock identity and fake publication-return failures. Three other
   assertions describe superseded monolithic scheduling and require meaningful
   fixture adaptation. Actual callback phase/rollback fixture was adapted and
-  PASS1/0.306s; remaining coalescing/selection fixtures are being updated without
-  runtime edits or relaxed safety assertions. Do not repeatedly rerun the whole
+  PASS1/0.306s; four remaining coalescing/selection fixtures now pass as above,
+  without runtime edits or relaxed safety assertions. Do not repeatedly rerun the whole
   local module set.
 
 Evidence under /workspace/scratch/meme-evidence/:
@@ -141,6 +207,13 @@ bounded-microbatch-contract-validation-20261023.log,
 owner-microbatch-python-profile-20261023.log (timing INVALID),
 development-callback-quantum-fixture-20261023.log. Preserve failed measurements;
 do not relabel their functional PASS as valid performance attribution.
+
+Latest local evidence: owner-idle-final-{baseline-1,candidate-1,candidate-2,baseline-2}-20261023.log,
+owner-idle-final-comparison-20261023.json, owner-direct-phase-attribution-20261023.log,
+owner-planning-direct-costs-20261023.log, urgent-expiry-inflight-fanout-validation-20261023.log,
+inflight-fanout-real-ticket-rollback-20261023.log,
+bounded-scheduler-superseded-fixture-validation-20261023.log (initial3PASS/1ERROR),
+eight-carrier-urgent-fixture-validation-20261023.log (correctedPASS).
 
 Next: complete/review bounded cost correction, rerun only its clear discriminator
 and affected rollback/recovery cases, compare identical cold/warm populations,
