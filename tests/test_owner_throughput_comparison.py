@@ -102,7 +102,7 @@ def _seed(state, *, retained, eligible, jobs, waits):
     addresses = {PROGRAMS[f]: program_scope(f) for f in ('pump', 'pumpswap')}
     commit_candidate_batch(state, (frame(101), frame(102)), addresses,
         'owner-throughput-fixture', publish=False)
-    initial = dict(eligible=[], expired_jobs=[], covered_jobs=[], expired_reactivations=[],
+    initial = dict(eligible=[], expired_jobs=[], covered_jobs=[], local_plans=[], expired_reactivations=[],
                    expired_waits=[], deadlines={}, quiet=retained)
     with state.writer.transaction():
         for index in range(retained):
@@ -149,6 +149,8 @@ def _seed(state, *, retained, eligible, jobs, waits):
                 initial['expired_jobs'].append(identity)
             if covered:
                 initial['covered_jobs'].append(identity)
+            if index % 4 == 2:
+                initial['local_plans'].append((family, address, 101, 103))
             if index % 4 == 1:
                 # A disclosed durable synthetic backoff; no failed provider
                 # response is supplied and no cursor/coverage is advanced.
@@ -160,7 +162,7 @@ def _seed(state, *, retained, eligible, jobs, waits):
 def _snapshot(state, initial, *, full=True):
     h = install(state)
     tables = {}
-    for table in TABLES if full else ():
+    for table in (TABLES if full else ()):
         rows = h.db.execute('SELECT * FROM '+table).fetchall()
         rows.sort(key=lambda row: json.dumps(row, sort_keys=True, default=lambda value: value.hex()))
         tables[table] = dict(rows=len(rows), sha256=_digest(rows))
@@ -169,6 +171,9 @@ def _snapshot(state, initial, *, full=True):
     bound = {row[0] for row in h.db.execute("SELECT address FROM evidence_bindings WHERE family='pump'")}
     states = {(row[0], row[1]): row[2] for row in h.db.execute(
         'SELECT family,address,state FROM candidate_lifecycle')}
+    plans = {tuple(row) for row in h.db.execute('''SELECT json_extract(body,'$.family'),
+        json_extract(body,'$.address'),json_extract(body,'$.lo'),json_extract(body,'$.hi')
+        FROM rolling_preparation_jobs WHERE json_extract(body,'$.kind') IS NULL''')}
     missing = []
     for table, family, address in initial['expired_waits']:
         row = h.db.execute('SELECT status FROM '+table+' WHERE family=? AND address=?',
@@ -178,6 +183,7 @@ def _snapshot(state, initial, *, full=True):
     complete = (all(address in bound for address in initial['eligible'])
         and all(job_rows[key][0] == 'deadline_missed' for key in initial['expired_jobs'])
         and all(job_rows[key][0] == 'complete' for key in initial['covered_jobs'])
+        and all(tuple(key) in plans for key in initial['local_plans'])
         and all(states[key] == 'demoted' for key in initial['expired_reactivations'])
         and not missing)
     from meme_machine.lanes.pump.pump_acceleration_strategy import POLICY
@@ -220,6 +226,7 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
     source = SelectiveSource(SimpleNamespace(credential='offline', identity='a'*64), None)
     source.stop = asyncio.Event()
     source.batched = True
+    source.history_separated = True
     dispatch = asyncio.Event()
     owner = None
     urgent_futures = []
@@ -324,6 +331,7 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
                 eligible=eligible, jobs=jobs, waits=waits))
             before = await plain(lambda state: _snapshot(state, initial))
             current = before
+            cancellation_probe = None
             for turn in range(MAX_TURNS):
                 clock.tick = 1.0+(turn+1)*.101
                 source.stop.clear()
@@ -349,8 +357,24 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
                 for future in urgent_futures:
                     await asyncio.wrap_future(future)
                 current = await plain(lambda state: _snapshot(state, initial, full=False))
-                if current['complete'] and (not cancel_dispatch or counters['dispatch_cancellations']):
-                    break
+                if current['complete']:
+                    if cancel_dispatch and cancellation_probe is None:
+                        # Optional work above remains legitimately blocked on
+                        # absent local-history workers. Only after its own
+                        # convergence, add one explicit missing urgent request
+                        # to exercise dispatch cancellation. It cannot mask the
+                        # primary optional scan or supply any provider response.
+                        def arm(state):
+                            h = install(state)
+                            h.observe('pump', 'cancellation-probe', slot=101,
+                                signature='', seen=NOW, fields={})
+                            h.bind('pump', 'cancellation-probe')
+                            return h.request('pump', 'cancellation-probe', 101, 103,
+                                priority=1, deadline=NOW+50)
+                        cancellation_probe = await plain(arm, 0)
+                        initial['deadlines'][cancellation_probe] = NOW+50
+                    elif not cancel_dispatch or counters['dispatch_cancellations']:
+                        break
             else:
                 raise AssertionError('actual acquisition callbacks exceeded fixed fixture turn bound')
             current = await plain(lambda state: _snapshot(state, initial))
@@ -366,6 +390,8 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
                 measured=measured, vm_quantum=VM_QUANTUM if measured else None,
                 commit_counts_measured=measured, counters=reported_counters, callbacks=callback_rows,
                 turns=turn+1, maximum_turns=MAX_TURNS,
+                cancellation_probe=dict(id=cancellation_probe,
+                    injected_after_primary_convergence=cancellation_probe is not None),
                 driver_wall_seconds=time.perf_counter()-started,
                 before=before, final=current, provider_calls=0, financial_authority=False,
                 scheduling=dict(wall_time=NOW, poll_tick_seconds=.101,
@@ -393,7 +419,6 @@ class OwnerThroughputComparisonTests(unittest.IsolatedAsyncioTestCase):
             self.assertGreater(report['before']['tables'][table]['rows'], 0, table)
             self.assertEqual(final['tables'][table], report['before']['tables'][table], table)
         self.assertGreater(final['pending_jobs']+final['pending_history'], 0)
-        self.assertGreater(report['counters']['dispatch_refusals']+report['counters']['dispatch_cancellations'], 0)
         self.assertEqual(report['provider_calls'], 0)
         self.assertFalse(report['financial_authority'])
 
@@ -406,6 +431,8 @@ class OwnerThroughputComparisonTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(plain['final'], measured['final'])
         self.assertGreater(measured['counters']['commits'], 0)
         self.assertGreater(measured['counters']['vm_steps_quantized_lower_bound'], 0)
+        self.assertEqual(measured['counters']['dispatch_refusals'], 0)
+        self.assertEqual(measured['counters']['dispatch_cancellations'], 0)
 
     async def test_actual_urgent_interruption_and_dispatch_cancel_preserve_obligations(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -414,4 +441,5 @@ class OwnerThroughputComparisonTests(unittest.IsolatedAsyncioTestCase):
         self.assert_conserved(report)
         self.assertEqual(report['counters']['urgent_commands'], 1)
         self.assertEqual(report['counters']['dispatch_cancellations'], 1)
+        self.assertTrue(report['cancellation_probe']['injected_after_primary_convergence'])
 
