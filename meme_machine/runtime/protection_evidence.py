@@ -199,12 +199,17 @@ class ReceiptResolver(Protocol):
     full native/financial replay remains a separate mandatory gate.
     Quote acquisitions must retain their own explicit boot/process identity;
     provider source_generation is not a process clock-domain identifier.
+    initial_entry() is optional for recovered windows. Where initial-monitor
+    grace is needed, it returns all original immutable entry/scheduler envelopes
+    matching the actual financial lifecycle/birth, capped at two to expose
+    ambiguity. It must never synthesize a receipt from OPEN or current clocks.
     """
     def native(self, ref: dict) -> dict: ...
     def shared(self, ref: dict) -> dict: ...
     def acquisition(self, evidence_sha256: str) -> dict: ...
     def usd_acquisition(self, acquisition_id: str) -> dict: ...
     def census(self, start_cursor: dict, end_cursor: dict) -> dict: ...
+    def initial_entry(self, lifecycle_id: str, birth_ref: dict) -> list[dict]: ...
 
 
 def _schema(db):
@@ -614,7 +619,10 @@ def _verify_window(db, w, resolver, limits):
                and p['sample_end_ns'] >= w.start_ns and p['at_ns'] <= w.end_ns]
     leading = {}
     for life, s in relevant.items():
-        if s['open']['at_ns'] >= w.start_ns:continue
+        require(actual[life]['entry_hash'] == s['open']['birth_ref']['hash'], 'lifecycle_entry_mismatch')
+        terminal = s['close']['native_ref']['hash'] if s['close'] else None
+        require(actual[life]['terminal_hash'] == terminal, 'lifecycle_terminal_mismatch')
+        require(s['turns'], 'held_protection_unexercised')
         prior = [p for p in s['turns'] if p['timing']['completed_ns'] <= w.start_ns]
         if prior:
             leading[life] = prior[-1]
@@ -623,17 +631,18 @@ def _verify_window(db, w, resolver, limits):
                     'leading_held_coverage_gap')
             anchors.append(prior[-1])
         else:
-            # A newly authenticated entry may still be waiting for its original
-            # first monitor. It cannot cover an overdue initial observation.
-            require(w.start_ns <= s['open']['due_ns']+cadence, 'leading_held_coverage_gap')
-            anchors.append(s['open'])
+            # Registration is not a held-entry clock, even at/inside the window
+            # or in its first OWNER generation. Resolve original independent
+            # clocks only when this interval depends on first-monitor grace.
+            entry = _initial_entry(s, life, dict(hash=actual[life]['entry_hash']),
+                resolver, w.identity, w.owner, generations[generation]['start'], cadence)
+            held = entry['held_clock']
+            require(max(w.start_ns, held['sample_end_ns']) <= entry['first_deadline_ns'],
+                    'leading_held_coverage_gap')
+            anchors.append(held)
     offset = _window_clock(w, anchors)
     turns = 0; not_consumed = 0
     for life, s in relevant.items():
-        require(actual[life]['entry_hash'] == s['open']['birth_ref']['hash'], 'lifecycle_entry_mismatch')
-        terminal = s['close']['native_ref']['hash'] if s['close'] else None
-        require(actual[life]['terminal_hash'] == terminal, 'lifecycle_terminal_mismatch')
-        require(s['turns'], 'held_protection_unexercised')
         if life in leading:
             require(_turn(leading[life], resolver, life, cadence, w.identity, offset),
                     'leading_required_usd_unproved')
@@ -682,6 +691,64 @@ def _window_clock(w, payloads):
     return low, high
 
 
+def _initial_entry(span, life, birth_ref, resolver, identity, owner_identity, owner_start, cadence):
+    """Resolve original first-monitor eligibility, never a native fill deadline.
+
+    The trusted reader must extract an immutable receipt captured at the actual
+    original held-entry boundary and first schedule, not at a later shared ACK
+    or OPEN registration. Native journal ``at`` is a caller/strategy timestamp,
+    not host COMMIT. No production capture or host authentication is wired here.
+    A missing/invalid anchor affects only windows which need initial grace.
+    """
+    lookup = getattr(resolver, 'initial_entry', None)
+    require(callable(lookup), 'initial_entry_clock_unavailable')
+    try:matches = lookup(life, dict(birth_ref))
+    except ProofError:raise
+    except Exception as exc:raise ProofError('initial_entry_clock_unavailable') from exc
+    require(type(matches) in (list, tuple), 'initial_entry_receipts_invalid')
+    require(bool(matches), 'initial_entry_clock_unavailable')
+    require(len(matches) == 1, 'initial_entry_clock_ambiguous')
+    receipt = matches[0]
+    exact_keys(receipt, ('body', 'hash'), 'initial_entry_receipt_invalid')
+    checksum(receipt['hash'])
+    body = receipt['body']
+    try:raw = canonical(body)
+    except (TypeError, ValueError) as exc:raise ProofError('initial_entry_receipt_invalid') from exc
+    require(len(raw.encode()) <= 16384, 'initial_entry_receipt_bound')
+    require(digest(body) == receipt['hash'], 'initial_entry_hash_mismatch')
+    exact_keys(body, ('schema', 'binding', 'owner', 'lifecycle_id', 'birth_ref',
+        'entry_shared_ref', 'profile', 'held_clock', 'first_due_ns', 'first_deadline_ns'),
+        'initial_entry_fields_invalid')
+    require(body['schema'] == 'initial-entry-schedule-v1', 'initial_entry_schema_mismatch')
+    binding(body['binding']); owner(body['owner'])
+    require(body['binding'] == identity, 'initial_entry_binding_mismatch')
+    require(body['owner'] == owner_identity, 'initial_entry_clock_domain')
+    require(body['lifecycle_id'] == life and body['birth_ref'] == birth_ref,
+            'initial_entry_lifecycle_mismatch')
+    native_reference(body['birth_ref']); reference(body['entry_shared_ref'])
+    birth = _native(body['birth_ref'], resolver, life)
+    require(birth['body'].get('action') in ('filled', 'entry', 'open'), 'initial_entry_birth_unavailable')
+    shared = _shared(body['entry_shared_ref'], resolver, life, birth_ref['hash'], identity)
+    require(shared.get('kind') == 'enter', 'initial_entry_ack_mismatch')
+    profile = body['profile']
+    require(type(profile) is str and profile in PROFILES and PROFILES[profile][0] == identity['regime'],
+            'initial_entry_profile_mismatch')
+    held = body['held_clock']
+    exact_keys(held, ('at_ns', 'wall_ns', 'sample_end_ns'), 'initial_entry_clock_invalid')
+    _clock_pair(held['at_ns'], held['wall_ns'], held['sample_end_ns'])
+    require(owner_start <= held['at_ns'] and held['sample_end_ns'] <= span['open']['at_ns'],
+            'initial_entry_registration_before_held_boundary')
+    due, deadline = body['first_due_ns'], body['first_deadline_ns']
+    integer(due); integer(deadline)
+    require(due <= held['at_ns']+cadence and due <= deadline <= due+cadence,
+            'initial_entry_schedule_invalid')
+    first = span['turns'][0]
+    require(due == span['open']['due_ns'] == first['timing']['due_ns']
+            and deadline == first['timing']['deadline_ns'], 'initial_entry_schedule_mismatch')
+    require(first['quote'] is None or first['quote']['profile'] == profile, 'initial_entry_profile_mismatch')
+    return body
+
+
 def _schedule(p, cadence):
     """Structural validity is required even outside the acceptance interval."""
     t = p['timing']
@@ -694,7 +761,10 @@ def _schedule(p, cadence):
     else:
         require(t['native_durable_ns'] is None and t['shared_ack_ns'] is None,
                 'unchanged_hold_has_no_new_commit_or_ack')
-    require(t['started_ns'] <= t['deadline_ns'] <= min(t['due_ns']+cadence, t['started_ns']+cadence),
+    # An honestly FAILED dispatch may start after its original deadline. Keep
+    # that failure and its bounded following schedule; _turn still rejects
+    # failed outcomes and late COMPLETE coverage without retiming anything.
+    require(t['due_ns'] <= t['deadline_ns'] <= t['due_ns']+cadence,
             'original_schedule_deadline_invalid')
     require(t['completed_ns'] <= t['next_due_ns'] <= t['completed_ns']+cadence,
             'next_schedule_gap')
@@ -793,11 +863,19 @@ class SQLiteReceiptResolver:
     Neither hook may echo the TURN payload or return a success flag. Missing
     archived native rows fail closed; archive-resolution wiring
     is deliberately not replaced by trusting a caller's ``verified`` boolean.
+    Optional initial_entry_reader(lifecycle_id,birth_ref) must return original
+    raw {body,hash} envelopes from an independent immutable keyed store. Return
+    all exact matches, capped at two, never a latest match or a regenerated OPEN.
+    The held_clock brackets the original held boundary, not ACK/registration;
+    first_due/deadline retain the original captured schedule. This hook has no
+    production producer or authenticated host extraction in this offline core.
     """
-    def __init__(self, native_db, shared_db, census_reader, acquisition_reader, usd_reader):
+    def __init__(self, native_db, shared_db, census_reader, acquisition_reader, usd_reader,
+                 *, initial_entry_reader=None):
         self.native_db, self.shared_db, self.census_reader = native_db, shared_db, census_reader
         self.acquisition_reader = acquisition_reader
         self.usd_reader = usd_reader
+        self.initial_entry_reader = initial_entry_reader
 
     def native(self, ref):
         native_reference(ref)
@@ -843,3 +921,8 @@ class SQLiteReceiptResolver:
     def usd_acquisition(self, acquisition_id):
         text(acquisition_id)
         return self.usd_reader(acquisition_id)
+
+    def initial_entry(self, lifecycle_id, birth_ref):
+        text(lifecycle_id, maximum=2048); native_reference(birth_ref)
+        require(self.initial_entry_reader is not None, 'initial_entry_clock_unavailable')
+        return self.initial_entry_reader(lifecycle_id, dict(birth_ref))

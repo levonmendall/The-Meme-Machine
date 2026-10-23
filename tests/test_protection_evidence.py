@@ -47,14 +47,29 @@ class ProtectionEvidenceTests(unittest.TestCase):
             'operation_id TEXT,body TEXT,result TEXT,state_hash TEXT,previous TEXT,hash TEXT)')
         self.shared.execute('CREATE TABLE fixture_acquisition(id TEXT PRIMARY KEY,body TEXT,hash TEXT)')
         self.shared.execute('CREATE TABLE fixture_usd(id TEXT PRIMARY KEY,body TEXT,hash TEXT)')
+        self.shared.execute('CREATE TABLE fixture_initial_entry(lifecycle_id TEXT,birth_hash TEXT,body TEXT,hash TEXT,'
+                            'PRIMARY KEY(lifecycle_id,birth_hash))')
+        for operation in ('UPDATE', 'DELETE'):
+            self.shared.execute(f'CREATE TRIGGER fixture_initial_entry_no_{operation.lower()} BEFORE {operation} '
+                "ON fixture_initial_entry BEGIN SELECT RAISE(ABORT,'immutable_entry_fixture'); END")
         self.usd_value = dict(evidence_id='synthetic-usd', evidence_sha256='e'*64,
             as_of='1970-01-01T00:01:30Z', valid_until='1970-01-01T00:05:00Z')
         self.birth_ack = self.shared_delivery(self.birth, 'enter')
         self.mark_ack = self.shared_delivery(self.mark, 'mark')
+        # Independent synthetic capture of the original held boundary/schedule.
+        # These original clocks are not copied from OPEN, journal.at or a later
+        # ACK. No live producer/host provenance is claimed by this fixture.
+        self.entry_anchor = dict(schema='initial-entry-schedule-v1', binding=deepcopy(self.identity),
+            owner=deepcopy(self.owner), lifecycle_id=self.life, birth_ref=deepcopy(self.birth),
+            entry_shared_ref=deepcopy(self.birth_ack), profile='pons_survivor_shared_monitor',
+            held_clock=dict(at_ns=NS, wall_ns=101*NS, sample_end_ns=NS),
+            first_due_ns=2*NS, first_deadline_ns=5*NS)
+        self.shared.execute('INSERT INTO fixture_initial_entry VALUES(?,?,?,?)',
+            (self.life, self.birth['hash'], canonical(self.entry_anchor), digest(self.entry_anchor)))
         self.census_rows = [dict(lifecycle_id=self.life, entry_hash=self.birth['hash'], terminal_hash=None)]
         self.resolver = SQLiteReceiptResolver(self.book.db, self.shared, self.census,
             lambda key:self.fixture_read('fixture_acquisition', key),
-            lambda key:self.fixture_read('fixture_usd', key))
+            lambda key:self.fixture_read('fixture_usd', key), initial_entry_reader=self.entry_receipts)
         self.journal = ProtectionJournal(self.book.db, self.identity)
         self.owner_record = dict(owner=self.owner, at_ns=0, wall_ns=100*NS,
                                  sample_end_ns=0, binding=self.identity)
@@ -101,6 +116,11 @@ class ProtectionEvidenceTests(unittest.TestCase):
         return dict(epoch_id=self.identity['epoch_id'], inception_sha256=self.identity['inception_sha256'],
             regime=self.identity['regime'], start_cursor=start, end_cursor=end,
             lifecycles=deepcopy(self.census_rows))
+
+    def entry_receipts(self, life, birth):
+        return [dict(body=__import__('json').loads(raw), hash=value) for raw,value in self.shared.execute(
+            'SELECT body,hash FROM fixture_initial_entry WHERE lifecycle_id=? AND birth_hash=? LIMIT 2',
+            (life, birth['hash']))]
 
     def turn(self):
         q = dict(evidence_sha256='1'*64, profile='pons_survivor_shared_monitor',
@@ -172,7 +192,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.journal = ProtectionJournal(self.book.db, self.identity)
         self.resolver = SQLiteReceiptResolver(self.book.db, self.shared, self.census,
             lambda key:self.fixture_read('fixture_acquisition', key),
-            lambda key:self.fixture_read('fixture_usd', key))
+            lambda key:self.fixture_read('fixture_usd', key), initial_entry_reader=self.entry_receipts)
         self.assertTrue(self.check().ok)
 
     def test_complete_required_path_resolves_actual_native_and_shared_sql_rows(self):
@@ -183,6 +203,188 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.assertTrue(result.native_path_resolved)
         self.assertEqual((result.lifecycles, result.turns), (1,1))
         self.assertIn('HOST_ATTESTATION_REQUIRED', result.scope)
+
+    def supplied_entry(self, body):
+        receipt = dict(body=deepcopy(body), hash=digest(body))
+        self.resolver.initial_entry_reader = lambda life,birth:[receipt]
+        return receipt
+
+    def assert_entry_failure(self, reason):
+        result = self.check()
+        self.assertFalse(result.ok)
+        self.assertFalse(result.held_coverage)
+        self.assertEqual(result.reason, reason)
+
+    def test_original_entry_anchor_preserves_first_monitor_clocks_and_is_read_only(self):
+        self.append_turn()
+        rows = list(self.book.db.execute(f'SELECT * FROM {TABLE} ORDER BY sequence'))
+        financial = self.book.replay()
+        original = self.entry_receipts(self.life, self.birth)
+        calls = []
+        def lookup(life, birth):
+            calls.append((life, deepcopy(birth)))
+            return self.entry_receipts(life, birth)
+        self.resolver.initial_entry_reader = lookup
+        self.assertTrue(self.check().ok)
+        self.assertEqual(calls, [(self.life, self.birth)])
+        self.assertEqual(original[0]['body']['held_clock'],
+            dict(at_ns=NS, wall_ns=101*NS, sample_end_ns=NS))
+        self.assertEqual((original[0]['body']['first_due_ns'], original[0]['body']['first_deadline_ns']),
+                         (2*NS,5*NS))
+        self.assertEqual(self.entry_receipts(self.life, self.birth), original)
+        self.assertEqual(list(self.book.db.execute(f'SELECT * FROM {TABLE} ORDER BY sequence')), rows)
+        self.assertEqual(self.book.replay(), financial)
+        with self.assertRaisesRegex(sqlite3.IntegrityError, 'immutable_entry_fixture'):
+            self.shared.execute('UPDATE fixture_initial_entry SET hash=?', ('0'*64,))
+
+    def test_optional_entry_reader_missing_is_explicit_not_fresh_grace(self):
+        self.append_turn()
+        self.resolver = SQLiteReceiptResolver(self.book.db, self.shared, self.census,
+            lambda key:self.fixture_read('fixture_acquisition', key),
+            lambda key:self.fixture_read('fixture_usd', key))
+        self.assert_entry_failure('initial_entry_clock_unavailable')
+
+    def test_missing_entry_row_cannot_grant_grace_before_at_or_inside_window(self):
+        self.append_turn(); self.resolver.initial_entry_reader = lambda life,birth:[]
+        for start in (NS//2, NS, 3*NS//2):
+            with self.subTest(window_start=start):
+                result = self.check(self.window(start_ns=start, start_wall_ns=100*NS+start))
+                self.assertEqual(result.reason, 'initial_entry_clock_unavailable')
+                self.assertFalse(result.held_coverage)
+
+    def test_duplicate_entry_receipts_cannot_select_a_newer_schedule(self):
+        self.append_turn(); original = self.entry_receipts(self.life, self.birth)[0]
+        changed = deepcopy(self.entry_anchor); changed['first_due_ns'] += NS
+        duplicate = dict(body=changed, hash=digest(changed))
+        self.resolver.initial_entry_reader = lambda life,birth:[original, duplicate]
+        self.assert_entry_failure('initial_entry_clock_ambiguous')
+
+    def test_entry_receipt_hash_tampering_cannot_supply_grace(self):
+        self.append_turn()
+        receipt = self.supplied_entry(self.entry_anchor)
+        receipt['body']['first_deadline_ns'] -= NS
+        self.assert_entry_failure('initial_entry_hash_mismatch')
+
+    def test_open_echo_or_success_flag_is_not_an_independent_entry_receipt(self):
+        self.append_turn()
+        for receipt, reason in ((dict(verified=True), 'initial_entry_receipt_invalid'),
+                (dict(body=self.open_record, hash=digest(self.open_record)), 'initial_entry_fields_invalid')):
+            with self.subTest(receipt=receipt):
+                self.resolver.initial_entry_reader = lambda life,birth:[receipt]
+                self.assert_entry_failure(reason)
+
+    def test_entry_anchor_requires_every_exact_identity_binding(self):
+        self.append_turn()
+        for key in self.identity:
+            with self.subTest(binding=key):
+                body = deepcopy(self.entry_anchor)
+                body['binding'][key] = ('pump_current' if key == 'regime' else
+                    'other-epoch' if key == 'epoch_id' else '9'*64)
+                self.supplied_entry(body)
+                self.assert_entry_failure('initial_entry_binding_mismatch')
+
+    def test_entry_anchor_cannot_cross_original_owner_clock_domains(self):
+        self.append_turn()
+        for key in self.owner:
+            with self.subTest(owner=key):
+                body = deepcopy(self.entry_anchor)
+                body['owner'][key] = body['owner'][key]+1 if type(body['owner'][key]) is int else 'other-owner'
+                self.supplied_entry(body)
+                self.assert_entry_failure('initial_entry_clock_domain')
+
+    def test_entry_anchor_requires_actual_lifecycle_and_birth_hash(self):
+        self.append_turn()
+        for key, value in (('lifecycle_id', 'proof:other'), ('birth_ref', self.mark)):
+            with self.subTest(field=key):
+                body = deepcopy(self.entry_anchor); body[key] = value
+                self.supplied_entry(body)
+                self.assert_entry_failure('initial_entry_lifecycle_mismatch')
+
+    def test_financial_birth_mismatch_is_rejected_before_entry_lookup(self):
+        self.append_turn(); self.census_rows[0]['entry_hash'] = self.mark['hash']
+        self.resolver.initial_entry_reader = lambda life,birth:self.fail('untrusted OPEN selected lookup key')
+        self.assert_entry_failure('lifecycle_entry_mismatch')
+
+    def test_entry_anchor_ack_must_commit_the_original_birth(self):
+        self.append_turn()
+        body = deepcopy(self.entry_anchor); body['entry_shared_ref'] = self.mark_ack
+        self.supplied_entry(body)
+        self.assert_entry_failure('shared_native_binding_mismatch')
+
+    def test_entry_anchor_profile_is_fixed_and_matches_original_monitor_path(self):
+        self.append_turn()
+        for profile in ('pump_current_monitor', 'pons_survivor_private_monitor', 'caller-expanded-profile'):
+            with self.subTest(profile=profile):
+                body = deepcopy(self.entry_anchor); body['profile'] = profile
+                self.supplied_entry(body)
+                self.assert_entry_failure('initial_entry_profile_mismatch')
+
+    def test_entry_anchor_original_due_and_deadline_cannot_be_retimed(self):
+        self.append_turn()
+        for due, deadline, reason in (
+                (3*NS,5*NS,'initial_entry_schedule_mismatch'),
+                (2*NS,4*NS,'initial_entry_schedule_mismatch'),
+                (2*NS,6*NS,'initial_entry_schedule_invalid'),
+                (2*NS,NS,'initial_entry_schedule_invalid'),
+                (12*NS,15*NS,'initial_entry_schedule_invalid')):
+            with self.subTest(due=due, deadline=deadline):
+                body = deepcopy(self.entry_anchor)
+                body.update(first_due_ns=due, first_deadline_ns=deadline)
+                self.supplied_entry(body)
+                self.assert_entry_failure(reason)
+
+    def test_first_turn_deadline_must_equal_independent_original_schedule(self):
+        p = self.turn(); p['timing']['deadline_ns'] = 4*NS
+        self.append_turn(p)
+        self.assert_entry_failure('initial_entry_schedule_mismatch')
+
+    def test_entry_anchor_cannot_replace_held_boundary_with_later_ack_or_registration(self):
+        self.append_turn()
+        body = deepcopy(self.entry_anchor)
+        body['held_clock'] = dict(at_ns=2*NS, wall_ns=102*NS, sample_end_ns=2*NS)
+        self.supplied_entry(body)
+        self.assert_entry_failure('initial_entry_registration_before_held_boundary')
+
+    def test_entry_anchor_clock_bracket_cannot_grant_time_before_held_boundary(self):
+        self.append_turn()
+        body = deepcopy(self.entry_anchor); body['held_clock']['sample_end_ns'] = 2*NS
+        self.supplied_entry(body)
+        self.assert_entry_failure('initial_entry_registration_before_held_boundary')
+
+    def test_entry_anchor_wall_clock_must_match_window_without_retiming(self):
+        self.append_turn()
+        body = deepcopy(self.entry_anchor); body['held_clock']['wall_ns'] += NS
+        self.supplied_entry(body)
+        self.assert_entry_failure('wall_monotonic_clock_step_unverified')
+
+    def test_original_entry_clock_bracket_uncertainty_can_resolve(self):
+        self.append_turn()
+        body = deepcopy(self.entry_anchor); body['held_clock']['at_ns'] -= 4
+        self.supplied_entry(body)
+        self.assertTrue(self.check().ok)
+
+    def test_recovered_complete_window_does_not_require_missing_initial_entry_anchor(self):
+        self.append_turn(); self.resolver.initial_entry_reader = None
+        result = self.check(self.window(start_ns=3*NS, start_wall_ns=103*NS))
+        self.assertTrue(result.ok, result.reason)
+        self.assertTrue(result.held_coverage)
+
+    def test_recovered_complete_window_never_consults_invalid_initial_entry_anchor(self):
+        self.append_turn()
+        self.resolver.initial_entry_reader = lambda life,birth:self.fail('recovered interval consulted initial grace')
+        result = self.check(self.window(start_ns=3*NS, start_wall_ns=103*NS))
+        self.assertTrue(result.ok, result.reason)
+
+    def test_late_started_complete_turn_still_misses_original_deadline(self):
+        p = self.turn()
+        p.update(at_ns=63*NS//10, wall_ns=1063*NS//10, sample_end_ns=63*NS//10)
+        p['timing'].update(started_ns=6*NS, decision_ns=61*NS//10,
+            risk_completed_ns=62*NS//10, native_durable_ns=62*NS//10,
+            shared_ack_ns=63*NS//10, completed_ns=63*NS//10, next_due_ns=93*NS//10)
+        self.append_turn(p)
+        result = self.check(self.window(end_ns=7*NS, end_wall_ns=107*NS))
+        self.assertEqual(result.reason, 'original_protection_deadline_missed')
+        self.assertFalse(result.held_coverage)
 
     def test_does_not_commit_or_roll_back_existing_caller_transaction(self):
         head = self.journal.head()
@@ -509,7 +711,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.journal = ProtectionJournal(self.book.db, self.identity)
         self.resolver = SQLiteReceiptResolver(self.book.db, self.shared, self.census,
             lambda key:self.fixture_read('fixture_acquisition', key),
-            lambda key:self.fixture_read('fixture_usd', key))
+            lambda key:self.fixture_read('fixture_usd', key), initial_entry_reader=self.entry_receipts)
         self.append('OWNER', self.owner_record)
 
     def assert_open_does_not_create_grace(self, native, shared, *, window_start=10*NS, first_owner=False):
