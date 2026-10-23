@@ -1,4 +1,4 @@
-# Owner throughput checkpoint — October23, 20:15UTC
+# Owner throughput checkpoint — October23, 20:36UTC
 
 **Mission INCOMPLETE. Candidate WITHHELD: performance FAIL.** No application
 installation or new provider/market test followed resumption. PAPER remains
@@ -6,8 +6,8 @@ stopped/disabled; original$1,000/zero-obligation state unchanged under protected
 verification40008659812. Native UNKNOWN2 and all original gates remain intact.
 
 Authoritative integration: `engineering/owner-throughput-20261023`, currently
-runtime cut `f4de61a65fed0e7aff52c6ebd463ac7645de749f` before this documentation and
-harness registration. Installed isolated source remains
+runtime cut `a26767ecdc56149d074fe5fa7f8e97d690b80d60`; test/profile checkpoint
+`9fb4a8fa` before this documentation update. Installed isolated source remains
 `f0bff49b98e1fa5c76544c1e0db0e5074213bce0`, release
 `f70167507f7cc3c7c8d9da2ffa08d2d7ab2292b0b8019823f4a348d2cfab56a1`;
 original source `07c3794d4bcc13395d5d74074a446328280f57ff`.
@@ -57,19 +57,22 @@ no historian worker, no financial authority. Pending local history is intentiona
 CPython3.12.14/SQLite3.53.1 locally, NOT the EC2 SQLite3.45.1 performance runtime.
 This is a mechanism benchmark, not authenticated live-market replay or service rate.
 
-| Same completed logical work | f0 planner | first bounded planner |
-| --- | ---: | ---: |
-| owner callbacks |2|372|
-| unprofiled callback wall total(s) |0.0453993|0.8761652|
-| callback thread CPU(s) |0.0440143|0.7777647|
-| maximum callback(s) |0.0352927|0.0090575|
-| measured COMMITs |4|757|
-| measured quantized VM lower bound |282000|482000|
+| Same completed logical work | f0 planner | first bounded planner | bounded microbatch7dc/a267 |
+| --- | ---: | ---: | ---: |
+| owner callbacks |2|372|70|
+| unprofiled callback wall total(s) |0.0453993|0.8761652|0.495964|
+| callback thread CPU(s) |0.0440143|0.7777647|0.450518|
+| maximum callback(s) |0.0352927|0.0090575|0.0117315|
+| measured COMMITs |4|757|71|
+| measured quantized VM lower bound |282000|482000|327000|
 
 All initial/final functional and canonical fingerprints match exactly; original
 deadlines/obligations remain conserved. Despite shorter maximum turns, total owner
-wall grows about19.3x and CPU17.7x. **Reject this implementation for deployment.**
+wall initially grows about19.3x and CPU17.7x. Microbatching improves this but
+still costs about10x baseline CPU. **Both implementations FAIL deployment readiness.**
 Do not make a market run merely to test a known component cost regression.
+COMMIT counts do not imply an equal number of physical fsyncs; read-only empty
+transactions may write no WAL. Exact storage/CPU split remains unproved.
 
 Demonstrated amplification: one harmless completion/phase per owner round trip,
 repeated urgent/rank queries and separate transactions; unfinished selection
@@ -78,7 +81,21 @@ review of bounded microbatches under one quantum/transaction, amortizing unchang
 checks and harmless transitions while retaining finite SQL/body/item limits,
 urgent admission and commit-safe cursor publication. An empty fresh projection
 can be marked complete immediately; cold pre-existing populations must also be
-tested. Do not hide unbounded rebuild in startup or relax300s readiness.
+tested. The implemented quantum uses at most16 transitions and a5ms elapsed
+cutoff checked between atomic units; a final unit/commit can exceed5ms. Actor
+phase/cursors publish only after the outer FULL commit. Sixteen microbatch
+contracts PASS/0.467s, including complete rollback, cold retained populations,
+empty installation and urgent work during rebuild. Do not hide unbounded rebuild
+in startup or relax300s readiness.
+
+Two related cost corrections have not resolved the regression. The bounded
+architectural review now requires valid attribution before another performance
+edit. Hypotheses include repeated housekeeping/planning cycles, nested SAVEPOINT
+bookkeeping, empty urgent queries, irrelevant dependency signals and per-atom
+telemetry. None is yet a measured dominant cost. First cProfile attempt atdbbf31ac
+produced negative exclusive costs and cumulative values exceeding observed owner
+CPU; its timing is **INVALID/INCONCLUSIVE** and must not select a repair. A corrected
+measurement and existing direct phase-counter cross-check are in progress.
 
 ## Preserved source, tests and next action
 
@@ -86,9 +103,13 @@ tested. Do not hide unbounded rebuild in startup or relax300s readiness.
   `a5f494465934b9c5d2f8d2171e5985d203c59f33`: runtime byte-identical to44c4d556/f0,
   identical benchmark plus registration only. No runtime modifications.
 - Checkpoint source branch `fix/checkpoint-worker-ownership-20261023` at5944f2b7.
-- Planner author branch `fix/bounded-candidate-development-20261023` includesd63,
-  scheduler1e4e5875 and427e1309; additional97df0f56 correctness snapshot was just
-  produced and awaits root integration. No deployment eligibility implied.
+- Planner author branch `fix/bounded-candidate-development-20261023` now preserves
+  97df0f56 scope/version/wake fixes,7dc09e70 microbatching andc627df50 tests,
+  integrated througha267/47aae05e. Combined scheduler/probe/fanout42 PASS/0.745s;
+  comparison plus those cases44 PASS/3.799s, with performance FAIL as above.
+  Correctness-only945a44b4/4ce21292 inflight obligation tightening and
+  a8c0f867 urgent expiry are pending independent review/integration. No deployment
+  eligibility implied.
 - Exact source-proof scaffolde0dbe4a71c48392ddc40435af01863a084c72544 has independent
   static PASS. Root must freeze complete runtime, then generate and run all guards.
   Placeholder deliberately fails before generation. Old managed/native/economic
@@ -102,7 +123,10 @@ tested. Do not hide unbounded rebuild in startup or relax300s readiness.
   representative unchanged44 baseline reproduces SQLite no-query-solution,
   provider clock identity and fake publication-return failures. Three other
   assertions describe superseded monolithic scheduling and require meaningful
-  fixture adaptation. Do not repeatedly rerun the whole local module set.
+  fixture adaptation. Actual callback phase/rollback fixture was adapted and
+  PASS1/0.306s; remaining coalescing/selection fixtures are being updated without
+  runtime edits or relaxed safety assertions. Do not repeatedly rerun the whole
+  local module set.
 
 Evidence under /workspace/scratch/meme-evidence/:
 
@@ -111,6 +135,12 @@ Evidence under /workspace/scratch/meme-evidence/:
 | owner-benchmark-baseline-arm-report-20261023.log | `56747e5d706ade5aea8f7c5a5e03e5436796fbe15474f0861beefb83802710b2` |
 | owner-first-combined-component-validation-20261023.log | `efa38974569d5349d0830a547047b06a9794f3adcaad93b35d6d76e091c8d2f6` |
 | bounded-planner-first-integrated-validation-20261023.log | `f7ec4de220694a827bf79113ec49c10660b3dce1e2df445f0c705ab0e830fcb0` |
+
+Additional local evidence: owner-microbatch-first-comparison-20261023.log,
+bounded-microbatch-contract-validation-20261023.log,
+owner-microbatch-python-profile-20261023.log (timing INVALID),
+development-callback-quantum-fixture-20261023.log. Preserve failed measurements;
+do not relabel their functional PASS as valid performance attribution.
 
 Next: complete/review bounded cost correction, rerun only its clear discriminator
 and affected rollback/recovery cases, compare identical cold/warm populations,
