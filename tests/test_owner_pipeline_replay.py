@@ -33,6 +33,7 @@ class OwnerPipelineReplayTests(unittest.TestCase):
         self.assertEqual(metrics['full_approved_strategy_evaluations'],0)
         self.assertEqual(metrics['full_approved_strategy_scope'],'UNEXERCISED')
         self.assertGreater(metrics['process_cpu_seconds_per_measured_input'],0)
+        self.assertGreater(metrics['owner_execution_cpu_seconds'],0)
         workload = run['owner_workload']
         self.assertIn('SYNTHETIC',workload['fixture_scope'])
         self.assertEqual(workload['initial']['nonexpired_pending_jobs'],6)
@@ -62,12 +63,11 @@ class OwnerPipelineReplayTests(unittest.TestCase):
             final=dict(durably_observed_native_events=10,full_qualifications=0,native_event_backlog=0),
             controlled_batch_progress=[dict(admitted=4,observed=1,elapsed_seconds=.2),
                                        dict(admitted=9,observed=7,elapsed_seconds=1.5)],
-            owner_counters={'owner.priority0.execution_total_microseconds':100_000,
+            owner_workload=dict(owner_thread_cpu_seconds=.2,timed_owner_counters={
+                'owner.priority0.execution_total_microseconds':100_000,
                 'owner.priority4.execution_total_microseconds':300_000,
                 'owner.stage.candidate_development.execution_total_microseconds':300_000,
-                'owner.priority0.execution_cpu_total_microseconds':50_000,
-                'owner.priority4.execution_cpu_total_microseconds':150_000,
-                'owner.stage.candidate_development.execution_cpu_total_microseconds':150_000})
+                'owner.stage.candidate_development.execution_cpu_total_microseconds':150_000}))
         result = replay.metrics(run,9)
         self.assertEqual(result['classified_native_observations_per_second'],5)
         self.assertEqual(result['full_approved_strategy_evaluations'],0)

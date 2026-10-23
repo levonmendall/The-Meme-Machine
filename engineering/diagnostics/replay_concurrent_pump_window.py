@@ -441,6 +441,8 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             # Record the real consumer executor identity without replacing any
             # capture/delivery function or adding work to the owner pipeline.
             thread_ids['delivery'] = await asyncio.wrap_future(delivery_pool.submit(threading.get_ident))
+            if owner_workload is not None:
+                await owner_workload.begin_measurement(work.counts)
             started = loop.time(); wall, cpu = time.perf_counter_ns(), time.process_time_ns()
             tasks.extend((asyncio.create_task(source.candidate_history_delivery()),
                           asyncio.create_task(source.publish_history()), asyncio.create_task(qualify())))
@@ -471,6 +473,8 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             finally:
                 if not completion.done():completion.cancel()
                 await asyncio.gather(completion, return_exceptions=True)
+            if owner_workload is not None:
+                await owner_workload.end_measurement(work.counts)
             timing = dict(wall_nanoseconds=time.perf_counter_ns()-wall,
                           process_cpu_nanoseconds=time.process_time_ns()-cpu,
                           scope='normalized_intake_actual_owner_actor_and_qualification_all_threads')

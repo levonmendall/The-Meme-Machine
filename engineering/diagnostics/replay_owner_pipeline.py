@@ -70,6 +70,8 @@ class OwnerWorkload:
         self.urgent_total = self.urgent_peak = 0.
         self.physical_wall_ns = self.physical_cpu_ns = self.physical_calls = 0
         self.physical_lock = threading.Lock()
+        self.owner_cpu_start = self.owner_cpu_end = None
+        self.owner_count_start = self.timed_owner_counters = None
 
     async def bind(self, owner, source, config, loop):
         from meme_machine import solana_checkpoint
@@ -223,6 +225,17 @@ class OwnerWorkload:
             try:await asyncio.wait_for(self.source.stop.wait(), .1)
             except TimeoutError:pass
 
+    async def begin_measurement(self, counters):
+        self.owner_cpu_start = await self.source.work(lambda state:time.thread_time_ns(),
+            0,label='health_scheduler')
+        self.owner_count_start = dict(counters)
+
+    async def end_measurement(self, counters):
+        self.owner_cpu_end = await self.source.work(lambda state:time.thread_time_ns(),
+            0,label='health_scheduler')
+        self.timed_owner_counters = {name:value-self.owner_count_start.get(name,0)
+            for name,value in counters.items() if name.endswith('_total_microseconds')}
+
     def start(self):
         self.workers = [asyncio.create_task(self.source.acquire()),
             asyncio.create_task(self.checkpoints()),asyncio.create_task(self.urgent())]
@@ -270,6 +283,9 @@ class OwnerWorkload:
             fixture_scope='SYNTHETIC_QUIET_STARTUP_AND_PENDING_JOBS_NOT_ORIGINAL_RECOVERY',
             initial=self.initial,final=final,counters=dict(self.counts),
             owner_telemetry=telemetry,
+            timed_owner_counters=self.timed_owner_counters,
+            owner_thread_cpu_seconds=(self.owner_cpu_end-self.owner_cpu_start)/1e9,
+            owner_cpu_scope='ACTUAL_OWNER_THREAD_CPU_BRACKETED_BY_TWO_OWNED_CLOCK_CALLBACKS',
             urgent_latency=dict(probes=self.counts['urgent_probes'],total_seconds=self.urgent_total,
                 peak_seconds=self.urgent_peak,upper_bounds_seconds=list(LATENCY_BUCKETS),
                 histogram=list(self.urgent_histogram)),
@@ -287,11 +303,11 @@ def metrics(run, measured_events):
     cpu = run['timing']['process_cpu_nanoseconds']/1e9
     progress = run['controlled_batch_progress']
     debt = [row['admitted']-(row['observed'] or 0) for row in progress]
-    owner = run['owner_counters']
+    workload = run['owner_workload']
+    owner = workload['timed_owner_counters']
     occupied_us = sum(value for name,value in owner.items()
         if name.startswith('owner.priority') and name.endswith('.execution_total_microseconds'))
-    occupied_cpu_us = sum(value for name,value in owner.items()
-        if name.startswith('owner.priority') and name.endswith('.execution_cpu_total_microseconds'))
+    occupied_cpu = workload['owner_thread_cpu_seconds']
     return dict(process_cpu_seconds_per_measured_input=cpu/measured_events,
         measured_input_events=measured_events,wall_seconds=seconds,
         classified_native_observations=run['final']['durably_observed_native_events'],
@@ -300,8 +316,8 @@ def metrics(run, measured_events):
         actual_full_qualifications=run['final']['full_qualifications'],
         actual_full_qualifications_per_second=run['final']['full_qualifications']/seconds,
         owner_execution_wall_seconds=occupied_us/1e6,owner_execution_wall_fraction=occupied_us/1e6/seconds,
-        owner_execution_cpu_seconds=occupied_cpu_us/1e6,
-        owner_execution_cpu_seconds_per_measured_input=occupied_cpu_us/1e6/measured_events,
+        owner_execution_cpu_seconds=occupied_cpu,
+        owner_execution_cpu_seconds_per_measured_input=occupied_cpu/measured_events,
         sampled_native_debt_peak=max(debt,default=0),sampled_native_debt_at_intake_end=debt[-1] if debt else 0,
         final_native_debt=run['final']['native_event_backlog'],
         sampled_debt_scope='AFTER_ADMITTED_BATCH_WITH_LATEST_COMPLETED_READER_SNAPSHOT_NOT_CONTINUOUS_MAX',
