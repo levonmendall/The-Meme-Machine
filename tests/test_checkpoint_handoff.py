@@ -266,6 +266,7 @@ class CheckpointHandoffTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(checkpoint_tasks[0].cancelling(),'shutdown did not cancel accepted PASSIVE waiter')
                 if repeat_cancel:
                     checkpoint_tasks[0].cancel()
+                    runner.cancel()
                     await asyncio.sleep(0)
                 self.assertFalse(runner.done());self.assertFalse(io_completed.is_set())
                 release.set()
