@@ -356,10 +356,23 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                     for _ in range(256):
                         step=fn(state);steps.append(step.state)
                         if step.state==DISPATCH:results.append(step.plan)
-                        else:self.assertEqual(step.state,DEFERRED,'planner became idle before all8 distinct claims')
+                        else:self.assertEqual(step.state,DEFERRED,'planner became idle before all 8 distinct claims')
                         if len(results)==8:break
-                    else:self.fail('bounded planning did not claim all8 retained jobs')
+                    else:self.fail('bounded planning did not claim all 8 retained jobs')
                     self.assertEqual(state.acquisition_inflight,{row[0]['id'] for row in results})
+                    for _ in range(256):
+                        step=fn(state);steps.append(step.state)
+                        self.assertIn(step.state,(DEFERRED,IDLE))
+                        if step.state==IDLE:break
+                    else:self.fail('excluded claims never converged to an honest idle plan')
+                    # All eight physical slots are occupied. Release one exact
+                    # volatile claim without completing its durable obligation;
+                    # that available worker can now service a new urgent job.
+                    released=results[0][0]
+                    self.assertTrue(source.release_acquisition_claim(state,released))
+                    self.assertNotIn(released['id'],state.acquisition_inflight)
+                    self.assertEqual(h.db.execute('SELECT status,deadline FROM acquisition_jobs WHERE id=?',
+                        (released['id'],)).fetchone(),('pending',NOW+150))
                     urgent_scope=h.bind('pump','urgent-position')
                     h.gap(urgent_scope,103,103,'offline_protective_missing')
                     h.request('pump','urgent-position',103,103,priority=0,deadline=NOW+3)
@@ -367,11 +380,7 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                     # quantum, even if optional housekeeping is incomplete.
                     urgent=fn(state);self.assertEqual(urgent.state,DISPATCH)
                     results.append(urgent.plan)
-                    for _ in range(256):
-                        step=fn(state);steps.append(step.state)
-                        self.assertIn(step.state,(DEFERRED,IDLE))
-                        if step.state==IDLE:break
-                    else:self.fail('excluded claims never converged to an honest idle plan')
+                    self.assertEqual(len(state.acquisition_inflight),8)
                     raise Captured()
                 source.work=capture
                 with patch.object(h.rolling,'resume_boundaries',wraps=h.rolling.resume_boundaries) as boundaries,\
