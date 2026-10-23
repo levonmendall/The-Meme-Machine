@@ -159,65 +159,85 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((timing.rows['plan']['failed_calls'],timing.rows['plan']['unmeasured_calls']),(1,1))
 
     async def test_actual_development_callback_records_fixed_operations_and_original_rollback(self):
-        from meme_machine.solana_candidate_phases import CandidatePhases,DEVELOPMENT_PHASES
-        for fail in (False,True):
-            source=SelectiveSource(SimpleNamespace(credential='offline'),None)
-            source.batched=True;source.stop=asyncio.Event();events=[];clock=[0]
-            source.development_phases=CandidatePhases(source.pipeline_metrics,
-                phases=DEVELOPMENT_PHASES,prefix='development_phase:',
-                wall=lambda:clock[0],cpu=lambda:clock[0]/2,runnable=lambda:None)
-            error=RuntimeError('original-boundary-failure')
-            def tick(name,value=None):events.append(name);clock[0]+=1;return value
-            class DB:
-                def execute(self,sql,args):
-                    if sql.startswith('SELECT MAX(hi)'):return SimpleNamespace(fetchone=lambda:tick('frontier',(100,)))
-                    if sql.startswith('SELECT first_seen'):return SimpleNamespace(fetchone=lambda:tick('first_seen',(NOW,)))
-                    if "state='reactivated'" in sql:return SimpleNamespace(fetchall=lambda:tick('reactivation',[]))
-                    raise AssertionError(sql)
-            class Transaction:
-                def __enter__(self):return tick('begin')
-                def __exit__(self,*failure):tick('rollback' if failure[0] else 'commit');return False
-            state=SimpleNamespace(writer=SimpleNamespace(db=DB(),transaction=Transaction))
-            def boundaries(**options):
-                self.assertEqual(options,dict(limit=16,after=0));tick('boundaries')
-                if fail:raise error
-                return 12
-            def publication(**options):
-                self.assertEqual(options,dict(limit=16,after=0));return tick('publication',13)
-            history=SimpleNamespace(startup=SimpleNamespace(snapshot=lambda:tick('released',dict(released=True))),
-                development_candidates=lambda *args:tick('selection',[('mint',)]),
-                bind=lambda *args:tick('bind'),rolling=SimpleNamespace(
-                    prepare=lambda *args,**options:tick('prepare'),resume_boundaries=boundaries,
-                    resume_publication=publication),active_families={'pump','pumpswap'},
-                plan=lambda **options:tick('plan'))
-            async def work(fn,priority,**options):
-                self.assertEqual((priority,options),(4,dict(label='candidate_development')))
-                result=fn(state);source.stop.set();return result
-            source.work=work
-            with patch('meme_machine.solana_selective_source.install',return_value=history),patch(
-                    'meme_machine.operational.position_continuation.position_only',return_value=False):
+        from meme_machine.solana_history_work import HistoricalTasks
+        from tests.test_solana_prewarm_startup import quiet_model_b
+        for fail in (False, True):
+            with patch.dict('os.environ', MM_SOLANA_HISTORY_SEPARATED='0'):
+                state, history = state_at(Path(self.tmp.name)/('development-'+str(fail)+'.sqlite'))
+            source = SelectiveSource(SimpleNamespace(credential='offline'), None)
+            source.batched = True
+            source.history_separated = True
+            source.stop = asyncio.Event()
+            statements, turns = [], []
+            error = RuntimeError('original-boundary-failure')
+            try:
+                async def plain(fn, *args, **options):
+                    return fn(state)
+                stopped = asyncio.Event()
+                stopped.set()
+                await quiet_model_b(plain, stopped)
+                history.historical_tasks = HistoricalTasks(history)
+                history.lifecycle.delivery_separated = True
+                history.install_planner()
+                history.observe('pump', 'phase-mint', slot=100, signature='', seen=NOW, fields={})
+                history.development.clock = lambda: 100+len(turns)*.11
+                state.writer.db.set_trace_callback(statements.append)
+                def boundaries(**options):
+                    self.assertEqual(options, dict(limit=16, after=0))
+                    if fail:
+                        raise error
+                    return 12
+                def publication(**options):
+                    self.assertEqual(options, dict(limit=16, after=0))
+                    return 13
+                async def work(fn, priority, *, accepted=None, **options):
+                    self.assertEqual((priority, options), (4, dict(label='candidate_development')))
+                    self.assertTrue(callable(accepted))
+                    value = fn(state)
+                    turns.append(history.development.phase)
+                    if len(turns) == 5:
+                        source.stop.set()
+                    return value
+                source.work = work
+                # Two bounded transitions make the urgent check and each
+                # housekeeping phase independently observable. The production
+                # microbatch may combine these under one outer FULL commit.
+                with patch('meme_machine.solana_candidate_development.MICROBATCH_TRANSITIONS', 2), patch(
+                        'meme_machine.solana_candidate_development.MICROBATCH_SECONDS', 1), patch.object(
+                        history.rolling, 'resume_boundaries', boundaries), patch.object(
+                        history.rolling, 'resume_publication', publication):
+                    if fail:
+                        with self.assertRaises(RuntimeError) as caught:
+                            await source.acquire()
+                        self.assertIs(caught.exception, error)
+                    else:
+                        await source.acquire()
+                rows = source.development_phases.rows
+                self.assertGreater(rows['selection']['calls'], 0)
+                self.assertEqual(rows['reactivation']['calls'], 1)
+                self.assertEqual(rows['boundaries']['calls'], 1)
+                self.assertEqual(rows['boundaries']['failed_calls'], int(fail))
+                self.assertEqual(rows['publication']['calls'], int(not fail))
+                self.assertGreater(rows['plan']['calls'], 0)
+                self.assertGreater(rows['commit']['calls'], 0)
+                # Prior committed bind+initial preparation survive a later
+                # failed boundary quantum; the failed quantum publishes no
+                # phase/cursor progress and leaves no open transaction.
+                self.assertEqual(history.db.execute("SELECT COUNT(*) FROM evidence_bindings "
+                    "WHERE family='pump' AND address='phase-mint'").fetchone(), (1,))
+                self.assertGreater(history.db.execute("SELECT COUNT(*) FROM rolling_preparation_jobs "
+                    "WHERE json_extract(body,'$.address')='phase-mint'").fetchone()[0], 0)
+                self.assertFalse(history.db.in_transaction)
                 if fail:
-                    with self.assertRaises(RuntimeError) as caught:await source.acquire()
-                    self.assertIs(caught.exception,error)
-                else:await source.acquire()
-            rows=source.development_phases.rows
-            self.assertEqual(rows['selection']['calls'],2)
-            self.assertEqual(rows['selection']['wall_seconds_total_microseconds'],6_000_000)
-            self.assertEqual(rows['reactivation']['calls'],1)
-            self.assertEqual(rows['boundaries']['calls'],1)
-            self.assertEqual(rows['boundaries']['failed_calls'],int(fail))
-            self.assertEqual(rows['publication']['calls'],int(not fail))
-            self.assertEqual(rows['plan']['calls'],int(not fail))
-            self.assertEqual(rows['commit']['calls'],1)
-            self.assertEqual(rows['commit']['wall_seconds_total_microseconds'],1_000_000)
-            expected=['released','frontier','begin','selection','bind','first_seen','prepare','reactivation','boundaries']
-            self.assertEqual(events,expected+(['rollback'] if fail else ['publication','commit','plan']))
-            if fail:
-                self.assertFalse(hasattr(state,'development_cursors'))
-                self.assertFalse(hasattr(state,'development_poll_at'))
-            else:
-                self.assertEqual(state.development_cursors,dict(reactivated=0,boundary=12,publication=13))
-                self.assertTrue(hasattr(state,'development_poll_at'))
+                    self.assertEqual(history.development.phase, 2)
+                    self.assertEqual(history.development.cursors, dict(reactivated=0, boundary=0, publication=0))
+                    self.assertIn('ROLLBACK', statements)
+                else:
+                    self.assertEqual(turns, [1, 2, 3, 4, 0])
+                    self.assertEqual(history.development.cursors, dict(reactivated=0, boundary=12, publication=13))
+            finally:
+                source.stop.set()
+                state.writer.close()
 
     async def test_native_input_progress_is_separate_and_missing_diagnostics_stay_unavailable(self):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None)
