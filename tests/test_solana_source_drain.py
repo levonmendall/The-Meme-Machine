@@ -204,21 +204,59 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         statuses_ready=asyncio.Event();native_accepted=asyncio.Event()
         socket_idle=asyncio.Event();repair_entered=asyncio.Event();repair_release=asyncio.Event()
         partial=tx['meta']['logMessages'][:4]+['Log truncated']
+        loop=asyncio.get_running_loop();phase_started=loop.time();phases={};phase_trace=[]
+        prior_tasks=asyncio.all_tasks() if cancel_repair else set()
+        member_numbers={item['transaction']['signatures'][0]:number for number,item in enumerate(txs,1)}
+        def phase(name,member=None):
+            if not cancel_repair:return
+            elapsed=round(loop.time()-phase_started,6)
+            # Fixed phase rows are [count, first seconds, last seconds]; retain
+            # only the last32 individual events, using fixture member ordinals.
+            row=phases.setdefault(name,[0,elapsed,elapsed]);row[0]+=1;row[2]=elapsed
+            phase_trace.append((name,elapsed,member))
+            del phase_trace[:-32]
+        def repair_diagnostic(task):
+            children=(asyncio.all_tasks()-prior_tasks)|{task}
+            stacks=[]
+            for child in sorted(children,key=lambda t:(t.get_coro().__qualname__,t.get_name()))[:12]:
+                stacks.append(dict(coro=child.get_coro().__qualname__[:160],done=child.done(),
+                    cancelling=child.cancelling(),stack=[f'{Path(frame.f_code.co_filename).name}:{frame.f_lineno}:{frame.f_code.co_name}'
+                        for frame in child.get_stack(limit=4)]))
+            original='PENDING'
+            if task.cancelled():original='CANCELLED'
+            elif task.done():
+                failure=task.exception()
+                original=repr(failure)[:512] if failure is not None else 'RETURNED'
+            return 'native_repair_fixture '+json.dumps(dict(elapsed=round(loop.time()-phase_started,6),
+                phases=phases,trace_tail=phase_trace,live_outcome=original,
+                socket_idle=socket_idle.is_set(),repair_entered=repair_entered.is_set(),
+                batch_sizes=batch_sizes[:8],repair_calls=len(repair_calls),
+                metrics={key:source.pipeline_metrics.get('log_repair:rolling',{}).get(key)
+                    for key in ('repair_logical_calls','supplements_authenticated','supplements_failed')},
+                tasks=stacks,omitted_tasks=max(0,len(children)-12)),sort_keys=True)
         async def work(fn,priority=2,**options):
             if options.get('component')=='candidate':
+                phase('candidate_owner_entered')
                 self.entered.set();await self.release.wait()
                 if commit_failure:raise EvidenceUnavailable('original_candidate_commit_failure')
-            return fn(self.state)
+            receipt=cancel_repair and 'native_stream_log_supplement' in fn.__code__.co_consts
+            if receipt:phase('receipt_started')
+            result=fn(self.state)
+            if receipt:phase('receipt_committed')
+            if options.get('component')=='candidate':phase('candidate_owner_returned')
+            return result
         async def tip(method,*args):
             if method=='getTransaction':
                 # WS must keep reading while the selective HTTP repair is in
                 # flight, including the same transaction's duplicate packet.
                 repair_calls.append(args[0][0])
+                phase('scalar_entered',member_numbers[args[0][0]])
                 if repair_members==1 or full_cancel:repair_entered.set()
                 await socket_idle.wait()
                 if cancel_repair and (repair_members==1 or full_cancel):await repair_release.wait()
                 fetched=copy.deepcopy(next(item for item in txs if item['transaction']['signatures'][0]==args[0][0]));fetched.pop('transactionIndex',None)
                 if repair_failure:fetched['meta']['logMessages']=partial
+                phase('scalar_returned',member_numbers[args[0][0]])
                 return fetched
             return slot-1
         source.work=work;source.measured_rpc=tip
@@ -226,26 +264,32 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         async def batch(signatures,priority=2):
             if len(signatures)==1:return await real_batch(signatures,priority)
             batch_sizes.append(len(signatures));repair_calls.extend(signatures)
+            phase('batch_entered',len(signatures))
             if not full_cancel:repair_entered.set()
             await socket_idle.wait()
             if cancel_repair and not full_cancel:await repair_release.wait()
-            return [dict(copy.deepcopy(next(item for item in txs if item['transaction']['signatures'][0]==sig)))
+            result=[dict(copy.deepcopy(next(item for item in txs if item['transaction']['signatures'][0]==sig)))
                 for sig in signatures]
+            phase('batch_returned',len(signatures));return result
         source.measured_log_batch=batch
         class Socket:
             def __init__(socket):socket.acks=asyncio.Queue();socket.sent=0;socket.frontiers=iter((11,12))
             async def send(socket,raw):
                 request=json.loads(raw);await socket.acks.put(json.dumps(dict(id=request['id'],result=request['id']+10)))
             async def recv(socket):
-                if not socket.acks.empty():return await socket.acks.get()
+                if not socket.acks.empty():
+                    phase('ws_ack');return await socket.acks.get()
                 subscription=next(socket.frontiers,None)
                 if subscription is not None:
+                    phase('ws_frontier')
                     return json.dumps(dict(params=dict(subscription=subscription,result=dict(context=dict(slot=slot-1),
                         value=dict(err={'InstructionError':[0,0]},signature='failed',logs=[])))))
                 await statuses_ready.wait()
                 if socket.sent>=(2 if truncated else 1)*admitted_members:
+                    phase('ws_idle')
                     socket_idle.set();await asyncio.Event().wait()
                 item=txs[socket.sent//(2 if truncated else 1)];socket.sent+=1
+                phase('ws_packet',member_numbers[item['transaction']['signatures'][0]])
                 return json.dumps(dict(params=dict(subscription=11,result=dict(context=dict(slot=slot),
                     value=dict(err=None,signature=item['transaction']['signatures'][0],
                         logs=None if unsupported else partial if truncated and not (complete_duplicate and socket.sent==2)
@@ -260,9 +304,11 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                 if census_bound:
                     await source.handle_native(handler,u,u.ByteSize(),NOW,'census-bound-fixture','pump')
                 else:await handler(u,u.ByteSize(),NOW)
+                phase('native_status',member_numbers[item['transaction']['signatures'][0]])
             u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=slot;m.parent_slot=slot-1
             m.blockhash=str(slot);m.parent_blockhash=str(slot-1);m.block_time.timestamp=tx['blockTime']
             m.executed_transaction_count=index+repair_members;await handler(u,u.ByteSize(),NOW)
+            phase('native_meta')
             # Admit the fixture's intended WS population before finality makes
             # any repair witness eligible. Cancellation can then distinguish
             # an accepted complete batch from an explicitly partial slot.
@@ -270,6 +316,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                 statuses_ready.set();await socket_idle.wait()
             u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=slot;u.slot.parent=slot-1;u.slot.status=pb.SLOT_FINALIZED
             await handler(u,u.ByteSize(),NOW);statuses_ready.set()
+            phase('native_finality')
             admitted=asyncio.create_task(self.entered.wait());closing=asyncio.create_task(local_stop.wait())
             try:
                 done,_=await asyncio.wait((admitted,closing),return_when=asyncio.FIRST_COMPLETED)
@@ -285,10 +332,32 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         desired=[dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,deadline=NOW+150,
             lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
         local_stop=asyncio.Event()
-        from contextlib import nullcontext
-        with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()), \
-                patch('meme_machine.operational.position_continuation.position_only',side_effect=native_accepted.is_set) if cutoff else nullcontext():
+        from contextlib import ExitStack
+        with ExitStack() as patches:
+            patches.enter_context(patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()))
+            if cutoff:patches.enter_context(patch('meme_machine.operational.position_continuation.position_only',side_effect=native_accepted.is_set))
+            if cancel_repair:
+                from meme_machine.solana_candidate_join import CandidateTransactionJoin
+                begin=CandidateTransactionJoin.begin_required_log_read
+                complete=CandidateTransactionJoin.complete_required_log
+                end=CandidateTransactionJoin.end_required_log_read
+                def begin_read(join,number,signature):
+                    result=begin(join,number,signature)
+                    phase('read_acquired',member_numbers.get(signature));return result
+                def complete_read(join,number,signature,logs,seen):
+                    phase('join_install_started',member_numbers.get(signature))
+                    result=complete(join,number,signature,logs,seen)
+                    phase('join_install_returned',member_numbers.get(signature));return result
+                def end_read(join,number,signature):
+                    owned=(number,signature) in join.required_log_reads
+                    result=end(join,number,signature)
+                    if owned:phase('read_released',member_numbers.get(signature))
+                    return result
+                patches.enter_context(patch.object(CandidateTransactionJoin,'begin_required_log_read',begin_read))
+                patches.enter_context(patch.object(CandidateTransactionJoin,'complete_required_log',complete_read))
+                patches.enter_context(patch.object(CandidateTransactionJoin,'end_required_log_read',end_read))
             task=asyncio.create_task(source.rolling_programs(None) if cutoff else source.live(None,desired,local_stop))
+            phase('live_created')
             if census_bound:
                 with self.assertRaisesRegex(EvidenceUnavailable,'^yellowstone_census_buffer_bound$') as refused:
                     await asyncio.wait_for(task,2)
@@ -303,7 +372,30 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                     await asyncio.wait_for(task,2)
                 return slot
             if cancel_repair:
-                await asyncio.wait_for(repair_entered.wait(),1)
+                entered_waiter=asyncio.create_task(repair_entered.wait())
+                try:
+                    done,_=await asyncio.wait((entered_waiter,task),timeout=1,return_when=asyncio.FIRST_COMPLETED)
+                    if task in done:
+                        # Preserve an original source exception and traceback;
+                        # an event-only wait previously masked it as a timeout.
+                        task.result()
+                        self.fail('live source returned before repair cancellation barrier')
+                    if entered_waiter not in done:
+                        raise TimeoutError('repair cancellation barrier not reached within original 1s')
+                except BaseException as error:
+                    error.add_note(repair_diagnostic(task))
+                    # Release only fixture gates, then finish the original source
+                    # while its patches and disposable database still exist.
+                    repair_release.set();self.release.set();local_stop.set()
+                    if not task.done():task.cancel()
+                    settled,_=await asyncio.wait((task,),timeout=2)
+                    if task not in settled:error.add_note('native_repair_fixture cleanup still pending after 2s')
+                    elif not task.cancelled() and task.exception() is not None and task.exception() is not error:
+                        error.add_note('native_repair_fixture cleanup exception: '+repr(task.exception())[:512])
+                    raise
+                finally:
+                    if not entered_waiter.done():entered_waiter.cancel()
+                    await asyncio.gather(entered_waiter,return_exceptions=True)
                 if repair_members>1:self.assertEqual(batch_sizes,[min(admitted_members,7)])
                 if full_cancel:
                     # Seven prepared fields have settled; the last scalar HTTP
