@@ -4,6 +4,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 FAST=[
  'tests.test_owner_throughput_source_guard',
  'tests.test_owner_throughput_comparison',
+ 'tests.test_owner_planning_quantum',
  'tests.test_bounded_candidate_development',
  'tests.test_solana_acquisition_scheduler',
  'tests.test_solana_dispatch_probe',
