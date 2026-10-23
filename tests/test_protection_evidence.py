@@ -482,6 +482,93 @@ class ProtectionEvidenceTests(unittest.TestCase):
         self.assertTrue(result.held_coverage)
         self.assertEqual(self.journal.head()['sequence'], 5)
 
+    def shifted_first_turn(self, due):
+        """Move a synthetic acquisition as a unit, preserving every original bound."""
+        p = self.turn(); shift = due-p['timing']['due_ns']
+        for key, value in p['timing'].items():
+            if value is not None:p['timing'][key] = value+shift
+        for key in ('at_ns', 'wall_ns', 'sample_end_ns'):p[key] += shift
+        for key in ('started_ns', 'completed_ns', 'deadline_ns'):p['quote'][key] += shift
+        for key in ('acquired_ns', 'acquisition_completed_ns', 'requested_ns', 'lock_acquired_ns',
+                    'consumed_ns', 'consumed_wall_ns', 'consumed_sample_end_ns'):
+            p['usd'][key] += shift
+        return p
+
+    def assert_resumed_open_does_not_create_grace(self, native, shared):
+        retained = list(self.book.db.execute(f'SELECT * FROM {TABLE} ORDER BY sequence'))
+        financial = self.book.replay()
+        # This is a replacement owner's first proof record for an already-held
+        # position. Native birth/mark hashes are authentic, but neither supplies
+        # an authenticated protection-clock anchor at the claimed OPEN9.
+        self.owner = dict(self.owner, pid=124, process_start_ticks=789,
+                          generation='resumed-process-generation')
+        self.append('OWNER', dict(self.owner_record, owner=self.owner,
+            at_ns=9*NS, wall_ns=109*NS, sample_end_ns=9*NS))
+        self.append('OPEN', dict(self.open_record, owner=self.owner, native_ref=native,
+            shared_ref=shared, at_ns=9*NS, wall_ns=109*NS, sample_end_ns=9*NS, due_ns=12*NS))
+        p = self.shifted_first_turn(12*NS)
+        if native == self.mark:
+            p['native_before'] = self.mark
+            p['quote']['position_sha256'] = digest(self.book._load(self.life))
+            p['timing'].update(native_durable_ns=None, shared_ack_ns=None)
+        self.append_turn(p)
+        completed = p['timing']['completed_ns']
+        # Genuine later acquisition can establish a new covered window. Do not
+        # reject every resumed OPEN structurally or require native_ref==birth_ref.
+        recovered = self.check(self.window(start_ns=completed, end_ns=14*NS,
+            start_wall_ns=100*NS+completed, end_wall_ns=114*NS,
+            start_cursor=self.mark_ack, end_cursor=self.mark_ack))
+        self.assertTrue(recovered.ok, recovered.reason)
+        self.assertTrue(recovered.held_coverage)
+        self.assertEqual(list(self.book.db.execute(
+            f'SELECT * FROM {TABLE} WHERE sequence<=? ORDER BY sequence', (len(retained),))), retained)
+        self.assertEqual(self.book.replay(), financial)
+        # OPEN9/due12 cannot hide the unmonitored leading interval beginning10,
+        # even though the following real TURN completes on time at12.6.
+        leading = self.check(self.window(start_ns=10*NS, end_ns=13*NS,
+            start_wall_ns=110*NS, end_wall_ns=113*NS,
+            start_cursor=shared, end_cursor=self.mark_ack))
+        self.assertFalse(leading.ok, leading.reason)
+        self.assertFalse(leading.held_coverage)
+        self.assertNotEqual(leading.reason, 'proof_resolution_unavailable')
+
+    def test_resumed_open_on_old_mark_cannot_restart_initial_monitor_grace(self):
+        self.assert_resumed_open_does_not_create_grace(self.mark, self.mark_ack)
+
+    def test_resumed_open_on_old_birth_cannot_restart_initial_monitor_grace(self):
+        self.assert_resumed_open_does_not_create_grace(self.birth, self.birth_ack)
+
+    def test_later_recovered_window_accepts_retained_late_failed_dispatch(self):
+        financial = self.book.replay()
+        missed = self.turn()
+        missed.update(outcome='FAILED', reason='scheduled_dispatch_missed', quote=None,
+            usd=None, usd_requirement='NOT_CONSUMED', native_after=self.birth, shared_ref=None,
+            at_ns=63*NS//10, wall_ns=1063*NS//10, sample_end_ns=63*NS//10)
+        missed['timing'].update(due_ns=2*NS, started_ns=6*NS, deadline_ns=5*NS,
+            decision_ns=61*NS//10, risk_completed_ns=62*NS//10,
+            native_durable_ns=None, shared_ack_ns=None, completed_ns=63*NS//10, next_due_ns=93*NS//10)
+        previous = self.append_turn(missed)
+        retained = list(self.book.db.execute(f'SELECT * FROM {TABLE} ORDER BY sequence'))
+        recovered_turn = self.shifted_first_turn(missed['timing']['next_due_ns'])
+        recovered_turn.update(turn=2, previous_turn=previous['hash'])
+        self.append_turn(recovered_turn)
+        completed = recovered_turn['timing']['completed_ns']
+        result = self.check(self.window(start_ns=completed, end_ns=11*NS,
+            start_wall_ns=100*NS+completed, end_wall_ns=111*NS,
+            start_cursor=self.mark_ack, end_cursor=self.mark_ack))
+        self.assertTrue(result.ok, result.reason)
+        self.assertTrue(result.held_coverage)
+        self.assertEqual((result.lifecycles, result.turns), (1,1))
+        # The missed dispatch remains a durable failure of its own interval;
+        # neither its original due/deadline nor its following schedule is reset.
+        affected = self.check(self.window(end_ns=7*NS, end_wall_ns=107*NS))
+        self.assertFalse(affected.ok)
+        self.assertFalse(affected.held_coverage)
+        self.assertEqual(affected.reason, 'held_turn_failed')
+        self.assertEqual(list(self.book.db.execute(
+            f'SELECT * FROM {TABLE} WHERE sequence<=? ORDER BY sequence', (len(retained),))), retained)
+        self.assertEqual(self.book.replay(), financial)
+
     def test_record_wall_time_cannot_be_changed_independently_of_window_clocks(self):
         p = self.turn(); p['wall_ns'] += NS
         self.append_turn(p)
