@@ -247,9 +247,13 @@ class OwnerWorkload:
         self.last_outcome = None
         while True:
             self.progress.clear()
+            await self.progress.wait()
+            if self.last_outcome != 'IDLE':continue
+            # A whole-population observation on every cooperative quantum
+            # would penalize the architecture merely for yielding correctly.
+            # Inspect once after a real idle result, never after DEFERRED.
             cut = await self.source.work(self.snapshot, 2, label='health_scheduler')
             if cut['complete'] and self.last_outcome=='IDLE':return
-            await self.progress.wait()
 
     def close_worker(self):
         if self.worker is not None:
