@@ -326,6 +326,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
                 (2*NS,4*NS,'initial_entry_schedule_mismatch'),
                 (2*NS,6*NS,'initial_entry_schedule_invalid'),
                 (2*NS,NS,'initial_entry_schedule_invalid'),
+                (0,3*NS,'initial_entry_schedule_invalid'),
                 (12*NS,15*NS,'initial_entry_schedule_invalid')):
             with self.subTest(due=due, deadline=deadline):
                 body = deepcopy(self.entry_anchor)
@@ -368,6 +369,7 @@ class ProtectionEvidenceTests(unittest.TestCase):
         result = self.check(self.window(start_ns=3*NS, start_wall_ns=103*NS))
         self.assertTrue(result.ok, result.reason)
         self.assertTrue(result.held_coverage)
+        self.assertEqual((result.lifecycles, result.turns), (1,0))
 
     def test_recovered_complete_window_never_consults_invalid_initial_entry_anchor(self):
         self.append_turn()

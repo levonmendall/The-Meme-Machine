@@ -663,8 +663,10 @@ def _verify_window(db, w, resolver, limits):
     if not_consumed:
         return Verification(False, 'NATIVE_PATH_RESOLVED_USD_NOT_CONSUMED_NOT_FULL_PROTECTION_PROOF',
                             w.head, len(relevant), turns, False, True)
+    # All leading turns reached _turn above; they can cover this interval even
+    # when no new turn completes inside it. Preserve the in-window turn count.
     return Verification(True, 'RESOLVED' if relevant else 'UNEXERCISED_NO_HELD_POSITIONS',
-                        w.head, len(relevant), turns, bool(relevant and turns), True)
+                        w.head, len(relevant), turns, bool(relevant and (turns or leading)), True)
 
 
 def _utc_ns(value):
@@ -740,7 +742,8 @@ def _initial_entry(span, life, birth_ref, resolver, identity, owner_identity, ow
             'initial_entry_registration_before_held_boundary')
     due, deadline = body['first_due_ns'], body['first_deadline_ns']
     integer(due); integer(deadline)
-    require(due <= held['at_ns']+cadence and due <= deadline <= due+cadence,
+    require(held['sample_end_ns'] <= due <= held['at_ns']+cadence
+            and due <= deadline <= due+cadence,
             'initial_entry_schedule_invalid')
     first = span['turns'][0]
     require(due == span['open']['due_ns'] == first['timing']['due_ns']
