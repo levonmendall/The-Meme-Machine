@@ -1103,7 +1103,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                 except (OSError,TimeoutError,RuntimeError):pass
                 clients.discard(task)
 
-    server=None;tasks=[];checkpoint_worker=None
+    server=None;tasks=[];checkpoint_worker=None;checkpoint_task=None;primary_error=None
     storage_ready=asyncio.Event()
     try:
         from .solana_checkpoint import CheckpointWorker,reclaim_at_boundary
@@ -1231,10 +1231,13 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                 started=time.monotonic()
                 ticket=await work(lambda state:owner.checkpoint_ticket_after_current(),2,label='checkpoint_prepare')
                 pending=asyncio.create_task(asyncio.to_thread(EvidenceWriter.checkpoint,path))
-                try:result=await asyncio.shield(pending)
-                except asyncio.CancelledError:
-                    await pending
-                    raise
+                cancelled=False
+                while True:
+                    try:
+                        result=await asyncio.shield(pending)
+                        break
+                    except asyncio.CancelledError:cancelled=True
+                if cancelled:raise asyncio.CancelledError()
                 elapsed=int((time.monotonic()-started)*1_000_000)
                 counts['checkpoint.calls']=counts.get('checkpoint.calls',0)+1
                 counts['checkpoint.total_microseconds']=counts.get('checkpoint.total_microseconds',0)+elapsed
@@ -1293,7 +1296,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         from .runtime.operation_costs import enabled as costs_enabled
         cost_publisher=(asyncio.create_task(publish_operation_costs(path,owner,stop))
             if costs_enabled() and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)
-        tasks=[*producers,asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
+        tasks=[*producers,asyncio.create_task(maintenance()),asyncio.create_task(health())]
+        checkpoint_task=asyncio.create_task(checkpoint())
+        tasks.extend((checkpoint_task,asyncio.create_task(stop.wait())))
         if cost_publisher is not None:tasks.append(cost_publisher)
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
@@ -1331,7 +1336,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         # an owner/arbiter failure racing with stop must not become success.
         for task in tasks:
             if task.done() and not task.cancelled():task.result()
-    except BaseException:
+    except BaseException as exc:
+        primary_error=exc
         await work(lambda state:setattr(state,'failed',True),0)
         raise
     finally:
@@ -1340,7 +1346,20 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         await work(lambda state:state.fence.health('phase','DRAINING'),0)
         if server:server.close();await server.wait_closed()
         for task in tasks:task.cancel()
-        await asyncio.gather(*tasks,return_exceptions=True)
+        joined=asyncio.gather(*tasks,return_exceptions=True)
+        cancelled_during_join=False
+        while True:
+            try:
+                await asyncio.shield(joined)
+                break
+            except asyncio.CancelledError:cancelled_during_join=True
+        # Accepted physical checkpoint I/O can fail after the pre-shutdown task
+        # scrutiny above. Retain that original error, mark the closed state as
+        # failed, and propagate only after writer/worker/executor cleanup.
+        checkpoint_error=(checkpoint_task.exception() if checkpoint_task is not None
+            and not checkpoint_task.cancelled() else None)
+        if checkpoint_error is not None:
+            await work(lambda state:setattr(state,'failed',True),0)
         if checkpoint_worker is not None:checkpoint_worker.close()
         if clients:await asyncio.gather(*list(clients),return_exceptions=True)
         # Persist the final bounded counters after producers stop; a short drain
@@ -1362,3 +1381,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         if historical_executor is not None:await asyncio.to_thread(historical_executor.close)
         await asyncio.to_thread(decoder_pool.shutdown,wait=True,cancel_futures=True)
         Path(socket_path).unlink(missing_ok=True)
+        if checkpoint_error is not None and checkpoint_error is not primary_error:
+            if primary_error is None or isinstance(primary_error,asyncio.CancelledError):raise checkpoint_error
+            raise primary_error from checkpoint_error
+        if cancelled_during_join and primary_error is None:raise asyncio.CancelledError()
