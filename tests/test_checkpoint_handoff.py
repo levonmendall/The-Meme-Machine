@@ -214,6 +214,12 @@ class CheckpointHandoffTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.owner.telemetry().get('checkpoint_handoffs',0),0)
 
     async def test_service_retains_late_passive_io_error_and_joins_before_writer_close(self):
+        await self.late_passive_service_error()
+
+    async def test_service_repeated_cancellation_still_joins_late_passive_io_error(self):
+        await self.late_passive_service_error(repeat_cancel=True)
+
+    async def late_passive_service_error(self,*,repeat_cancel=False):
         from meme_machine import solana_evidence_service as service
         from tests.evidence_ipc_harness import ipc_transport
         from tests.maintenance_production_harness import NativeCompletionPool
@@ -258,6 +264,9 @@ class CheckpointHandoffTests(unittest.IsolatedAsyncioTestCase):
                     await asyncio.sleep(.001)
                 self.assertEqual(len(checkpoint_tasks),1,'service checkpoint task was not retained')
                 self.assertTrue(checkpoint_tasks[0].cancelling(),'shutdown did not cancel accepted PASSIVE waiter')
+                if repeat_cancel:
+                    checkpoint_tasks[0].cancel()
+                    await asyncio.sleep(0)
                 self.assertFalse(runner.done());self.assertFalse(io_completed.is_set())
                 release.set()
                 with self.assertRaises(OSError) as caught:
