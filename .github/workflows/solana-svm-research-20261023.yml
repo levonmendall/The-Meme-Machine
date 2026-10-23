@@ -1,0 +1,141 @@
+name: Solana offline compiled-SBF research 2026-10-23
+on:
+  push:
+    branches:
+      - research/offline-solana-svm-20261023
+    paths:
+      - .github/workflows/solana-svm-research-20261023.yml
+permissions:
+  contents: read
+jobs:
+  token2022_compiled:
+    name: Token-2022 actual SBF / Mollusk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: research/solana-svm-20261023
+          persist-credentials: false
+      - name: Fetch pinned upstream and install build dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/solana-program/token-2022.git token2022
+          git -C token2022 fetch --depth 1 origin b6cdfa370dce717f2a96e568086099b04e547365
+          git -C token2022 checkout --detach b6cdfa370dce717f2a96e568086099b04e547365
+          test "$(git -C token2022 rev-parse HEAD)" = b6cdfa370dce717f2a96e568086099b04e547365
+          rustup toolchain install nightly-2026-07-16 --profile minimal
+          sh -c "$(curl -sSfL https://release.anza.xyz/v4.3.2/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Compile actual SBF and the Rust regression test
+        shell: bash
+        run: |
+          set -euxo pipefail
+          solana --version
+          cd token2022
+          cargo build-sbf --manifest-path program/Cargo.toml
+          cp ../research/solana-svm-20261023/compiled_token_fee_transition.rs program/tests/offline_fee_transition_svm.rs
+          SBF_OUT_DIR="$PWD/target/deploy" cargo +nightly-2026-07-16 test --manifest-path program/Cargo.toml --test offline_fee_transition_svm --no-run
+          test -s target/deploy/spl_token_2022.so
+          readelf -h target/deploy/spl_token_2022.so | grep -Ei 'Machine:.*BPF'
+          sha256sum target/deploy/spl_token_2022.so
+          file target/deploy/spl_token_2022.so
+      - name: Execute actual compiled SBF in a network-disabled namespace and verify resulting state
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd token2022
+          binary="$(find "$PWD/target/debug/deps" -maxdepth 1 -type f -executable -name 'offline_fee_transition_svm-*' -print -quit)"
+          test -n "$binary"
+          sudo unshare --net -- bash -c '
+            set -Eeuo pipefail
+            ip link set lo up
+            test "$(find /sys/class/net -mindepth 1 -maxdepth 1 ! -name lo | wc -l)" -eq 0
+            echo "OFFLINE_NETWORK_INTERFACES=$(ls /sys/class/net)"
+            cd "$1"
+            export SBF_OUT_DIR="$1/target/deploy"
+            env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u RPC_URL -u SOLANA_URL -u SOLANA_RPC_URL "$2" --nocapture
+          ' bash "$PWD" "$binary" 2>&1 | tee ../token2022_actual_svm.log
+          test "$(grep -c SVM_PASS ../token2022_actual_svm.log)" -eq 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: token2022-compiled-svm-evidence
+          path: |
+            token2022_actual_svm.log
+            token2022/target/deploy/spl_token_2022-keypair.json
+          if-no-files-found: ignore
+          retention-days: 7
+  marginfi_drift_compiled:
+    name: marginfi-to-Drift compiled LiteSVM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+      - name: Fetch pinned upstream and install toolchains
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/0dotxyz/marginfi-v2.git marginfi-v2
+          git -C marginfi-v2 fetch --depth 1 origin aeafee702d1b807f717db75f87996a67e1977c04
+          git -C marginfi-v2 checkout --detach aeafee702d1b807f717db75f87996a67e1977c04
+          test "$(git -C marginfi-v2 rev-parse HEAD)" = aeafee702d1b807f717db75f87996a67e1977c04
+          rustup toolchain install 1.90.0 --profile minimal
+          corepack enable
+          corepack prepare yarn@4.14.1 --activate
+          sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.13/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          cargo +1.90.0 install avm --git https://github.com/solana-foundation/anchor --locked
+          echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
+      - name: Build actual marginfi ELF and prepare LiteSVM fixture tests
+        shell: bash
+        run: |
+          set -euxo pipefail
+          avm install 1.0.2
+          avm use 1.0.2
+          cd marginfi-v2
+          yarn install --immutable
+          anchor build
+          test -s target/deploy/marginfi.so
+          test -s tests/fixtures/drift.so
+          readelf -h target/deploy/marginfi.so | grep -Ei 'Machine:.*BPF'
+          readelf -h tests/fixtures/drift.so | grep -Ei 'Machine:.*BPF'
+          sha256sum target/deploy/marginfi.so tests/fixtures/drift.so
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tests/specs/drift/d07_driftDeposit.spec.ts")
+          s = path.read_text()
+          needle = "    const scaledBalanceAfter = spotPositionAfter.scaledBalance;"
+          assert needle in s, "expected upstream test assertion site"
+          s = s.replace(needle, needle + """
+              console.log("SVM_ACCOUNT_STATE before_scaled=" + scaledBalanceBefore.toString()
+                + " after_scaled=" + scaledBalanceAfter.toString()
+                + " user_before=" + userUsdcBefore.toString()
+                + " user_after=" + userUsdcAfter.toString());
+          """, 1)
+          path.write_text(s)
+          PY
+      - name: Execute marginfi-to-Drift and oracle-collateral transactions in network-disabled LiteSVM
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd marginfi-v2
+          sudo unshare --net -- bash -c '
+            set -Eeuo pipefail
+            ip link set lo up
+            test "$(find /sys/class/net -mindepth 1 -maxdepth 1 ! -name lo | wc -l)" -eq 0
+            echo "OFFLINE_NETWORK_INTERFACES=$(ls /sys/class/net)"
+            cd "$1"
+            env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u RPC_URL -u SOLANA_URL -u SOLANA_RPC_URL               ./node_modules/.bin/ts-mocha -p ./tsconfig.json -t 1000000               tests/specs/drift/d*.spec.ts tests/specs/basic/0*.spec.ts               tests/specs/basic/1*.spec.ts tests/specs/basic/2*.spec.ts               --exit --require tests/rootHooks.ts
+          ' bash "$PWD" 2>&1 | tee ../marginfi_drift_actual_svm.log
+          grep -q SVM_ACCOUNT_STATE ../marginfi_drift_actual_svm.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marginfi-drift-compiled-svm-evidence
+          path: marginfi_drift_actual_svm.log
+          if-no-files-found: ignore
+          retention-days: 7
