@@ -42,6 +42,32 @@ class _CheckpointJob:
         self.token=None
 
 
+class _CheckpointWait(asyncio.Future):
+    """Cancellation signals the grant lock synchronously; never cancels work.
+
+    This is the actual Future awaited by the Task. An ordinary shield outside
+    it would postpone the signal until the coroutine receives CancelledError,
+    allowing an owner callback to grant while that coroutine cannot run.
+    """
+    def __init__(self,future,worker,job):
+        super().__init__()
+        self.worker=worker;self.job=job
+        future.add_done_callback(self._completed)
+
+    def cancel(self,msg=None):
+        if not self.done():self.worker.cancel(self.job)
+        return super().cancel(msg)
+
+    def _completed(self,future):
+        if self.done():
+            if not future.cancelled():future.exception()
+        elif future.cancelled():self.cancel()
+        else:
+            error=future.exception()
+            if error is None:self.set_result(future.result())
+            else:self.set_exception(error)
+
+
 class CheckpointWorker:
     """One ready thread and one bounded job, including its pre-admission slot.
 
@@ -142,14 +168,14 @@ async def reclaim_at_boundary(owner,path,*,worker=None):
         accepted=asyncio.wrap_future(await admit(owner,lambda state:worker.grant(job),priority=2))
         while True:
             try:
-                await asyncio.shield(accepted)
+                await _CheckpointWait(accepted,worker,job)
                 break
             except asyncio.CancelledError:
                 cancelled=True;worker.cancel(job)
         pending=asyncio.wrap_future(job.result)
         while True:
             try:
-                result=await asyncio.shield(pending)
+                result=await _CheckpointWait(pending,worker,job)
                 break
             except asyncio.CancelledError:
                 cancelled=True;worker.cancel(job)
