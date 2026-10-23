@@ -1,4 +1,6 @@
 """Real SQLite dispatch scheduling; synthetic plans never grant entry authority."""
+import asyncio
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
@@ -74,6 +76,112 @@ class DispatchProbeTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT lo,hi,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
             (self.job['id'],)).fetchone(),(10,100,NOW+150,None,0,'pending'))
         self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE lo=10 AND hi=20 AND status='pending'").fetchone(),(1,))
+        self.assertFalse(self.db.in_transaction)
+
+    def test_child_enqueue_failure_rolls_back_tightening_and_outer_quantum_but_ticket_stays_advisory(self):
+        from meme_machine.solana_candidate_development import CandidateDevelopment
+        from meme_machine.solana_candidate_phases import CandidatePhases, DEVELOPMENT_PHASES
+        from meme_machine.solana_preparation_pool import ArchivePreparationTicket
+        from meme_machine.solana_selective_source import SelectiveSource
+
+        self.cache(self.metric([[10,20],[30,40]]))
+        flight=self.h.request('pump',self.job['address'],15,25,priority=4,deadline=NOW+200)
+        loop=asyncio.new_event_loop()
+        self.addCleanup(loop.close)
+        notifications=[]
+        ticket=ArchivePreparationTicket(4,NOW+200,loop,
+            SimpleNamespace(notify=lambda:notifications.append('advisory-invalidated')))
+        self.h._archive_preparation_tickets={flight:ticket}
+        actor=CandidateDevelopment(self.h,clock=lambda:0)
+        timing=CandidatePhases({},phases=DEVELOPMENT_PHASES,prefix='development_phase:',
+            runnable=lambda:None)
+        actual_request=self.h.request
+        attempted=[]
+
+        def snapshot():
+            return (
+                self.db.execute('SELECT * FROM acquisition_jobs ORDER BY id').fetchall(),
+                self.db.execute('SELECT * FROM acquisition_schedule_fanout_v1 ORDER BY job_id').fetchall(),
+                self.db.execute('SELECT * FROM acquisition_observations ORDER BY id').fetchall(),
+                self.db.execute('SELECT * FROM acquisition_schedule_signals_v1 ORDER BY sequence').fetchall(),
+                (actor.phase,actor.poll_at,dict(actor.cursors)))
+
+        def failed_enqueue(family,address,lo,hi,**options):
+            self.assertTrue(self.db.in_transaction)
+            self.assertEqual((family,address,lo,hi),('pump',self.job['address'],10,20))
+            # Tightening precedes this first child, including the real ticket.
+            self.assertEqual(self.db.execute('SELECT lo,hi,priority,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
+                (flight,)).fetchone(),(15,25,3,NOW+150,None,0,'pending'))
+            self.assertTrue(ticket.invalid.is_set())
+            child=actual_request(family,address,lo,hi,**options)
+            attempted.append(child)
+            self.h._observation(child,'fixture_child_enqueue_failure',dict(complete=False))
+            self.assertEqual(self.db.execute('SELECT COUNT(*) FROM acquisition_jobs WHERE id=?',(child,)).fetchone(),(1,))
+            raise RuntimeError('original child enqueue failure')
+
+        for _ in range(100):
+            before=snapshot()
+            try:
+                with patch.object(self.h,'request',side_effect=failed_enqueue):
+                    actor.plan(timing,(flight,),True)
+            except RuntimeError as error:
+                self.assertEqual(str(error),'original child enqueue failure')
+                break
+        else:
+            self.fail('child enqueue failure path was not reached')
+        self.assertEqual(len(attempted),1)
+        self.assertEqual(snapshot(),before)
+        self.assertEqual(self.db.execute('SELECT lo,hi,priority,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
+            (flight,)).fetchone(),(15,25,4,NOW+200,None,0,'pending'))
+        self.assertEqual(self.db.execute('SELECT lo,hi,priority,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
+            (self.job['id'],)).fetchone(),(10,100,3,NOW+150,None,0,'pending'))
+        self.assertIsNone(self.db.execute('SELECT id FROM acquisition_jobs WHERE id=?',(attempted[0],)).fetchone())
+        self.assertFalse(self.db.in_transaction)
+        self.assertTrue(ticket.invalid.is_set())
+        self.assertEqual(ticket.claim,(4,NOW+200))
+
+        # An invalidated optional preparation returns the original decoder
+        # fallback even when the triggering owner transaction rolled back.
+        source=SelectiveSource(SimpleNamespace(credential='offline',identity='a'*64),None)
+        source.stop=asyncio.Event()
+        source.archive_preparation_executor=object()
+        original_flight=dict(zip(JOB_FIELDS,self.db.execute('SELECT '+','.join(JOB_FIELDS)+
+            ' FROM acquisition_jobs WHERE id=?',(flight,)).fetchone()))
+        original_flight['_archive_preparation_ticket']=ticket
+        with patch('meme_machine.solana_selective_source.time.time',return_value=NOW), \
+                patch.object(source,'_archive_preparation_turn',return_value=None) as prepare:
+            self.assertEqual(loop.run_until_complete(source.prepare_archive_page(
+                original_flight,dict(data=[dict(slot=15)]),())),())
+            # prepare_archive_page deliberately catches decoder failures, so a
+            # raised mock alone cannot prove that invalid work was skipped.
+            prepare.assert_not_called()
+            valid_flight=dict(original_flight)
+            valid_flight['_archive_preparation_ticket']=ArchivePreparationTicket(4,NOW+200,loop,
+                SimpleNamespace(notify=lambda:None))
+            self.assertEqual(loop.run_until_complete(source.prepare_archive_page(
+                valid_flight,dict(data=[dict(slot=15)]),())),())
+            prepare.assert_awaited_once()
+        self.assertTrue(ticket.changed.is_set())
+        self.assertEqual(notifications,['advisory-invalidated'])
+        with closing(sqlite3.connect(self.path.resolve().as_uri()+'?mode=ro',uri=True)) as reopened:
+            self.assertEqual(reopened.execute('SELECT priority,deadline FROM acquisition_jobs WHERE id=?',
+                (flight,)).fetchone(),(4,NOW+200))
+            self.assertIsNone(reopened.execute('SELECT id FROM acquisition_jobs WHERE id=?',(attempted[0],)).fetchone())
+
+        # Probe rollback tags discard uncommitted parser progress; the next
+        # successful owner quantum can commit the same original tightening.
+        for _ in range(100):
+            actor.plan(timing,(flight,),True)
+            if self.db.execute('SELECT id FROM acquisition_jobs WHERE id=?',(attempted[0],)).fetchone():
+                break
+        else:
+            self.fail('committed retry did not create the original bounded child')
+        with closing(sqlite3.connect(self.path.resolve().as_uri()+'?mode=ro',uri=True)) as reopened:
+            self.assertEqual(reopened.execute('SELECT lo,hi,priority,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
+                (flight,)).fetchone(),(15,25,3,NOW+150,None,0,'pending'))
+            self.assertEqual(reopened.execute('SELECT lo,hi,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
+                (attempted[0],)).fetchone(),(10,20,NOW+150,None,0,'pending'))
+            self.assertEqual(reopened.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='fixture_child_enqueue_failure'").fetchone(),(0,))
         self.assertFalse(self.db.in_transaction)
 
     def test_position_only_retires_bounded_original_expiry_and_dispatches_fresh_urgent_head(self):
