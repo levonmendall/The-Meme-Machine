@@ -524,6 +524,12 @@ class SelectiveHistory:
                 (status,now,canonical(body),job['id']))
             self._observation(job['id'],'archive_provider_failure',dict(body,status=status))
 
+    def plan_step(self,*,excluding=()):
+        """One cooperative planner result; bounded dispatch replaces this adapter."""
+        from .solana_candidate_development import PlanningStep, DISPATCH, IDLE
+        result=self.plan(excluding=excluding)
+        return PlanningStep(DISPATCH,result) if result else PlanningStep(IDLE)
+
     @measured('owner.history_plan')
     def plan(self,*,excluding=()):
         """Recheck shared evidence at dispatch; retain each original obligation."""

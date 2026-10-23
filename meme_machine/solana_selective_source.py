@@ -2250,77 +2250,42 @@ class SelectiveSource:
                     if not h.startup.snapshot().get('released'):return None
                     if hasattr(h,'historical_recovery'):h.historical_recovery.resume_sync(limit=16)
                     frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
-                # Eight acquisition workers share one owner and one development
-                # queue. Coalesce their duplicate housekeeping at the existing
-                # 100-ms polling cadence, while planning every individual job.
-                # This is a scheduling clock, never evidence or a fresh deadline.
-                if (frontier is not None and not position_only()
-                        and time.monotonic()>=getattr(state,'development_poll_at',0)):
-                    # One existing owner operation, not a FULL fsync for every
-                    # binding, wait and reactivation. Original facts and absolute
-                    # deadlines roll back together if this operation yields.
-                    cursors=getattr(state,'development_cursors',{})
-                    with timing.transaction_exit(state.writer.transaction(),phase_name='commit'):
-                        with timing.phase('selection'):
-                            for addr, in h.development_candidates(POLICY.min_curve_progress_bps,DEVELOPMENT_BATCH):
-                                h.bind('pump',addr)
-                                first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
-                                h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
-                        with timing.phase('reactivation'):
-                            query="SELECT rowid,family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated' AND rowid>? ORDER BY rowid LIMIT ?"
-                            with operation('owner.reactivation_lookup'):
-                                reactivated=db.execute(query,(cursors.get('reactivated',0),DEVELOPMENT_BATCH)).fetchall()
-                                if not reactivated and cursors.get('reactivated',0):reactivated=db.execute(query,(0,DEVELOPMENT_BATCH)).fetchall()
-                            for _,family,addr,lo in reactivated:
-                                with operation('owner.reactivation_lookup'):
-                                    epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
-                                    first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
-                                deadline=(time.time() if first is None else first)+150
-                                if deadline<=time.time():
-                                    h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))
-                                    h.lifecycle.demote(family,addr,reason='original_promotion_deadline_expired');continue
-                                if hasattr(h,'historical_tasks') and family in ('pump','pumpswap'):
-                                    if not h.historical_tasks.cold_ready(family,addr,epoch=epoch,deadline=deadline):continue
-                                else:
-                                    from .solana_scoped_retirement import ScopedRetirement
-                                    ScopedRetirement(h).restore(family,addr)
-                                h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
-                        with timing.phase('boundaries'):
-                            boundary=h.rolling.resume_boundaries(limit=DEVELOPMENT_BATCH,after=cursors.get('boundary',0))
-                        with timing.phase('publication'):
-                            publication=h.rolling.resume_publication(limit=DEVELOPMENT_BATCH,after=cursors.get('publication',0))
-                    # Advance scheduling cursors only after the whole bounded
-                    # owner transaction commits. A yielded slice retries every
-                    # original fact and deadline, without skipping obligations.
-                    state.development_cursors=dict(reactivated=reactivated[-1][0] if reactivated else 0,
-                        boundary=boundary,publication=publication)
-                    state.development_poll_at=time.monotonic()+.1
-                # The batched source already owns the ordered 100-ms publisher.
-                # Pending proofs still block false coverage in h.plan below.
-                with timing.phase('plan'):
-                    if not self.batched:h.lifecycle.publish()
-                    if 'meteora' in h.active_families:h.rolling.repair_required_checkpoint_prefixes()
-                    result=h.plan(excluding=tuple(state.acquisition_inflight))
-                    if result:
-                        state.acquisition_inflight.add(result[0]['id'])
-                        result[0]['finalized_hint']=frontier
-                        ticket=ArchivePreparationTicket(result[0]['priority'],result[0]['deadline'],
-                            preparation_loop,self.archive_preparation_wakeup)
-                        if not hasattr(h,'_archive_preparation_tickets'):h._archive_preparation_tickets={}
-                        h._archive_preparation_tickets[result[0]['id']]=ticket
-                        result[0]['_archive_preparation_ticket']=ticket
-                return result
+                from .solana_candidate_development import CandidateDevelopment, DISPATCH, IDLE, PlanningStep
+                if frontier is None or position_only():
+                    with timing.phase('plan'):
+                        step=h.plan_step(excluding=tuple(state.acquisition_inflight))
+                else:
+                    if not hasattr(h,'development'):
+                        h.development=CandidateDevelopment(h)
+                    step=h.development.step(timing,frontier,
+                        excluding=tuple(state.acquisition_inflight),batched=self.batched)
+                if step.state!=DISPATCH:return step
+                result=step.plan
+                state.acquisition_inflight.add(result[0]['id'])
+                result[0]['finalized_hint']=frontier
+                ticket=ArchivePreparationTicket(result[0]['priority'],result[0]['deadline'],
+                    preparation_loop,self.archive_preparation_wakeup)
+                if not hasattr(h,'_archive_preparation_tickets'):h._archive_preparation_tickets={}
+                h._archive_preparation_tickets[result[0]['id']]=ticket
+                result[0]['_archive_preparation_ticket']=ticket
+                return step
             # All archive workers use the same sole owner and pending queue.
             # After an empty plan, eight identical polls otherwise contend with
             # native publication. Share only the existing 100-ms idle cadence;
             # every nonempty job still gets its own original claim/deadline.
             # No evidence result or successful plan is cached here.
+            from .solana_candidate_development import DEFERRED, IDLE
             async with self.acquisition_plan_lock:
-                if time.monotonic()<self.acquisition_idle_until:plan=None
+                if time.monotonic()<self.acquisition_idle_until:step=None
                 else:
-                    plan=await self.work(request_development,4,label='candidate_development')
-                    if not plan:self.acquisition_idle_until=time.monotonic()+.1
-            if not plan:await asyncio.sleep(.1);continue
+                    step=await self.work(request_development,4,label='candidate_development')
+                    if step is not None and step.state==IDLE:
+                        self.acquisition_idle_until=time.monotonic()+.1
+            if step is None or step.state==IDLE:
+                await asyncio.sleep(.1);continue
+            if step.state==DEFERRED:
+                await asyncio.sleep(0);continue
+            plan=step.plan
             job,config=plan
             def commit(state):
                 h=install(state)
