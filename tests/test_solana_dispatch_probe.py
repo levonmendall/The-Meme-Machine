@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sqlite3
 import tempfile
+from types import SimpleNamespace
 import unittest
 import zlib
 
@@ -49,6 +50,30 @@ class DispatchProbeTests(unittest.TestCase):
             (identity,)).fetchone()))
         self.probe = DispatchProbe(self.h)
         self.h.dispatch_probe = self.probe
+
+    def test_fanout_tightens_overlapping_flight_before_first_child_enqueue(self):
+        self.cache(self.metric([[10,20],[30,40]]))
+        flight=self.h.request('pump',self.job['address'],15,25,priority=4,deadline=NOW+200)
+        tightened=[]
+        self.h._archive_preparation_tickets={flight:SimpleNamespace(
+            tighten=lambda priority,deadline:tightened.append((priority,deadline)))}
+        self.h.install_planner()
+        for _ in range(100):
+            result=self.h.plan_step(excluding=(flight,))
+            self.assertIsNone(result.plan)
+            cursor=self.db.execute('SELECT after_slot FROM acquisition_schedule_fanout_v1 WHERE job_id=?',
+                (self.job['id'],)).fetchone()
+            if cursor==(20,):
+                break
+        else:
+            self.fail('first independently bounded child was not materialized')
+        self.assertEqual(self.db.execute('SELECT priority,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
+            (flight,)).fetchone(),(3,NOW+150,None,0,'pending'))
+        self.assertIn((3,NOW+150),tightened)
+        self.assertEqual(self.db.execute('SELECT lo,hi,deadline,token,pages,status FROM acquisition_jobs WHERE id=?',
+            (self.job['id'],)).fetchone(),(10,100,NOW+150,None,0,'pending'))
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE lo=10 AND hi=20 AND status='pending'").fetchone(),(1,))
+        self.assertFalse(self.db.in_transaction)
 
     def close_writer(self):
         if self.writer is not None:
