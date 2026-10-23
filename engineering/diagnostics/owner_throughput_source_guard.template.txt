@@ -28,6 +28,8 @@ TEST_CALLERS=@TEST_CALLERS@
 TEST_ADDED=@TEST_ADDED@
 LEGACY_PATHS=@LEGACY_PATHS@
 GUARD='tests/test_managed_capacity_source_guard.py'
+NEW_GUARD='tests/test_owner_throughput_source_guard.py'
+NEW_MANIFEST='tests/fixtures/owner_throughput_source_delta.json'
 PROOF_INPUTS=('engineering/diagnostics/build_owner_throughput_source_proof.py',
     'engineering/diagnostics/owner_throughput_source_guard.template.txt')
 PROTECTED=(
@@ -146,6 +148,12 @@ def active_runtime(test):
     test.assertEqual(git('diff','--name-only',CAPACITY_IMPLEMENTATION,BASE,'--','meme_machine'),b'')
     expected={'M\t'+p for p in MODIFIED}|{'A\t'+p for p in ADDED}
     test.assertEqual(set(git('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine').decode().splitlines()),expected)
+    test_delta=[]
+    for line in git('diff','--name-status',BASE,IMPLEMENTATION,'--','tests').decode().splitlines():
+        status,path=line.split('\t')
+        if path not in (GUARD,NEW_GUARD,NEW_MANIFEST) and path.endswith('.py'):test_delta.append(line)
+    test.assertEqual(set(test_delta),{'M\t'+p for p in TEST_CALLERS}|{'A\t'+p for p in TEST_ADDED},
+        'complete changed/added Python test-caller census')
     test.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',
         'complete actual runtime equals exact combined committed source')
     for flags in ((),('--ignored',)):
@@ -164,6 +172,9 @@ def active_runtime(test):
         test.assertEqual(body,git('show',BASE+':'+path))
         test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))
     guard_predecessor(test,(ROOT/GUARD).read_bytes())
+    from engineering.diagnostics.build_owner_throughput_source_proof import render_guard
+    test.assertEqual((ROOT/NEW_GUARD).read_bytes(),render_guard((ROOT/PROOF_INPUTS[1]).read_bytes(),value,MANIFEST_SHA256),
+        'complete current outer guard equals its authenticated generated template')
     return value
 
 
@@ -257,6 +268,9 @@ class OwnerThroughputSourceGuard(unittest.TestCase):
             with self.subTest(path=path),patch.object(Path,'read_bytes',
                     lambda p,path=path,raw=raw:raw+b'\n' if p==ROOT/path else read(p)),self.assertRaises(AssertionError):
                 active_runtime(self)
+        current=(ROOT/NEW_GUARD).read_bytes()
+        with patch.object(Path,'read_bytes',lambda p:current+b'\n' if p==ROOT/NEW_GUARD else read(p)),self.assertRaises(AssertionError):
+            active_runtime(self)
         raw=MANIFEST.read_bytes()
         for bad in (b'{}',raw+b'\n',raw.replace(BASE.encode(),b'f'*40,1)):
             with patch.object(Path,'read_bytes',lambda p,bad=bad:bad if p==MANIFEST else read(p)),self.assertRaises(AssertionError):

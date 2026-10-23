@@ -191,6 +191,22 @@ def literal(raw,name):
     raise ValueError('original_guard_literal_required:'+name)
 
 
+def render_guard(template,manifest,manifest_sha256):
+    files=manifest['files'];test_files=manifest['test_files']
+    source=template.decode()
+    values=dict(IMPLEMENTATION=manifest['implementation'],IMPLEMENTATION_TREE=manifest['implementation_tree'],
+        MANIFEST_SHA256=manifest_sha256,
+        MODIFIED=repr(tuple(p for p in sorted(files) if files[p]['status']=='M')),
+        ADDED=repr(tuple(p for p in sorted(files) if files[p]['status']=='A')),
+        TEST_CALLERS=repr(tuple(p for p in sorted(test_files) if test_files[p]['status']=='M')),
+        TEST_ADDED=repr(tuple(p for p in sorted(test_files) if test_files[p]['status']=='A')),
+        LEGACY_PATHS=repr(tuple(sorted(manifest['legacy_inputs']))))
+    for name,value in values.items():source=source.replace('@'+name+'@',value)
+    if re.search(r'@[A-Z_]+@',source):raise ValueError('unbound_frozen_source_identity')
+    ast.parse(source)
+    return source.encode()
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--repo',type=Path,required=True)
@@ -246,17 +262,7 @@ def main():
         proof_inputs={NEW_BUILDER:dict(bytes=len(builder),sha256=checksum(builder)),
             NEW_TEMPLATE:dict(bytes=len(template),sha256=checksum(template))})
     raw=(json.dumps(manifest,sort_keys=True,indent=2)+'\n').encode()
-    source=template.decode()
-    values=dict(IMPLEMENTATION=runtime,IMPLEMENTATION_TREE=manifest['implementation_tree'],MANIFEST_SHA256=checksum(raw),
-        MODIFIED=repr(tuple(p for p,r in files.items() if r['status']=='M')),
-        ADDED=repr(tuple(p for p,r in files.items() if r['status']=='A')),
-        TEST_CALLERS=repr(tuple(p for p,r in test_files.items() if r['status']=='M')),
-        TEST_ADDED=repr(tuple(p for p,r in test_files.items() if r['status']=='A')),
-        LEGACY_PATHS=repr(tuple(sorted(legacy))))
-    for name,value in values.items():source=source.replace('@'+name+'@',value)
-    if re.search(r'@[A-Z_]+@',source):raise ValueError('unbound_frozen_source_identity')
-    ast.parse(source)
-    generated={GUARD:after_guard,NEW_GUARD:source.encode(),NEW_MANIFEST:raw,
+    generated={GUARD:after_guard,NEW_GUARD:render_guard(template,manifest,checksum(raw)),NEW_MANIFEST:raw,
         NEW_BUILDER:builder,NEW_TEMPLATE:template}
     output.mkdir(parents=True,exist_ok=False)
     for path,body in generated.items():
