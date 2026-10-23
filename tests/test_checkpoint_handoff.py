@@ -183,6 +183,35 @@ class CheckpointHandoffTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.owner.telemetry().get('checkpoint_handoffs',0),0)
         await self.work(lambda s:s.writer.ingest(self.rows(1)),priority=0)
 
+    async def test_queued_cancellation_precedes_grant_without_coordinator_resumption(self):
+        worker=await self.checkpoint_worker()
+        entered=threading.Event();release=threading.Event();consumed=threading.Event()
+        def older(state):
+            entered.set()
+            if not release.wait(5):raise TimeoutError('test release')
+        preceding=self.owner.submit(older,priority=2);await self.wait_event(entered)
+        with patch('meme_machine.solana_checkpoint.checkpoint_and_reclaim',return_value=(0,0,0)) as io:
+            task=asyncio.create_task(reclaim_at_boundary(self.owner,self.path,worker=worker))
+            later=None
+            try:
+                deadline=time.monotonic()+1
+                while not self.owner.telemetry()['queued'] and time.monotonic()<deadline:
+                    if task.done():await task
+                    await asyncio.sleep(.001)
+                self.assertEqual(self.owner.telemetry()['queued'],1,'handoff was not admitted behind older work')
+                later=self.owner.submit(lambda state:consumed.set(),priority=2)
+                task.cancel();release.set()
+                # Owner must consume the canceled grant while this coroutine is
+                # still occupied, before it can catch CancelledError itself.
+                self.assertTrue(consumed.wait(1),'owner did not consume the admitted handoff')
+                io.assert_not_called()
+            finally:
+                release.set()
+                with self.assertRaises(asyncio.CancelledError):await task
+                await asyncio.wrap_future(preceding)
+                if later is not None:await asyncio.wrap_future(later)
+        self.assertEqual(self.owner.telemetry().get('checkpoint_handoffs',0),0)
+
     async def test_pinned_reader_returns_without_waiting_and_lease_is_released(self):
         await self.work(lambda s:s.writer.ingest(self.rows(1)))
         with closing(sqlite3.connect(self.path,isolation_level=None)) as reader:
