@@ -1,5 +1,6 @@
 """Real SQLite checkpoint progress after stale generations, with safe handoff."""
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
@@ -15,7 +16,7 @@ from meme_machine.solana_evidence_control import PriorityOwner
 from meme_machine.solana_evidence_plane import EvidenceUnavailable, EvidenceWriter
 from meme_machine.solana_evidence_service import ServiceState
 from meme_machine.solana_provider_config import AlchemyEndpoint
-from meme_machine.solana_checkpoint import reclaim_at_boundary, checkpoint_and_reclaim
+from meme_machine.solana_checkpoint import CheckpointWorker, reclaim_at_boundary, checkpoint_and_reclaim
 from tests.test_retention_progress import record
 
 
@@ -25,10 +26,17 @@ class CheckpointHandoffTests(unittest.IsolatedAsyncioTestCase):
         config=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test')
         self.owner=PriorityOwner(lambda:ServiceState(self.path,config))
         await asyncio.wrap_future(self.owner.ready)
+        self.workers=[]
 
     async def asyncTearDown(self):
+        for worker in self.workers:worker.close()
         await asyncio.to_thread(self.owner.close)
         self.temp.cleanup()
+
+    async def checkpoint_worker(self):
+        worker=CheckpointWorker(self.owner,self.path);self.workers.append(worker)
+        await asyncio.shield(asyncio.wrap_future(worker.ready))
+        return worker
 
     async def work(self,operation,priority=2):
         return await asyncio.wrap_future(self.owner.submit(operation,priority=priority))
@@ -89,6 +97,91 @@ class CheckpointHandoffTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await task,(0,0,0));await asyncio.wrap_future(later)
         self.assertNotIn(self.owner.thread.ident,threads)
         self.assertEqual(await self.work(lambda s:s.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]),32)
+
+    async def test_completed_io_releases_owner_while_asyncio_coordinator_is_occupied(self):
+        await self.work(lambda s:s.writer.ingest(self.rows(1)))
+        worker=await self.checkpoint_worker()
+        entered=threading.Event();release=threading.Event();io_completed=threading.Event()
+        committed=threading.Event()
+        def delayed(path):
+            entered.set()
+            if not release.wait(5):raise TimeoutError('test release')
+            result=checkpoint_and_reclaim(path)
+            io_completed.set()
+            return result
+        def mutation(state):
+            result=state.writer.ingest(self.rows(2));committed.set()
+            return result
+        with patch('meme_machine.solana_checkpoint.checkpoint_and_reclaim',side_effect=delayed):
+            task=asyncio.create_task(reclaim_at_boundary(self.owner,self.path,worker=worker))
+            await self.wait_event(entered)
+            later=self.owner.submit(mutation,priority=0)
+            try:
+                # Real unfinished I/O must retain the exact mutation boundary.
+                await asyncio.sleep(.02)
+                self.assertFalse(later.done());self.assertFalse(committed.is_set())
+                release.set()
+                # Deliberately occupy this loop: no coordinator continuation or
+                # asyncio Future callback can release the boundary during wait.
+                completed_without_loop=committed.wait(1)
+                self.assertTrue(io_completed.is_set(),'physical checkpoint did not complete')
+                self.assertTrue(completed_without_loop,
+                    'finished checkpoint retained owner until asyncio resumed')
+                self.assertFalse(task.done(),'fixture did not occupy the result coordinator')
+                later.result(timeout=1)
+            finally:
+                release.set()
+                await task
+                await asyncio.wrap_future(later)
+        self.assertEqual(await self.work(lambda s:s.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]),32)
+
+    async def test_ready_checkpoint_worker_does_not_borrow_saturated_default_executor(self):
+        await self.work(lambda s:s.writer.ingest(self.rows(1)))
+        worker=await self.checkpoint_worker()
+        entered=threading.Event();release=threading.Event();threads=[]
+        executor=ThreadPoolExecutor(max_workers=1,thread_name_prefix='blocked-checkpoint-test')
+        asyncio.get_running_loop().set_default_executor(executor)
+        def occupy():
+            threads.append(threading.get_ident());entered.set()
+            if not release.wait(5):raise TimeoutError('test release')
+        blocker=asyncio.get_running_loop().run_in_executor(None,occupy)
+        self.assertTrue(entered.wait(1),'default executor was not occupied')
+        task=asyncio.create_task(reclaim_at_boundary(self.owner,self.path,worker=worker))
+        try:
+            done,_=await asyncio.wait({task},timeout=1)
+            self.assertIn(task,done,'checkpoint queued behind unrelated default-executor work')
+            self.assertEqual(await task,(0,0,0))
+            self.assertFalse(blocker.done(),'default executor was released before discriminator')
+            self.assertNotIn(worker.thread.ident,threads)
+            await self.work(lambda s:s.writer.ingest(self.rows(2)),priority=0)
+        finally:
+            release.set()
+            await blocker
+            await task
+        self.assertEqual(await self.work(lambda s:s.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]),32)
+
+    async def test_closed_ready_worker_consumes_queued_grant_without_io(self):
+        worker=await self.checkpoint_worker()
+        entered=threading.Event();release=threading.Event()
+        def older(state):
+            entered.set()
+            if not release.wait(5):raise TimeoutError('test release')
+        preceding=self.owner.submit(older,priority=2);await self.wait_event(entered)
+        job=worker.prepare()
+        accepted=self.owner.submit(lambda state:worker.grant(job),priority=2)
+        with patch('meme_machine.solana_checkpoint.checkpoint_and_reclaim') as io:
+            try:
+                worker.close()
+                self.assertFalse(worker.thread.is_alive())
+                with self.assertRaisesRegex(EvidenceUnavailable,'checkpoint_worker_unavailable'):
+                    worker.prepare()
+            finally:release.set()
+            await asyncio.wrap_future(preceding)
+            self.assertFalse(await asyncio.wrap_future(accepted))
+            self.assertIsNone(await asyncio.wrap_future(job.result))
+            io.assert_not_called()
+        self.assertEqual(self.owner.telemetry().get('checkpoint_handoffs',0),0)
+        await self.work(lambda s:s.writer.ingest(self.rows(1)),priority=0)
 
     async def test_pinned_reader_returns_without_waiting_and_lease_is_released(self):
         await self.work(lambda s:s.writer.ingest(self.rows(1)))
