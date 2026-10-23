@@ -215,7 +215,8 @@ def stores(state, reader):
         qualification_candidates=digest(reader.db, 'SELECT * FROM candidate_state ORDER BY mint'))
 
 
-async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seconds):
+async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seconds,
+                  owner_workload=None):
     from meme_machine.solana_evidence_plane import EvidenceWriter
     from meme_machine.solana_evidence_service import FinalizedFence
     from meme_machine.solana_evidence_control import PriorityOwner
@@ -336,16 +337,22 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 if not intake_finished:counters['delivery_before_intake_finished'] += 1
                 changed.set(); delivery_changed.set()
         source.observer = observe
+        if owner_workload is not None:
+            await owner_workload.bind(owner, source, config, loop)
 
     async def stop_tasks():
         if source is not None:
             source.stop.set(); source.delivery_wakeup.notify(); source.history_wakeup.notify()
         for task in tasks:task.cancel()
-        if tasks:
-            settled = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in settled:
-                if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):raise result
-        tasks.clear()
+        try:
+            if tasks:
+                settled = await asyncio.gather(*tasks, return_exceptions=True)
+                for result in settled:
+                    if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):raise result
+        finally:
+            tasks.clear()
+            if owner_workload is not None:
+                owner_workload.close_worker()
 
     async def admit_group(group):
         prepared = [records[item['identity']][0] for item in group]
@@ -353,7 +360,8 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                           label='source_commit', component='candidate')
 
     def check_tasks():
-        for task in tasks[:3]:
+        workers = tasks[:3] + ([] if owner_workload is None else owner_workload.workers)
+        for task in workers:
             if task.done():
                 task.result()
                 raise ValueError('original_window_concurrent_worker_stopped')
@@ -416,11 +424,15 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             progress.append(dict(admitted=admitted, observed=None if latest is None else
                 latest.get('durably_observed_native_events'), elapsed_seconds=loop.time()-started))
         intake_finished = True
+        if owner_workload is not None:
+            owner_workload.intake_finished = True
 
     try:
         async with asyncio.timeout(seconds):
             await bootstrap()
             await qualification(install_nonfinancial_history, config)
+            if owner_workload is not None:
+                await owner_workload.seed()
             await admit_group(parcel.warmup)
             reader = await qualification(open_reader, cancel_result=lambda value:value.close())
             initial = await qualification(reader.snapshot)
@@ -432,6 +444,8 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
             started = loop.time(); wall, cpu = time.perf_counter_ns(), time.process_time_ns()
             tasks.extend((asyncio.create_task(source.candidate_history_delivery()),
                           asyncio.create_task(source.publish_history()), asyncio.create_task(qualify())))
+            if owner_workload is not None:
+                tasks.extend(owner_workload.start())
             feeding = asyncio.create_task(arrivals(started)); producing = asyncio.create_task(intake())
             tasks.extend((feeding, producing))
             # A failure of any worker must interrupt a producer waiting for a
@@ -440,11 +454,15 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 await asyncio.gather(feeding, producing)
                 await qualified_until(len(parcel.inputs))
                 await delivered_until_empty()
+                if owner_workload is not None:
+                    await owner_workload.finish()
+                    await delivered_until_empty()
             completion = asyncio.create_task(finished())
             try:
                 while not completion.done():
                     check_tasks()
-                    watched = [task for task in tasks[:3] if not task.done()]
+                    workers = tasks[:3] + ([] if owner_workload is None else owner_workload.workers)
+                    watched = [task for task in workers if not task.done()]
                     done, _ = await asyncio.wait([completion, *watched], return_when=asyncio.FIRST_COMPLETED)
                     for task in done:
                         if task is not completion:
@@ -499,6 +517,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 return await qualification(read)
             before_restart = await fingerprints()
             owner_counts = dict(work.counts)
+            owner_workload_cut = (None if owner_workload is None else await owner_workload.cut())
             original.need('owner.stage.candidate_delivery_capture.calls' not in owner_counts,
                           'concurrent_owner_capture_reintroduced')
             original.need(owner_counts.get('owner.stage.candidate_delivery_ack.calls', 0) > 0,
@@ -528,6 +547,7 @@ async def run_arm(parcel, records, batches, directory, *, concurrent, rate, seco
                 store_fingerprints=before_restart, counters=dict(counters), owner_counters=owner_counts,
                 thread_ids=thread_ids, distinct_pipeline_threads=len(set(thread_ids.values())) == 3,
                 production_work_capabilities=capabilities,
+                owner_workload=owner_workload_cut,
                 controlled_batch_progress=progress,
                 decision_target='unavailable_no_original_oracle_retained', missing_provider_inputs=provider.missing,
                 provider_requests=0, financial_authority=False, full_strategy_equivalence_proven=False,
