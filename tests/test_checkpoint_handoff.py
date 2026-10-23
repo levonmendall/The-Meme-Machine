@@ -3,6 +3,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from dataclasses import replace
+import json
 from pathlib import Path
 import random
 import sqlite3
@@ -211,6 +212,67 @@ class CheckpointHandoffTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.wrap_future(preceding)
                 if later is not None:await asyncio.wrap_future(later)
         self.assertEqual(self.owner.telemetry().get('checkpoint_handoffs',0),0)
+
+    async def test_service_retains_late_passive_io_error_and_joins_before_writer_close(self):
+        from meme_machine import solana_evidence_service as service
+        from tests.evidence_ipc_harness import ipc_transport
+        from tests.maintenance_production_harness import NativeCompletionPool
+        from tests.test_solana_prewarm_startup import quiet_model_b
+        loop=asyncio.get_running_loop();stop=asyncio.Event();entered=asyncio.Event()
+        release=threading.Event();io_completed=threading.Event();owners=[];workers=[]
+        failure=OSError('late checkpoint I/O fixture')
+        owner_init=PriorityOwner.__init__;owner_close=PriorityOwner.close
+        worker_init=CheckpointWorker.__init__
+        def tracked_owner(owner,*args,**kwargs):
+            owner_init(owner,*args,**kwargs);owners.append(owner)
+        def tracked_worker(worker,*args,**kwargs):
+            worker_init(worker,*args,**kwargs);workers.append(worker)
+        def close_owner(owner):
+            self.assertTrue(io_completed.is_set(),'writer closed before accepted PASSIVE completed')
+            self.assertTrue(workers and all(not worker.thread.is_alive() for worker in workers),
+                'writer closed before dedicated checkpoint worker joined')
+            return owner_close(owner)
+        def passive(path):
+            loop.call_soon_threadsafe(entered.set)
+            if not release.wait(5):raise TimeoutError('test release')
+            io_completed.set();raise failure
+        async def driver(work,stop):
+            boot=asyncio.Event();boot.set();await quiet_model_b(work,boot)
+            await stop.wait()
+        path=Path(self.temp.name)/'service-db'
+        with ipc_transport(),patch('concurrent.futures.ProcessPoolExecutor',NativeCompletionPool), \
+                patch.object(PriorityOwner,'__init__',tracked_owner), \
+                patch.object(PriorityOwner,'close',close_owner), \
+                patch.object(CheckpointWorker,'__init__',tracked_worker), \
+                patch.object(EvidenceWriter,'checkpoint',side_effect=passive):
+            runner=asyncio.create_task(service.serve(path,
+                'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop,source_driver=driver))
+            try:
+                await asyncio.wait_for(entered.wait(),3)
+                stop.set();checkpoint_tasks=[];deadline=time.monotonic()+3
+                while time.monotonic()<deadline:
+                    checkpoint_tasks=[task for task in asyncio.all_tasks()
+                        if task.get_coro().__qualname__=='serve.<locals>.checkpoint']
+                    if checkpoint_tasks and checkpoint_tasks[0].cancelling():break
+                    if runner.done():await runner
+                    await asyncio.sleep(.001)
+                self.assertEqual(len(checkpoint_tasks),1,'service checkpoint task was not retained')
+                self.assertTrue(checkpoint_tasks[0].cancelling(),'shutdown did not cancel accepted PASSIVE waiter')
+                self.assertFalse(runner.done());self.assertFalse(io_completed.is_set())
+                release.set()
+                with self.assertRaises(OSError) as caught:
+                    await asyncio.wait_for(asyncio.shield(runner),3)
+                self.assertIs(caught.exception,failure,'original physical I/O exception was replaced')
+            finally:
+                stop.set();release.set()
+                if not runner.done():runner.cancel()
+                await asyncio.gather(runner,return_exceptions=True)
+        self.assertTrue(owners and all(not owner.thread.is_alive() for owner in owners))
+        self.assertTrue(workers and all(not worker.thread.is_alive() for worker in workers))
+        self.assertFalse(Path(str(path)+'.sock').exists())
+        with closing(sqlite3.connect(path)) as db:
+            self.assertEqual(json.loads(db.execute("SELECT value FROM service_health WHERE key='phase'").fetchone()[0]),'FAILED')
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))
 
     async def test_pinned_reader_returns_without_waiting_and_lease_is_released(self):
         await self.work(lambda s:s.writer.ingest(self.rows(1)))
