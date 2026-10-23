@@ -59,7 +59,7 @@ class CheckpointWorker:
 
     def prepare(self):
         with self.cv:
-            if self.closed or not self.ready.done():
+            if self.closed or not self.ready.done() or not self.thread.is_alive():
                 raise EvidenceUnavailable('checkpoint_worker_unavailable')
             if self.job is not None:raise EvidenceUnavailable('checkpoint_worker_inflight')
             self.job=_CheckpointJob()
@@ -84,8 +84,9 @@ class CheckpointWorker:
             if job.cancelled or self.closed:
                 self.job=None;job.result.set_result(None);self.cv.notify_all()
                 return False
-            # READY precedes admission. Publishing the token wakes this worker
-            # directly, with no new task/executor submission while it is held.
+            # READY precedes admission. This must be the owner's whole callback:
+            # after publishing, it must perform no SQLite work or mutations.
+            # The worker wakes directly, with no new task/executor submission.
             job.token=self.owner.checkpoint_handoff_after_current()
             self.cv.notify_all()
             return True
