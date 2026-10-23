@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from meme_machine.solana_acquisition_scheduler import (
     FANOUT, QUEUE, SIGNALS, STATE, URGENT_COUNT, URGENT_STATE)
-from meme_machine.solana_candidate_development import DISPATCH, DEFERRED
+from meme_machine.solana_candidate_development import CandidateDevelopment, DISPATCH, DEFERRED
 from meme_machine.solana_candidate_lifecycle import SCHEMA as LIFECYCLE_SCHEMA
 from meme_machine.solana_evidence_plane import EvidenceUnavailable, EvidenceWriter
 from meme_machine.solana_planning_quantum import PlanningQuantum
@@ -276,6 +276,42 @@ class OwnerPlanningQuantumTests(unittest.TestCase):
                     self.h.plan_step(quantum=quantum)
             finally:
                 quantum.close()
+
+    def test_budget_crossed_between_previous_phase_and_decision_entry_yields_without_consuming_phase(self):
+        from meme_machine.solana_candidate_phases import CandidatePhases, DEVELOPMENT_PHASES
+        self.install()
+        identity=self.add_job(priority=3)
+        actor=CandidateDevelopment(self.h,clock=lambda:0)
+        actor.phase=4
+        actor.poll_at=1
+        timing=CandidatePhases({},phases=DEVELOPMENT_PHASES,
+            prefix='development_phase:',runnable=lambda:None)
+        clock=[.004]
+        validations=[]
+        original_validate=PlanningQuantum.validate
+        def advancing_validate(quantum,history):
+            original_validate(quantum,history)
+            validations.append(quantum.decisions)
+            # Urgent-empty admission completes first. The later phase4 plan
+            # enters just after its caller saw budget remaining. This is the
+            # original public-check/context-entry race, not a forged result.
+            if len(validations)==5:clock[0]=.010
+        with patch('meme_machine.solana_candidate_development.time.perf_counter',side_effect=lambda:clock[0]), \
+                patch.object(PlanningQuantum,'validate',new=advancing_validate), \
+                patch.object(self.h,'_plan_step',wraps=self.h._plan_step) as actual_plan:
+            result=actor.step(timing,30)
+        self.assertEqual((result.state,result.plan,result.yield_quantum),(DEFERRED,None,True))
+        self.assertEqual(actor.phase,4)
+        self.assertFalse(self.db.in_transaction)
+        self.assertEqual(actual_plan.call_count,1)
+        self.assertTrue(actual_plan.call_args.kwargs['urgent_only'])
+        self.assertEqual(self.db.execute('SELECT status,deadline,lo,hi FROM acquisition_jobs WHERE id=?',
+            (identity,)).fetchone(),('pending',NOW+1000,10,20))
+        # A subsequent fresh turn still performs the unconsumed phase4 plan.
+        with patch('meme_machine.solana_candidate_development.time.perf_counter',return_value=0):
+            result=actor.step(timing,30)
+        self.assertEqual((result.state,result.plan[0]['id']),(DISPATCH,identity))
+        self.assertEqual(actor.phase,0)
 
     def test_sixteen_decision_budget_yields_without_another_plan_or_claim(self):
         self.install()

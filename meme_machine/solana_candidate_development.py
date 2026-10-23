@@ -226,6 +226,8 @@ class CandidateDevelopment:
         db = h.db
         if self.phase == 4:
             result = self._plan(timing, excluding, batched, quantum)
+            if quantum is not None and quantum.refused_decision:
+                return result
             self.phase = 0
             self.external_boundary_done=False
             return result

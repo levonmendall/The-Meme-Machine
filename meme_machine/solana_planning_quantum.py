@@ -25,6 +25,7 @@ class PlanningQuantum:
         self.owner = threading.get_ident()
         self.active = True
         self.decisions = 0
+        self.refused_decision = False
         self.deadline = deadline
         self.yield_required = False
         self.seed = None
@@ -60,13 +61,21 @@ class PlanningQuantum:
             self.deadline is not None and time.perf_counter() >= self.deadline)
 
     @contextmanager
-    def decision(self, history):
+    def decision(self, history, *, defer_exhausted=False):
         self.validate(history)
         if self.exhausted():
-            raise EvidenceUnavailable('planning_quantum_exhausted')
+            if not defer_exhausted:
+                raise EvidenceUnavailable('planning_quantum_exhausted')
+            # Public planning is cooperative work: exhaustion is a committed
+            # yield, while direct strict callers retain their abuse guard.
+            self.refused_decision=True
+            self.yield_required=True
+            yield False
+            return
+        self.refused_decision=False
         self.decisions += 1
         try:
-            yield
+            yield True
             self.validate(history)
         except BaseException:
             self.close()

@@ -541,9 +541,8 @@ class SelectiveHistory:
         if quantum is not None:
             from .solana_candidate_development import PlanningStep, DEFERRED
             quantum.validate(self)
-            if quantum.exhausted():
-                return PlanningStep(DEFERRED,yield_quantum=True)
-            with quantum.decision(self):
+            with quantum.decision(self,defer_exhausted=True) as admitted:
+                if not admitted:return PlanningStep(DEFERRED,yield_quantum=True)
                 return self._plan_step(excluding=excluding,urgent_only=urgent_only,quantum=quantum)
         return self._plan_step(excluding=excluding,urgent_only=urgent_only)
 
