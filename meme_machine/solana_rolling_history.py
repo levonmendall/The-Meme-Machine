@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS rolling_publication_waits(
  PRIMARY KEY(family,address,lo,hi));
 CREATE INDEX IF NOT EXISTS rolling_publication_pending_cursor ON rolling_publication_waits(status)
  WHERE status='pending';
+CREATE INDEX IF NOT EXISTS rolling_boundary_pending_family_v1 ON rolling_boundary_waits(status,family);
+CREATE INDEX IF NOT EXISTS rolling_publication_pending_family_v1 ON rolling_publication_waits(status,family);
 CREATE TABLE IF NOT EXISTS rolling_group_members(
  scope TEXT NOT NULL,family TEXT NOT NULL,address TEXT NOT NULL,lower_slot INTEGER NOT NULL,
  PRIMARY KEY(scope,family,address));
@@ -518,9 +520,17 @@ class RollingHistory:
         where=" WHERE "+active_sql('family',solana=True)+" AND status='pending'"
         if limit is None:return self.db.execute('SELECT rowid,'+columns+' FROM '+table+where+' ORDER BY rowid').fetchall()
         if type(limit) is not int or limit<1:raise ValueError('rolling_wait_slice')
-        query='SELECT rowid,'+columns+' FROM '+table+where+' AND rowid>? ORDER BY rowid LIMIT ?'
-        rows=self.db.execute(query,(after,limit)).fetchall()
-        return rows if rows or not after else self.db.execute(query,(0,limit)).fetchall()
+        index=('rolling_boundary_pending_family_v1' if table=='rolling_boundary_waits'
+            else 'rolling_publication_pending_family_v1')
+        def page(cursor):
+            rows=[]
+            for family in sorted(self.history.active_families):
+                rows.extend(self.db.execute('SELECT rowid,'+columns+' FROM '+table+' INDEXED BY '+index+
+                    " WHERE status='pending' AND family=? AND rowid>? ORDER BY rowid LIMIT ?",
+                    (family,cursor,limit)).fetchall())
+            return sorted(rows)[:limit]
+        rows=page(after)
+        return rows if rows or not after else page(0)
 
     def resume_boundaries(self,*,limit=None,after=0):
         """A sealed native observation resolves a first-sight publication race."""

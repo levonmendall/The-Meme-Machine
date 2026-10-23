@@ -456,6 +456,9 @@ class HistoricalTasks:
             reusable=identical and stamp==dependency_stamp(rolling,job['spec'],as_of=job['as_of'])
             self.db.execute("UPDATE rolling_preparation_jobs SET status='complete',token=NULL,lease_until=NULL,updated=?,result_hash=?,dependency=?,metric=?,metric_hash=? WHERE id=?",
                 (self.clock(),result['result_hash'],stamp if reusable else None,raw,hashlib.sha256(raw.encode()).hexdigest(),job['id']))
+            probe=getattr(self.history,'dispatch_probe',None)
+            if reusable and probe is not None:
+                probe.preparation_applied(job['id'],hashlib.sha256(raw.encode()).hexdigest())
             self.history._observation(job['id'],'historical_prepare_committed',
                 dict(worker=result['metrics'],entry_authority=False,deadline_reset=False))
         return metric

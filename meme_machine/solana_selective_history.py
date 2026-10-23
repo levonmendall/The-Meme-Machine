@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS acquisition_jobs(
  lineage TEXT NOT NULL,created REAL NOT NULL,updated REAL NOT NULL,error TEXT);
 CREATE INDEX IF NOT EXISTS acquisition_priority ON acquisition_jobs(status,priority,deadline,created);
 CREATE INDEX IF NOT EXISTS acquisition_candidate_status ON acquisition_jobs(family,address,status);
+CREATE INDEX IF NOT EXISTS acquisition_expiry_quantum_v1 ON acquisition_jobs(family,status,deadline,id);
 CREATE TABLE IF NOT EXISTS acquisition_page_receipts(
  job TEXT NOT NULL,page INTEGER NOT NULL,input_hash TEXT NOT NULL,
  result TEXT NOT NULL,committed REAL NOT NULL,PRIMARY KEY(job,page));
@@ -488,7 +489,9 @@ class SelectiveHistory:
             self.db.execute('UPDATE acquisition_jobs SET priority=MIN(priority,?),deadline=MIN(deadline,?) WHERE id=?',
                 (priority,deadline,identity))
             self._archive_preparation_tightened(identity,priority,deadline)
-            depth=self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone()[0]
+            scheduler=getattr(self,'acquisition_scheduler',None)
+            depth=(scheduler.pending_count() if scheduler is not None else
+                self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone()[0])
             if depth>8:self._observation(identity,'capacity_pressure',dict(queue_depth=depth,economic_rejection=False))
         return identity
 
@@ -524,11 +527,140 @@ class SelectiveHistory:
                 (status,now,canonical(body),job['id']))
             self._observation(job['id'],'archive_provider_failure',dict(body,status=status))
 
-    def plan_step(self,*,excluding=()):
-        """One cooperative planner result; bounded dispatch replaces this adapter."""
-        from .solana_candidate_development import PlanningStep, DISPATCH, IDLE
-        result=self.plan(excluding=excluding)
-        return PlanningStep(DISPATCH,result) if result else PlanningStep(IDLE)
+    def install_planner(self):
+        """Install additive owner scheduling before native producers start."""
+        if not hasattr(self,'acquisition_scheduler'):
+            from .solana_acquisition_scheduler import AcquisitionScheduler
+            self.acquisition_scheduler=AcquisitionScheduler(self)
+        if hasattr(self,'historical_tasks') and not hasattr(self,'dispatch_probe'):
+            from .solana_dispatch_probe import DispatchProbe
+            self.dispatch_probe=DispatchProbe(self)
+
+    @measured('owner.history_plan')
+    def plan_step(self,*,excluding=(),urgent_only=False):
+        """One finite dispatch quantum; DEFERRED never means empty/complete.
+
+        The authoritative row, original deadline, local completeness and
+        publication guard are rechecked on this sole owner. One optional child
+        is created at a time; its unchanged parent retains the entire original
+        obligation until real coverage, not the child list, proves completion.
+        """
+        from .solana_candidate_development import PlanningStep, DISPATCH, DEFERRED, IDLE
+        from .solana_acquisition_scheduler import DEFERRED as SCHEDULE_DEFERRED, IDLE as SCHEDULE_IDLE
+        from .operational.position_continuation import position_only
+        self.install_planner()
+        scheduler=self.acquisition_scheduler
+        only_urgent=urgent_only or position_only()
+        with self.writer.transaction():
+            expiry_more=False
+            if not only_urgent:
+                # Fixed family streams merge without sorting the full retained
+                # population. Each source range is an indexed seek.
+                expired=[];now=self.clock()
+                for family in sorted(self.active_families):
+                    expired.extend(self.db.execute("SELECT id,deadline FROM acquisition_jobs "
+                        "INDEXED BY acquisition_expiry_quantum_v1 WHERE family=? AND status='pending' "
+                        "AND deadline<=? ORDER BY deadline,id LIMIT 17",(family,now)).fetchall())
+                expiry_more=len(expired)>16
+                for identity,_ in sorted(expired,key=lambda row:(row[1],row[0]))[:16]:
+                    self.db.execute("UPDATE acquisition_jobs SET status='deadline_missed',updated=?,"
+                        "error='candidate_decision_deadline_missed' WHERE id=?",(now,identity))
+                    self._observation(identity,'deadline_missed',dict(economic_rejection=False))
+            job=scheduler.next(excluding=excluding,urgent=only_urgent)
+            if job==SCHEDULE_DEFERRED:return PlanningStep(DEFERRED)
+            if job==SCHEDULE_IDLE:return PlanningStep(DEFERRED if expiry_more else IDLE)
+            now=self.clock()
+            if job['deadline']<=now:return PlanningStep(DEFERRED)
+            if job['priority']>2 and job['error']:
+                retry=self.db.execute("SELECT CASE WHEN json_valid(error) THEN CASE WHEN "
+                    "json_extract(error,'$.kind')='archive_provider_failure' THEN "
+                    "json_extract(error,'$.retry_after') END END FROM acquisition_jobs WHERE id=?",
+                    (job['id'],)).fetchone()[0]
+                if type(retry) in (int,float) and retry>now:
+                    scheduler.defer(job,retry)
+                    return PlanningStep(DEFERRED)
+            scope=self.scope_for(job['family'],job['address']) if hasattr(self,'rolling') else None
+            probe=None
+            fanout_after=scheduler.fanout_after(job) if not job['pages'] else None
+            if scope is None:
+                interval=(job['lo'],job['hi'])
+            elif job['priority']>2 and hasattr(self,'historical_tasks') and job['family'] in ('pump','pumpswap'):
+                from .solana_dispatch_probe import READY, COMPLETE
+                probe=self.dispatch_probe.step(job,after_slot=fanout_after)
+                if probe.state==COMPLETE:
+                    if not self.dispatch_probe.current(job,probe):return PlanningStep(DEFERRED)
+                    self.db.execute("UPDATE acquisition_jobs SET status='complete',updated=? WHERE id=?",(now,job['id']))
+                    self._observation(job['id'],'shared_coverage_reused',dict(scope=scope,
+                        lo=job['lo'],hi=job['hi'],deadline_reset=False))
+                    self.dispatch_probe.reset()
+                    return PlanningStep(DEFERRED)
+                if probe.state!=READY:
+                    if probe.reason=='FANOUT_COMPLETE' and fanout_after is not None:
+                        scheduler.fanout_wait(job)
+                    elif not probe.continuation:
+                        scheduler.defer(job,now+.1,probe.dependency)
+                    return PlanningStep(DEFERRED)
+                interval=probe.interval
+            else:
+                # Existing urgent/native completeness runs synchronously. It
+                # must not wait for optional preparation or borrow its verdict.
+                missing=self.rolling.missing(job['family'],scope,job['lo'],job['hi'])
+                if not missing:
+                    self.db.execute("UPDATE acquisition_jobs SET status='complete',updated=? WHERE id=?",(now,job['id']))
+                    self._observation(job['id'],'shared_coverage_reused',dict(scope=scope,
+                        lo=job['lo'],hi=job['hi'],deadline_reset=False))
+                    return PlanningStep(DEFERRED)
+                scopes=self.rolling.scopes(job['family'],scope)
+                publishing=self.db.execute('SELECT lo,hi FROM candidate_pending_proofs WHERE scope IN ('+
+                    ','.join('?' for _ in scopes)+') AND lo<=? AND hi>=?',(*scopes,job['hi'],job['lo'])).fetchall()
+                required=missing
+                for lo,hi in publishing:
+                    required=[p for a,b in required for p in ((a,min(b,lo-1)),(max(a,hi+1),b)) if p[0]<=p[1]]
+                if not required:
+                    scheduler.defer(job,now+.1)
+                    return PlanningStep(DEFERRED)
+                if not job['pages'] and fanout_after is not None:
+                    required=[(max(a,fanout_after+1),b) for a,b in required if b>fanout_after]
+                    if not required:
+                        scheduler.fanout_wait(job)
+                        return PlanningStep(DEFERRED)
+                interval=required[0]
+            a,b=interval
+            if not job['pages'] and interval!=(job['lo'],job['hi']):
+                if probe is not None and not self.dispatch_probe.current(job,probe):
+                    return PlanningStep(DEFERRED)
+                # Materialize independent children over committed quanta before
+                # waiting for any physical page. Never move the original job's
+                # cursor, bounds, deadline or coverage status. Reusing the same
+                # verified probe permits parallel archive workers to acquire
+                # later pieces while the earliest child remains in flight.
+                self.request(job['family'],job['address'],a,b,priority=job['priority'],deadline=job['deadline'])
+                scheduler.fanout_advance(job,b)
+                return PlanningStep(DEFERRED)
+            # At most the eight bounded archive workers can own physical pages.
+            overlapping=[]
+            for identity in excluding:
+                flight=self.db.execute("SELECT family,address,lo,hi FROM acquisition_jobs "
+                    "WHERE id=? AND status='pending'",(identity,)).fetchone()
+                if (flight and flight[0]==job['family'] and self.scope_for(flight[0],flight[1])==scope
+                        and flight[2]<=(job['hi'] if job['pages'] else b)
+                        and flight[3]>=(job['lo'] if job['pages'] else a)):overlapping.append(identity)
+            if overlapping:
+                for identity in overlapping:
+                    self.db.execute('UPDATE acquisition_jobs SET priority=MIN(priority,?),deadline=MIN(deadline,?) WHERE id=?',
+                        (job['priority'],job['deadline'],identity))
+                    self._archive_preparation_tightened(identity,job['priority'],job['deadline'])
+                scheduler.defer(job,now+.1)
+                if probe is not None:self.dispatch_probe.reset()
+                return PlanningStep(DEFERRED)
+            if probe is not None and not self.dispatch_probe.current(job,probe):
+                return PlanningStep(DEFERRED)
+            if probe is not None:self.dispatch_probe.reset()
+            config=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',
+                encoding='json',maxSupportedTransactionVersion=1,
+                filters=dict(slot=dict(gte=job['lo'],lte=job['hi'])))
+            if job['token'] is not None:config['paginationToken']=job['token']
+            return PlanningStep(DISPATCH,(job,config))
 
     @measured('owner.history_plan')
     def plan(self,*,excluding=()):

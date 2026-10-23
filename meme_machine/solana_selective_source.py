@@ -177,6 +177,8 @@ def install(state):
         elif state.writer.db.execute("SELECT 1 FROM sqlite_master WHERE name='rolling_preparation_jobs'").fetchone():
             # Flag rollback preserves newly queued, not-yet-applied obligations.
             state.selective.historical_recovery=HistoricalTasks(state.selective)
+        from .solana_candidate_development import CandidateDevelopment
+        state.selective.development=CandidateDevelopment(state.selective)
         state.fence.selective=state.selective
         state.fence.health('topology','candidate_hybrid_v1')
     return state.selective
@@ -604,6 +606,7 @@ class SelectiveSource:
         self.control_bootstrap_tip=None;self.control_committed_slot=None
         self.control_committed_market_time=None
         self.acquisition_plan_lock=asyncio.Lock();self.acquisition_idle_until=0
+        self.acquisition_plan_cleanup=set()
         self.preparation_lock=asyncio.Lock();self.archive_preparation_lock=asyncio.Lock()
         from .solana_history_notifications import WorkPulse,ProofPublicationHandoff
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
@@ -1796,12 +1799,46 @@ class SelectiveSource:
                     await asyncio.sleep(min(30,.5*2**min(failures-1,6)))
             await asyncio.sleep(1)
 
+    @staticmethod
+    def release_acquisition_claim(state,job):
+        """Release only this consumed/abandoned volatile claim, not a new one."""
+        token=job.get('_acquisition_claim_token')
+        claims=getattr(state,'acquisition_claim_tokens',{})
+        if token is None or claims.get(job['id'])!=token:return False
+        state.acquisition_inflight.discard(job['id'])
+        claims.pop(job['id'],None)
+        tickets=getattr(install(state),'_archive_preparation_tickets',{})
+        if tickets.get(job['id']) is job.get('_archive_preparation_ticket'):
+            tickets.pop(job['id'],None)
+        return True
+
+    async def abandon_acquisition_plan(self,future):
+        """Accepted work survives cancellation; join then release its exact claim."""
+        from .solana_candidate_development import DISPATCH
+        try:
+            value=await asyncio.shield(asyncio.wrap_future(future))
+        except BaseException:
+            return # Failed owner work supplied no successful claim.
+        # The service wraps the original value with its two timing integers;
+        # a direct owner adapter can expose that original value unchanged.
+        step=(value[0] if type(value) is tuple and len(value)==3
+            and type(value[1]) is int and type(value[2]) is int else value)
+        if getattr(step,'state',None)!=DISPATCH:return
+        job=step.plan[0]
+        await self.work(lambda state:self.release_acquisition_claim(state,job),1)
+
     async def acquire_pool(self):
         tasks=[asyncio.create_task(self.acquire()) for _ in range(ARCHIVE_WORKERS)]
         try:await asyncio.gather(*tasks)
         finally:
             for task in tasks:task.cancel()
             await asyncio.gather(*tasks,return_exceptions=True)
+            if self.acquisition_plan_cleanup:
+                outcomes=await asyncio.gather(*self.acquisition_plan_cleanup,return_exceptions=True)
+                self.acquisition_plan_cleanup.clear()
+                if any(isinstance(value,BaseException) for value in outcomes):
+                    self.diagnostic('acquisition_claim_release_unavailable',dict(complete=False,
+                        original_failure_preserved=True))
 
     async def historical_processing(self):
         """One bounded off-owner result; archive workers do not run its CPU work."""
@@ -2250,24 +2287,27 @@ class SelectiveSource:
                     if not h.startup.snapshot().get('released'):return None
                     if hasattr(h,'historical_recovery'):h.historical_recovery.resume_sync(limit=16)
                     frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
-                from .solana_candidate_development import CandidateDevelopment, DISPATCH, IDLE, PlanningStep
+                from .solana_candidate_development import CandidateDevelopment, DISPATCH
+                if not hasattr(h,'development'):
+                    h.development=CandidateDevelopment(h)
                 if frontier is None or position_only():
-                    with timing.phase('plan'):
-                        step=h.plan_step(excluding=tuple(state.acquisition_inflight))
+                    step=h.development.plan(timing,tuple(state.acquisition_inflight),self.batched)
                 else:
-                    if not hasattr(h,'development'):
-                        h.development=CandidateDevelopment(h)
                     step=h.development.step(timing,frontier,
                         excluding=tuple(state.acquisition_inflight),batched=self.batched)
                 if step.state!=DISPATCH:return step
                 result=step.plan
-                state.acquisition_inflight.add(result[0]['id'])
                 result[0]['finalized_hint']=frontier
                 ticket=ArchivePreparationTicket(result[0]['priority'],result[0]['deadline'],
                     preparation_loop,self.archive_preparation_wakeup)
                 if not hasattr(h,'_archive_preparation_tickets'):h._archive_preparation_tickets={}
                 h._archive_preparation_tickets[result[0]['id']]=ticket
                 result[0]['_archive_preparation_ticket']=ticket
+                if not hasattr(state,'acquisition_claim_tokens'):state.acquisition_claim_tokens={}
+                claim=uuid.uuid4().hex
+                result[0]['_acquisition_claim_token']=claim
+                state.acquisition_claim_tokens[result[0]['id']]=claim
+                state.acquisition_inflight.add(result[0]['id'])
                 return step
             # All archive workers use the same sole owner and pending queue.
             # After an empty plan, eight identical polls otherwise contend with
@@ -2278,7 +2318,15 @@ class SelectiveSource:
             async with self.acquisition_plan_lock:
                 if time.monotonic()<self.acquisition_idle_until:step=None
                 else:
-                    step=await self.work(request_development,4,label='candidate_development')
+                    accepted=[]
+                    try:
+                        step=await self.work(request_development,4,label='candidate_development',
+                            accepted=accepted.append)
+                    except asyncio.CancelledError:
+                        if accepted:
+                            cleanup=asyncio.create_task(self.abandon_acquisition_plan(accepted[-1]))
+                            self.acquisition_plan_cleanup.add(cleanup)
+                        raise
                     if step is not None and step.state==IDLE:
                         self.acquisition_idle_until=time.monotonic()+.1
             if step is None or step.state==IDLE:
@@ -2399,12 +2447,7 @@ class SelectiveSource:
                             deadline=job['deadline'],funding_closed=True)),1)
                 else:raise
             finally:
-                def release(state):
-                    state.acquisition_inflight.discard(job['id'])
-                    tickets=getattr(install(state),'_archive_preparation_tickets',{})
-                    if tickets.get(job['id']) is job.get('_archive_preparation_ticket'):
-                        tickets.pop(job['id'],None)
-                await self.work(release,1)
+                await self.work(lambda state:self.release_acquisition_claim(state,job),1)
 
     async def live_manager(self,channel):
         from .solana_stable_shards import StableShards

@@ -9,6 +9,7 @@ import time
 
 from .runtime.operation_costs import operation
 from .runtime.operating_families import active_sql
+from .solana_evidence_plane import EvidenceUnavailable
 
 
 DISPATCH = 'DISPATCH'
@@ -23,6 +24,122 @@ class PlanningStep:
     plan: tuple | None = None
 
 
+class DevelopmentCandidates:
+    """Indexed pending selection, independent of retained candidate population.
+
+    Exact-key triggers maintain the scheduling projection; the market rows and
+    bindings remain authoritative. A bounded keyset rebuild admits old rows
+    before selection starts and survives interruption without a population cap.
+    """
+    QUEUE = 'candidate_development_ready_v1'
+    STATE = 'candidate_development_state_v1'
+
+    def __init__(self, history, minimum):
+        self.history = history
+        self.db = history.db
+        self.minimum = minimum
+        from .solana_selective_history import DEVELOPMENT_BOUND
+        with history.writer.transaction():
+            self.db.execute(f'''CREATE TABLE IF NOT EXISTS {self.QUEUE}(
+                address TEXT PRIMARY KEY,first_seen REAL NOT NULL)''')
+            self.db.execute(f'''CREATE INDEX IF NOT EXISTS candidate_development_order_v1
+                ON {self.QUEUE}(first_seen,address)''')
+            self.db.execute(f'''CREATE TABLE IF NOT EXISTS {self.STATE}(
+                id INTEGER PRIMARY KEY CHECK(id=1),minimum INTEGER NOT NULL,
+                after_address TEXT NOT NULL,complete INTEGER NOT NULL CHECK(complete IN (0,1)))''')
+            self.db.execute(f"INSERT OR IGNORE INTO {self.STATE} VALUES(1,?,'',0)", (minimum,))
+            if self.db.execute(f'SELECT minimum FROM {self.STATE} WHERE id=1').fetchone() != (minimum,):
+                raise EvidenceUnavailable('candidate_development_policy_migration_required')
+            criterion = DEVELOPMENT_BOUND.replace('fields', 'NEW.fields')
+            populate = f'''INSERT INTO {self.QUEUE}(address,first_seen)
+                SELECT NEW.address,NEW.first_seen WHERE
+                ({criterion} IS NULL OR {criterion}>=(SELECT minimum FROM {self.STATE} WHERE id=1))
+                AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family='pump' AND b.address=NEW.address)
+                ON CONFLICT(address) DO UPDATE SET first_seen=excluded.first_seen;'''
+            for action in ('INSERT', 'UPDATE'):
+                self.db.execute(f'''CREATE TRIGGER IF NOT EXISTS candidate_development_market_{action.lower()}_v1
+                    AFTER {action} ON market_observations WHEN NEW.family='pump'
+                    BEGIN DELETE FROM {self.QUEUE} WHERE address=NEW.address; {populate} END''')
+            self.db.execute(f'''CREATE TRIGGER IF NOT EXISTS candidate_development_market_move_v1
+                AFTER UPDATE OF family,address ON market_observations
+                WHEN OLD.family='pump' AND (OLD.family IS NOT NEW.family OR OLD.address IS NOT NEW.address)
+                BEGIN DELETE FROM {self.QUEUE} WHERE address=OLD.address; END''')
+            self.db.execute(f'''CREATE TRIGGER IF NOT EXISTS candidate_development_market_delete_v1
+                AFTER DELETE ON market_observations WHEN OLD.family='pump'
+                BEGIN DELETE FROM {self.QUEUE} WHERE address=OLD.address; END''')
+            for action in ('INSERT', 'UPDATE'):
+                self.db.execute(f'''CREATE TRIGGER IF NOT EXISTS candidate_development_binding_{action.lower()}_v1
+                    AFTER {action} ON evidence_bindings WHEN NEW.family='pump'
+                    BEGIN DELETE FROM {self.QUEUE} WHERE address=NEW.address; END''')
+            restore_old = f'''INSERT OR IGNORE INTO {self.QUEUE}(address,first_seen)
+                SELECT address,first_seen FROM market_observations m
+                WHERE family='pump' AND address=OLD.address AND
+                ({DEVELOPMENT_BOUND} IS NULL OR {DEVELOPMENT_BOUND}>=(SELECT minimum FROM {self.STATE} WHERE id=1))
+                AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family='pump' AND b.address=m.address);'''
+            self.db.execute(f'''CREATE TRIGGER IF NOT EXISTS candidate_development_unbind_v1
+                AFTER DELETE ON evidence_bindings WHEN OLD.family='pump'
+                BEGIN {restore_old} END''')
+            self.db.execute(f'''CREATE TRIGGER IF NOT EXISTS candidate_development_binding_move_v1
+                AFTER UPDATE OF family,address ON evidence_bindings
+                WHEN OLD.family='pump' AND (OLD.family IS NOT NEW.family OR OLD.address IS NOT NEW.address)
+                BEGIN {restore_old} END''')
+            self.db.execute('''CREATE INDEX IF NOT EXISTS candidate_reactivated_family_v1
+                ON candidate_lifecycle(state,family)''')
+            self.db.execute('''CREATE INDEX IF NOT EXISTS candidate_reactivation_seen_v1
+                ON candidate_history_outbox(family,address,kind,json_extract(body,'$.epoch'),json_extract(body,'$.seen'))''')
+
+    def backfill(self, timing):
+        from .solana_selective_history import DEVELOPMENT_BOUND
+        with timing.transaction_exit(self.history.writer.transaction(), phase_name='commit'):
+            with timing.phase('selection'):
+                after, complete = self.db.execute(
+                    f'SELECT after_address,complete FROM {self.STATE} WHERE id=1').fetchone()
+                if complete:
+                    return True
+                rows = self.db.execute('''SELECT address FROM market_observations
+                    WHERE family='pump' AND address>? ORDER BY address LIMIT ?''',
+                    (after, DEVELOPMENT_QUANTUM)).fetchall()
+                for address, in rows:
+                    self.db.execute(f'''INSERT OR IGNORE INTO {self.QUEUE}(address,first_seen)
+                        SELECT address,first_seen FROM market_observations m
+                        WHERE family='pump' AND address=? AND
+                        ({DEVELOPMENT_BOUND} IS NULL OR {DEVELOPMENT_BOUND}>=?) AND
+                        NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family='pump' AND b.address=m.address)''',
+                        (address, self.minimum))
+                complete = len(rows) < DEVELOPMENT_QUANTUM
+                self.db.execute(f'UPDATE {self.STATE} SET after_address=?,complete=? WHERE id=1',
+                    (rows[-1][0] if rows else after, int(complete)))
+        return complete
+
+    def next(self):
+        from .solana_selective_history import DEVELOPMENT_BOUND
+        rows=self.db.execute(f'''SELECT address,first_seen FROM {self.QUEUE}
+            ORDER BY first_seen,address LIMIT ?''', (DEVELOPMENT_QUANTUM,)).fetchall()
+        result=[]
+        for address,first_seen in rows:
+            current=self.db.execute('''SELECT first_seen FROM market_observations m
+                WHERE family='pump' AND address=? AND
+                ('''+DEVELOPMENT_BOUND+''' IS NULL OR '''+DEVELOPMENT_BOUND+'''>=?) AND
+                NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family='pump' AND b.address=m.address)''',
+                (address,self.minimum)).fetchone()
+            if current!=(first_seen,):
+                raise EvidenceUnavailable('candidate_development_projection_mismatch')
+            result.append((address,))
+        return result
+
+    def reactivated(self, after):
+        def page(cursor):
+            rows = []
+            for family in sorted(self.history.active_families):
+                rows.extend(self.db.execute('''SELECT rowid,family,address,lower_slot
+                    FROM candidate_lifecycle INDEXED BY candidate_reactivated_family_v1
+                    WHERE state='reactivated' AND family=? AND rowid>? ORDER BY rowid LIMIT ?''',
+                    (family, cursor, DEVELOPMENT_QUANTUM)).fetchall())
+            return sorted(rows)[:DEVELOPMENT_QUANTUM]
+        rows = page(after)
+        return rows if rows or not after else page(0)
+
+
 class CandidateDevelopment:
     """One actor shared by all acquisition workers on the canonical owner."""
     def __init__(self, history, *, clock=time.monotonic):
@@ -31,19 +148,34 @@ class CandidateDevelopment:
         self.phase = 0
         self.poll_at = 0
         self.cursors = dict(reactivated=0, boundary=0, publication=0)
+        from .lanes.pump.pump_acceleration_strategy import POLICY
+        self.candidates = DevelopmentCandidates(history, POLICY.min_curve_progress_bps)
+        history.install_planner()
 
     def step(self, timing, frontier, *, excluding=(), batched=True):
         h = self.history
         db = h.db
+        with timing.phase('plan'):
+            urgent=h.plan_step(excluding=excluding,urgent_only=True)
+        if urgent.state!=IDLE:
+            return urgent
+        if self.phase == 4:
+            result = self.plan(timing, excluding, batched)
+            self.phase = 0
+            return result
         if self.phase == 0 and self.clock() < self.poll_at:
             return self.plan(timing, excluding, batched)
         phase = self.phase
+        if phase == 0 and not self.candidates.backfill(timing):
+            # Projection reconstruction cannot monopolize all future turns.
+            # Other phases and dispatch still get their explicit quantum.
+            self.phase = 1
+            return PlanningStep(DEFERRED)
         cursor = None
         with timing.transaction_exit(h.writer.transaction(), phase_name='commit'):
             if phase == 0:
-                from .lanes.pump.pump_acceleration_strategy import POLICY
                 with timing.phase('selection'):
-                    for address, in h.development_candidates(POLICY.min_curve_progress_bps, DEVELOPMENT_QUANTUM):
+                    for address, in self.candidates.next():
                         # Binding suppresses future selection. Its initial
                         # durable preparation must commit in this same unit.
                         h.bind('pump', address)
@@ -52,13 +184,8 @@ class CandidateDevelopment:
                         h.rolling.prepare('pump', address, 0, frontier, priority=3, deadline=first+150)
             elif phase == 1:
                 with timing.phase('reactivation'):
-                    query = ("SELECT rowid,family,address,lower_slot FROM candidate_lifecycle WHERE "+
-                        active_sql('family', solana=True)+
-                        " AND state='reactivated' AND rowid>? ORDER BY rowid LIMIT ?")
                     with operation('owner.reactivation_lookup'):
-                        rows = db.execute(query, (self.cursors['reactivated'], DEVELOPMENT_QUANTUM)).fetchall()
-                        if not rows and self.cursors['reactivated']:
-                            rows = db.execute(query, (0, DEVELOPMENT_QUANTUM)).fetchall()
+                        rows = self.candidates.reactivated(self.cursors['reactivated'])
                     for _, family, address, lower in rows:
                         with operation('owner.reactivation_lookup'):
                             epoch = db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',
@@ -89,8 +216,8 @@ class CandidateDevelopment:
                     cursor = h.rolling.resume_publication(limit=DEVELOPMENT_QUANTUM, after=self.cursors['publication'])
         if phase:
             self.cursors[('reactivated', 'boundary', 'publication')[phase-1]] = cursor
-        self.phase = (phase+1) % 4
-        if self.phase == 0:
+        self.phase = phase+1
+        if self.phase == 4:
             self.poll_at = self.clock()+.1
         # A successful housekeeping quantum is progress, never an empty plan.
         return PlanningStep(DEFERRED)

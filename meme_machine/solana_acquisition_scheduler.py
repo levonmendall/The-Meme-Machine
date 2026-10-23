@@ -25,6 +25,8 @@ FAMILIES = ('pump', 'pumpswap', 'meteora')
 QUEUE = 'acquisition_schedule_ready_v1'
 STATE = 'acquisition_schedule_state_v1'
 URGENT_STATE = 'acquisition_schedule_urgent_v1'
+FANOUT = 'acquisition_schedule_fanout_v1'
+SIGNALS = 'acquisition_schedule_signals_v1'
 JOB_FIELDS = ('id', 'family', 'address', 'lo', 'hi', 'priority', 'deadline',
               'token', 'pages', 'last_slot', 'last_index', 'lineage', 'created',
               'updated', 'error')
@@ -122,6 +124,7 @@ class AcquisitionScheduler:
                 index = 'acquisition_schedule_retry_rank'+str(rank)+'_v1'
                 self._ddl(f'''CREATE INDEX IF NOT EXISTS {index}
                     ON {QUEUE}(retry_at,id) WHERE ready=0 AND rank={rank}''', 'index', index)
+            self._install_fanout()
             insert = f'''UPDATE {STATE} SET revision=revision+1 WHERE id=1;
                 INSERT INTO {QUEUE}
                 (id,family,rank,priority,deadline,created,ready,retry_at,version,dependency)
@@ -163,6 +166,109 @@ class AcquisitionScheduler:
                     +CASE WHEN NEW.status='pending' THEN 1 ELSE 0 END
                     -CASE WHEN OLD.status='pending' THEN 1 ELSE 0 END WHERE id=1; END''',
                 'trigger', 'acquisition_schedule_count_status_v1')
+
+    def _install_fanout(self):
+        # These are resumable scheduling dependencies, never coverage. Signals
+        # touch one candidate key; waking its retained parents is indexed and
+        # bounded below, rather than an unbounded trigger-side fanout update.
+        self._ddl(f'''CREATE TABLE IF NOT EXISTS {FANOUT}(
+            job_id TEXT PRIMARY KEY,job_version INTEGER NOT NULL,
+            family TEXT NOT NULL,address TEXT NOT NULL,after_slot INTEGER,
+            waiting INTEGER NOT NULL CHECK(waiting IN (0,1)),observed_revision INTEGER NOT NULL)''',
+            'table', FANOUT)
+        self._ddl(f'''CREATE INDEX IF NOT EXISTS acquisition_schedule_fanout_wait_v1
+            ON {FANOUT}(family,address,waiting,job_id)''', 'index', 'acquisition_schedule_fanout_wait_v1')
+        self._ddl(f'''CREATE TABLE IF NOT EXISTS {SIGNALS}(
+            sequence INTEGER PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,
+            revision INTEGER NOT NULL CHECK(revision>=0),dirty INTEGER NOT NULL CHECK(dirty IN (0,1)),
+            scan_revision INTEGER NOT NULL,after_parent TEXT NOT NULL,UNIQUE(family,address))''', 'table', SIGNALS)
+        self._ddl(f'''CREATE INDEX IF NOT EXISTS acquisition_schedule_signals_dirty_v1
+            ON {SIGNALS}(dirty,sequence)''', 'index', 'acquisition_schedule_signals_dirty_v1')
+        self._ddl('''CREATE TABLE IF NOT EXISTS acquisition_schedule_signal_cursor_v1(
+            id INTEGER PRIMARY KEY CHECK(id=1),after_sequence INTEGER NOT NULL)''',
+            'table','acquisition_schedule_signal_cursor_v1')
+        self.db.execute('INSERT OR IGNORE INTO acquisition_schedule_signal_cursor_v1 VALUES(1,0)')
+        def notify(side):
+            return f'''INSERT INTO {SIGNALS}(family,address,revision,dirty,scan_revision,after_parent)
+                VALUES({side}.family,{side}.address,1,1,-1,'') ON CONFLICT(family,address)
+                DO UPDATE SET revision=revision+1,dirty=1;'''
+        changed=' OR '.join('NEW.'+field+' IS NOT OLD.'+field for field in MATERIAL_FIELDS)
+        for action in ('INSERT','UPDATE','DELETE'):
+            sides=('OLD','NEW') if action=='UPDATE' else (('OLD',) if action=='DELETE' else ('NEW',))
+            when=' WHEN OLD.status IS NOT NEW.status OR '+changed if action=='UPDATE' else ''
+            event='UPDATE OF status,'+','.join(MATERIAL_FIELDS) if action=='UPDATE' else action
+            # A move can signal the old and new key; duplicate notification of
+            # an unchanged key is conservative and still fixed work.
+            body=' '.join(notify(side) for side in sides)
+            name='acquisition_schedule_signal_'+action.lower()+'_v1'
+            self._ddl(f'''CREATE TRIGGER IF NOT EXISTS {name} AFTER {event} ON acquisition_jobs{when}
+                BEGIN {body} END''','trigger',name)
+        self._ddl(f'''CREATE TRIGGER IF NOT EXISTS acquisition_schedule_fanout_nonpending_v1
+            AFTER UPDATE OF status ON acquisition_jobs WHEN NEW.status!='pending'
+            BEGIN DELETE FROM {FANOUT} WHERE job_id=NEW.id; END''',
+            'trigger','acquisition_schedule_fanout_nonpending_v1')
+        self._ddl(f'''CREATE TRIGGER IF NOT EXISTS acquisition_schedule_fanout_delete_v1
+            AFTER DELETE ON acquisition_jobs BEGIN DELETE FROM {FANOUT} WHERE job_id=OLD.id; END''',
+            'trigger','acquisition_schedule_fanout_delete_v1')
+
+    def fanout_after(self, job):
+        row=self.db.execute(f'SELECT job_version,after_slot,waiting FROM {FANOUT} WHERE job_id=?',
+            (job['id'],)).fetchone()
+        if row is None or row[0]!=job['_scheduler_version']:
+            self.db.execute(f'''INSERT INTO {FANOUT} VALUES(?,?,?,?,NULL,0,0)
+                ON CONFLICT(job_id) DO UPDATE SET job_version=excluded.job_version,
+                family=excluded.family,address=excluded.address,after_slot=NULL,waiting=0,observed_revision=0''',
+                (job['id'],job['_scheduler_version'],job['family'],job['address']))
+            return None
+        return row[1]
+
+    def fanout_advance(self, job, through):
+        _require(type(through) is int and job['lo']<=through<=job['hi'], 'acquisition_schedule_fanout')
+        self.fanout_after(job)
+        self.db.execute(f'''UPDATE {FANOUT} SET after_slot=?,waiting=0 WHERE job_id=? AND job_version=?''',
+            (through,job['id'],job['_scheduler_version']))
+
+    def fanout_wait(self, job):
+        # Called AFTER this parent's child insertions in the same transaction.
+        # Its own work therefore cannot wake it ahead of its new children.
+        self.fanout_after(job)
+        self.db.execute(f'''INSERT OR IGNORE INTO {SIGNALS}
+            (family,address,revision,dirty,scan_revision,after_parent) VALUES(?,?,0,0,-1,'')''',
+            (job['family'],job['address']))
+        revision=self.db.execute(f'SELECT revision FROM {SIGNALS} WHERE family=? AND address=?',
+            (job['family'],job['address'])).fetchone()[0]
+        self.db.execute(f'''UPDATE {FANOUT} SET after_slot=NULL,waiting=1,observed_revision=?
+            WHERE job_id=? AND job_version=?''',(revision,job['id'],job['_scheduler_version']))
+        self.defer(job,job['deadline'])
+
+    def wake_fanout(self):
+        after=self.db.execute('SELECT after_sequence FROM acquisition_schedule_signal_cursor_v1 WHERE id=1').fetchone()[0]
+        row=self.db.execute(f'''SELECT sequence,family,address,revision,scan_revision,after_parent
+            FROM {SIGNALS} WHERE dirty=1 AND sequence>? ORDER BY sequence LIMIT 1''',(after,)).fetchone()
+        if row is None:
+            row=self.db.execute(f'''SELECT sequence,family,address,revision,scan_revision,after_parent
+                FROM {SIGNALS} WHERE dirty=1 ORDER BY sequence LIMIT 1''').fetchone()
+        if row is None:return
+        sequence,family,address,revision,target,after_parent=row
+        if target<0:target=revision
+        rows=self.db.execute(f'''SELECT job_id,job_version,observed_revision FROM {FANOUT}
+            INDEXED BY acquisition_schedule_fanout_wait_v1 WHERE family=? AND address=?
+            AND waiting=1 AND job_id>? ORDER BY job_id LIMIT ?''',
+            (family,address,after_parent,STEP)).fetchall()
+        for identity,version,observed in rows:
+            if observed<target:
+                self.db.execute(f'''UPDATE {QUEUE} SET ready=1,retry_at=0,dependency=NULL
+                    WHERE id=? AND version=?''',(identity,version))
+                self.db.execute(f'''UPDATE {FANOUT} SET waiting=0,after_slot=NULL
+                    WHERE job_id=? AND job_version=?''',(identity,version))
+        if len(rows)<STEP:
+            dirty=int(revision!=target)
+            self.db.execute(f'''UPDATE {SIGNALS} SET dirty=?,scan_revision=-1,after_parent='' WHERE sequence=?''',
+                (dirty,sequence))
+        else:
+            self.db.execute(f'''UPDATE {SIGNALS} SET scan_revision=?,after_parent=? WHERE sequence=?''',
+                (target,rows[-1][0],sequence))
+        self.db.execute('UPDATE acquisition_schedule_signal_cursor_v1 SET after_sequence=? WHERE id=1',(sequence,))
 
     def _ddl(self, statement, object_kind, name):
         self.db.execute(statement)
@@ -409,6 +515,7 @@ class AcquisitionScheduler:
                 return DEFERRED
         if urgent:
             return IDLE
+        self.wake_fanout()
         progress = self.backfill()
         if not progress['complete']:
             return DEFERRED
