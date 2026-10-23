@@ -45,7 +45,7 @@ async def phase_owner_throughput(directory):
         created.append(source)
 
     with patch.object(SelectiveSource, '__init__', capture):
-        report = await run_owner_throughput_comparison(directory, measured=False)
+        report = await run_owner_throughput_comparison(directory, measured=False, schedule='idle-epochs')
     if len(created) != 1:
         raise AssertionError('phase capture requires exactly one actual source')
     rows = {}
@@ -70,6 +70,7 @@ async def phase_owner_throughput(directory):
         comparison_source_sha256=hashlib.sha256(Path(sys.modules[
             run_owner_throughput_comparison.__module__].__file__).read_bytes()).hexdigest(),
         cohort=report['cohort'], runtime=report['runtime'],
+        scheduling=report['scheduling'], schedule_observations=report['schedule_observations'],
         turns=report['turns'], maximum_turns=report['maximum_turns'],
         benchmark_vm_instrumentation=report['measured'], owner_counters=report['counters'],
         development_phases=rows, phase_cpu_seconds_sum=phase_cpu,
