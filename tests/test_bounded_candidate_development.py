@@ -93,6 +93,14 @@ class BoundedDevelopmentTests(unittest.TestCase):
         self.actor = CandidateDevelopment(self.h, clock=lambda: self.monotonic)
         return self.actor
 
+    def phase_step(self, actor, frontier=123, **options):
+        # Urgent IDLE consumes one transition; retain a single housekeeping
+        # phase for the isolated phase/commit witnesses below. The full bounded
+        # microbatch and its independent real-time cutoff have separate tests.
+        with patch('meme_machine.solana_candidate_development.MICROBATCH_TRANSITIONS', 2), \
+                patch('meme_machine.solana_candidate_development.time.perf_counter', return_value=0):
+            return actor.step(self.timing, frontier, **options)
+
     def seed(self, candidates):
         for _ in range(2000):
             if candidates.backfill(self.timing):
@@ -232,15 +240,16 @@ class BoundedDevelopmentTests(unittest.TestCase):
     def test_binding_and_first_preparation_commit_in_same_selection_quantum(self):
         self.market('atomic-entry', first=NOW-10)
         actor = self.build_actor()
+        self.seed(actor.candidates)
         self.prepare_failure = True
         with self.assertRaisesRegex(RuntimeError, 'original preparation failure'):
-            actor.step(self.timing, 123)
+            self.phase_step(actor)
         self.assertEqual(actor.phase, 0)
         self.assertIsNone(self.db.execute("SELECT 1 FROM evidence_bindings WHERE address='atomic-entry'").fetchone())
         self.assertEqual(self.db.execute('SELECT * FROM fixture_preparations').fetchall(), [])
         self.assertEqual(actor.candidates.next(), [('atomic-entry',)])
         self.prepare_failure = False
-        self.assertEqual(actor.step(self.timing, 123).state, DEFERRED)
+        self.assertEqual(self.phase_step(actor).state, DEFERRED)
         self.assertEqual(actor.phase, 1)
         self.assertEqual(self.db.execute('SELECT * FROM fixture_preparations').fetchall(),
                          [('pump', 'atomic-entry', 0, 123, 3, NOW+140)])
@@ -263,12 +272,12 @@ class BoundedDevelopmentTests(unittest.TestCase):
 
         with patch.object(self.writer, 'db', FailingCommit()):
             with self.assertRaisesRegex(sqlite3.OperationalError, 'original commit failure'):
-                actor.step(self.timing, 123)
+                self.phase_step(actor)
         self.assertEqual(actor.phase, 2)
         self.assertEqual(actor.cursors['boundary'], 5)
         self.assertEqual(self.db.execute('SELECT * FROM fixture_phase_effects').fetchall(), [])
         self.assertFalse(self.db.in_transaction)
-        self.assertEqual(actor.step(self.timing, 123).state, DEFERRED)
+        self.assertEqual(self.phase_step(actor).state, DEFERRED)
         self.assertEqual(actor.phase, 3)
         self.assertEqual(actor.cursors['boundary'], 17)
         self.assertEqual(self.db.execute('SELECT * FROM fixture_phase_effects').fetchall(),
@@ -281,13 +290,13 @@ class BoundedDevelopmentTests(unittest.TestCase):
         results = []
         for _ in range(5):
             self.monotonic += .2
-            results.append(actor.step(self.timing, 123, excluding=('inflight',), batched=True))
+            results.append(self.phase_step(actor, excluding=('inflight',), batched=True))
         self.assertEqual([result.state for result in results], [DEFERRED]*4+[DISPATCH])
         self.assertEqual(results[-1].plan, plan)
         self.assertEqual(actor.phase, 0)
         self.assertEqual([urgent for urgent, _, _ in self.plan_calls], [True]*5+[False])
         self.assertTrue(all(excluding == ('inflight',) for _, excluding, _ in self.plan_calls))
-        self.assertTrue(all(not in_transaction for _, _, in_transaction in self.plan_calls))
+        self.assertTrue(all(in_transaction for _, _, in_transaction in self.plan_calls))
         self.assertEqual(self.timing.rows['plan']['calls'], 6)
 
     def test_incomplete_scout_backfill_still_reaches_planning_quantum(self):
@@ -299,7 +308,7 @@ class BoundedDevelopmentTests(unittest.TestCase):
         results = []
         for _ in range(5):
             self.monotonic += .2
-            results.append(actor.step(self.timing, 123))
+            results.append(self.phase_step(actor))
         self.assertEqual([result.state for result in results], [DEFERRED]*4+[DISPATCH])
         self.assertEqual(self.db.execute(f'SELECT complete FROM {actor.candidates.STATE}').fetchone(), (0,))
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM market_observations').fetchone()[0], 64)
@@ -318,6 +327,163 @@ class BoundedDevelopmentTests(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM evidence_bindings').fetchone()[0], 0)
         self.assertEqual(self.db.execute('SELECT * FROM fixture_preparations').fetchall(), [])
         self.assertEqual(self.db.execute('SELECT * FROM fixture_phase_effects').fetchall(), [])
+
+    def test_empty_install_is_complete_and_live_inserts_need_no_retained_rebuild(self):
+        actor = self.build_actor()
+        self.assertEqual(self.db.execute(
+            f'SELECT after_address,complete FROM {actor.candidates.STATE}').fetchone(), ('', 1))
+        self.market('new-live-scout')
+        self.assertEqual(actor.candidates.next(), [('new-live-scout',)])
+        with patch.object(actor.candidates, 'backfill', wraps=actor.candidates.backfill) as backfill:
+            self.phase_step(actor)
+        backfill.assert_called_once_with(self.timing)
+        self.assertEqual(self.db.execute(
+            f'SELECT after_address,complete FROM {actor.candidates.STATE}').fetchone(), ('', 1))
+        self.assertEqual(self.db.execute('SELECT address FROM fixture_preparations').fetchall(),
+            [('new-live-scout',)])
+
+    def test_microbatch_several_bounded_units_publish_with_one_full_commit(self):
+        actor = self.build_actor()
+        actor.phase = 2
+        actor.cursors.update(boundary=5, publication=7)
+        plan = ({'id': 'original-optional-plan'}, {'unchanged': True})
+        self.optional_result = PlanningStep(DISPATCH, plan)
+        statements = []
+        self.assertEqual(self.db.execute('PRAGMA synchronous').fetchone()[0], 2)
+        self.db.set_trace_callback(statements.append)
+        try:
+            with patch('meme_machine.solana_candidate_development.time.perf_counter', return_value=0):
+                result = actor.step(self.timing, 123, excluding=('already-inflight',))
+        finally:
+            self.db.set_trace_callback(None)
+        controls = [statement.strip().upper() for statement in statements]
+        self.assertEqual(sum(statement == 'BEGIN IMMEDIATE' for statement in controls), 1)
+        self.assertEqual(sum(statement == 'COMMIT' for statement in controls), 1)
+        self.assertEqual(sum(statement == 'ROLLBACK' for statement in controls), 0)
+        self.assertEqual(self.db.execute('SELECT * FROM fixture_phase_effects').fetchall(),
+            [('boundaries', 5, 16, 17), ('publication', 7, 16, 23)])
+        self.assertEqual((result.state, result.plan), (DISPATCH, plan))
+        self.assertEqual(actor.phase, 0)
+        self.assertEqual(actor.cursors, dict(reactivated=0, boundary=17, publication=23))
+        self.assertEqual(self.timing.rows['commit']['calls'], 1)
+        self.assertEqual([urgent for urgent, _, _ in self.plan_calls], [True, False])
+        self.assertTrue(all(in_transaction for _, _, in_transaction in self.plan_calls))
+
+    def test_later_unit_failure_rolls_back_all_phase_writes_and_original_actor_state(self):
+        self.market('atomic-all-phases', first=NOW-10)
+        actor = self.build_actor()
+        actor.cursors.update(reactivated=7, boundary=5, publication=6)
+        original_cursors = dict(actor.cursors)
+        original_state = self.db.execute(f'SELECT * FROM {actor.candidates.STATE}').fetchall()
+        original_queue = self.db.execute(f'SELECT * FROM {actor.candidates.QUEUE}').fetchall()
+
+        def fail_later(**options):
+            self.phase_effect('publication', 23, **options)
+            # These preceding writes are visible in this same canonical unit.
+            self.assertIsNotNone(self.db.execute(
+                "SELECT 1 FROM evidence_bindings WHERE address='atomic-all-phases'").fetchone())
+            self.assertEqual(self.db.execute('SELECT COUNT(*) FROM fixture_preparations').fetchone()[0], 1)
+            self.assertEqual(self.db.execute('SELECT COUNT(*) FROM fixture_phase_effects').fetchone()[0], 2)
+            raise RuntimeError('later atomic unit failed')
+
+        with patch.object(self.h.rolling, 'resume_publication', side_effect=fail_later), \
+                patch('meme_machine.solana_candidate_development.time.perf_counter', return_value=0):
+            with self.assertRaisesRegex(RuntimeError, 'later atomic unit failed'):
+                actor.step(self.timing, 123)
+        self.assertEqual(actor.phase, 0)
+        self.assertEqual(actor.poll_at, 0)
+        self.assertEqual(actor.cursors, original_cursors)
+        self.assertEqual(self.db.execute(f'SELECT * FROM {actor.candidates.STATE}').fetchall(), original_state)
+        self.assertEqual(self.db.execute(f'SELECT * FROM {actor.candidates.QUEUE}').fetchall(), original_queue)
+        self.assertEqual(self.db.execute('SELECT * FROM fixture_preparations').fetchall(), [])
+        self.assertEqual(self.db.execute('SELECT * FROM fixture_phase_effects').fetchall(), [])
+        self.assertIsNone(self.db.execute(
+            "SELECT 1 FROM evidence_bindings WHERE address='atomic-all-phases'").fetchone())
+        self.assertFalse(self.db.in_transaction)
+
+    def test_real_budget_stops_before_next_atomic_unit_independent_of_poll_clock(self):
+        actor = self.build_actor()
+        actor.phase = 2
+        actor.cursors.update(boundary=5, publication=7)
+        self.monotonic = -1000.0
+        ticks = []
+
+        def real_budget_counter():
+            value = (0.0, 0.001, 0.006)[len(ticks)]
+            ticks.append(value)
+            return value
+
+        with patch('meme_machine.solana_candidate_development.time.perf_counter',
+                side_effect=real_budget_counter):
+            result = actor.step(self.timing, 123)
+        self.assertEqual(result.state, DEFERRED)
+        self.assertEqual(ticks, [0.0, 0.001, 0.006])
+        self.assertEqual(actor.phase, 3)
+        self.assertEqual(actor.cursors, dict(reactivated=0, boundary=17, publication=7))
+        self.assertEqual(self.db.execute('SELECT * FROM fixture_phase_effects').fetchall(),
+            [('boundaries', 5, 16, 17)])
+        self.assertEqual(self.monotonic, -1000.0)
+        self.assertEqual([urgent for urgent, _, _ in self.plan_calls], [True])
+
+    def test_cold_retained_rebuild_yields_to_new_urgent_job_then_converges_in_order(self):
+        # All retained rows precede actor/trigger installation. Lexical rebuild
+        # order differs from the original first_seen selection order.
+        population = 65
+        for number in range(population):
+            self.market('cold-'+str(number).zfill(3), first=NOW-number,
+                fields={'complete': True})
+        expected = ['cold-'+str(number).zfill(3) for number in reversed(range(population))]
+        actor = self.build_actor()
+        self.assertEqual(self.db.execute(
+            f'SELECT after_address,complete FROM {actor.candidates.STATE}').fetchone(), ('', 0))
+        self.assertEqual(self.db.execute(f'SELECT COUNT(*) FROM {actor.candidates.QUEUE}').fetchone(), (0,))
+        self.phase_step(actor)
+        self.assertEqual(self.db.execute(
+            f'SELECT after_address,complete FROM {actor.candidates.STATE}').fetchone(), ('cold-015', 0))
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM evidence_bindings').fetchone(), (0,))
+        urgent_id = self.h.request('pump', 'new-held-obligation', 10, 20,
+            priority=0, deadline=NOW+30)
+
+        def durable_plan(*, excluding=(), urgent_only=False):
+            self.plan_calls.append((urgent_only, tuple(excluding), self.db.in_transaction))
+            row = self.db.execute("SELECT id,lo,hi,priority,deadline FROM acquisition_jobs "
+                "WHERE status='pending' AND priority<=2 ORDER BY priority,deadline,id LIMIT 1").fetchone()
+            if row is not None:
+                job = dict(zip(('id', 'lo', 'hi', 'priority', 'deadline'), row))
+                return PlanningStep(DISPATCH, (job, {'unchanged': True}))
+            return PlanningStep(IDLE)
+
+        self.h.plan_step = durable_plan
+        before = self.db.execute(f'SELECT * FROM {actor.candidates.STATE}').fetchall()
+        with patch.object(actor.candidates, 'backfill', side_effect=AssertionError('urgent blocked by retained rebuild')):
+            dispatched = actor.step(self.timing, 123)
+        self.assertEqual((dispatched.state, dispatched.plan[0]['id']), (DISPATCH, urgent_id))
+        self.assertEqual(dispatched.plan[0], dict(id=urgent_id, lo=10, hi=20, priority=0, deadline=NOW+30))
+        self.assertEqual(self.db.execute(f'SELECT * FROM {actor.candidates.STATE}').fetchall(), before)
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM fixture_preparations').fetchone(), (0,))
+        with self.writer.transaction():
+            self.db.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (urgent_id,))
+        for _ in range(300):
+            self.monotonic += .2
+            self.phase_step(actor)
+            complete = self.db.execute(
+                f'SELECT complete FROM {actor.candidates.STATE}').fetchone()[0]
+            if complete:
+                self.assertEqual(actor.candidates.next(), self.original())
+            else:
+                self.assertEqual(self.db.execute('SELECT COUNT(*) FROM evidence_bindings').fetchone(), (0,))
+                self.assertEqual(self.db.execute('SELECT COUNT(*) FROM fixture_preparations').fetchone(), (0,))
+            if self.db.execute('SELECT COUNT(*) FROM fixture_preparations').fetchone()[0] == population:
+                break
+        else:
+            self.fail('bounded retained projection did not converge after urgent dispatch')
+        self.assertEqual(self.db.execute(
+            f'SELECT complete FROM {actor.candidates.STATE}').fetchone(), (1,))
+        actual = [address for address, in self.db.execute(
+            'SELECT address FROM fixture_preparations ORDER BY rowid')]
+        self.assertEqual(actual, expected)
+        self.assertEqual(actor.candidates.next(), [])
+        self.assertEqual(self.original(), [])
 
 
 if __name__ == '__main__':
