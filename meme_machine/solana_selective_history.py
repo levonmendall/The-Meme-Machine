@@ -556,6 +556,7 @@ class SelectiveHistory:
         # their original path, and a positive count retains full urgent checks.
         if only_urgent and scheduler.urgent_pending_count()==0:
             scheduler.validate_selection(excluding=excluding,urgent=only_urgent)
+            scheduler.validate_clock()
             return PlanningStep(IDLE)
         with self.writer.transaction():
             # Expiry is an original obligation, including position-only

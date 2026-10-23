@@ -580,6 +580,212 @@ class DispatchProbeTests(unittest.TestCase):
             previous_source.execute('UPDATE candidate_coverage SET count=count WHERE lo=10')
             self.assertEqual(previous_source.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0], 1)
 
+    def test_zero_urgent_ten_thousand_optional_jobs_skip_expiry_seed_rank_and_probe_work(self):
+        from meme_machine.solana_candidate_development import IDLE
+
+        # Retained source rows precede installation. The one-time authenticated
+        # population count/index build is deliberately outside the poll budget.
+        rows = []
+        for number in range(9999):
+            family = 'pump' if number % 2 else 'pumpswap'
+            address = 'optional-retained-'+str(number).zfill(5)
+            rows.append((digest([family, address, 10, 100]), family, address, 10, 100,
+                3, NOW-10 if number % 2 else NOW+300, digest([]), NOW, NOW))
+        with self.writer.transaction():
+            self.db.executemany('''INSERT INTO acquisition_jobs VALUES(?,?,?,?,?,?,?,
+                'pending',NULL,0,NULL,NULL,?,?,?,NULL)''', rows)
+        self.h.install_planner()
+        scheduler = self.h.acquisition_scheduler
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone(), (10000,))
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+        original_frontier = self.db.execute(
+            'SELECT * FROM acquisition_schedule_urgent_v1 ORDER BY family,priority').fetchall()
+        statements = []
+        vm_steps = [0]
+
+        def budget():
+            vm_steps[0] += 100
+            return int(vm_steps[0] > 2000)
+
+        self.db.set_trace_callback(statements.append)
+        self.db.set_progress_handler(budget, 100)
+        try:
+            with patch.object(scheduler, 'next', side_effect=AssertionError('zero urgent entered scheduler')), \
+                    patch.object(scheduler, '_seed_urgent', side_effect=AssertionError('zero urgent seeded')), \
+                    patch.object(scheduler, '_wake_rank', side_effect=AssertionError('zero urgent woke ranks')), \
+                    patch.object(self.probe, 'step', side_effect=AssertionError('zero urgent parsed optional evidence')), \
+                    patch.object(self.h.rolling, 'missing', side_effect=AssertionError('zero urgent checked coverage')):
+                for _ in range(8):
+                    result = self.h.plan_step(urgent_only=True)
+                    self.assertEqual((result.state, result.plan), (IDLE, None))
+        finally:
+            self.db.set_progress_handler(None, 0)
+            self.db.set_trace_callback(None)
+        self.assertLessEqual(vm_steps[0], 2000)
+        self.assertFalse(any('acquisition_jobs' in statement.lower() for statement in statements))
+        self.assertFalse(any('acquisition_schedule_source_urgent_v1' in statement for statement in statements))
+        self.assertFalse(any('candidate_coverage' in statement.lower() for statement in statements))
+        self.assertFalse(any(statement.strip().upper().startswith(('BEGIN', 'COMMIT'))
+            for statement in statements))
+        self.assertEqual(self.db.execute(
+            'SELECT * FROM acquisition_schedule_urgent_v1 ORDER BY family,priority').fetchall(), original_frontier)
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone(), (10000,))
+        self.assertGreater(self.db.execute(
+            "SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending' AND deadline<=?", (NOW,)).fetchone()[0], 0)
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM acquisition_observations').fetchone(), (0,))
+        self.assertFalse(self.db.in_transaction)
+
+    def test_zero_urgent_does_not_skip_optional_expiry_backfill_signals_or_authenticated_dispatch(self):
+        from meme_machine.solana_candidate_development import DISPATCH
+
+        expired = self.h.request('pumpswap', 'expired-optional', 1, 2,
+            priority=4, deadline=NOW-1)
+        self.cache(self.metric())
+        self.h.install_planner()
+        scheduler = self.h.acquisition_scheduler
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+        statements = []
+        self.db.set_trace_callback(statements.append)
+        try:
+            with patch.object(scheduler, 'backfill', wraps=scheduler.backfill) as backfill, \
+                    patch.object(scheduler, 'wake_fanout', wraps=scheduler.wake_fanout) as signals, \
+                    patch.object(self.probe, 'step', wraps=self.probe.step) as probe, \
+                    patch.object(self.h.rolling, 'missing', side_effect=AssertionError('optional job bypassed authenticated probe')):
+                for _ in range(100):
+                    result = self.h.plan_step()
+                    if result.state == DISPATCH:
+                        break
+                else:
+                    self.fail('optional work was suppressed by zero urgent population')
+                self.assertGreater(backfill.call_count, 0)
+                self.assertGreater(signals.call_count, 0)
+                self.assertGreater(probe.call_count, 1)
+        finally:
+            self.db.set_trace_callback(None)
+        job, config = result.plan
+        self.assertEqual((job['id'], job['priority'], job['deadline']),
+            (self.job['id'], 3, self.job['deadline']))
+        self.assertEqual(config['filters']['slot'], dict(gte=10, lte=100))
+        self.assertTrue(any('acquisition_expiry_quantum_v1' in statement for statement in statements))
+        self.assertTrue(any('acquisition_schedule_source_cursor_v1' in statement for statement in statements))
+        self.assertEqual(self.db.execute('SELECT status,deadline FROM acquisition_jobs WHERE id=?',
+            (expired,)).fetchone(), ('deadline_missed', NOW-1))
+        self.assertEqual(self.db.execute('SELECT status,lo,hi,deadline FROM acquisition_jobs WHERE id=?',
+            (self.job['id'],)).fetchone(), ('pending', 10, 100, self.job['deadline']))
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(), (0,))
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+
+    def test_real_priority_flip_enters_and_leaves_urgent_path_without_borrowing_optional_verdict(self):
+        from meme_machine.solana_candidate_development import DISPATCH, IDLE
+
+        # An authenticated optional scheduling verdict is deliberately empty;
+        # urgent work must still evaluate the actual, absent canonical coverage.
+        self.cache(self.metric([]))
+        self.h.install_planner()
+        scheduler = self.h.acquisition_scheduler
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+        with patch.object(self.probe, 'step', side_effect=AssertionError('urgent borrowed optional verdict')):
+            self.assertEqual(self.h.plan_step(urgent_only=True).state, IDLE)
+            with self.writer.transaction():
+                self.db.execute('UPDATE acquisition_jobs SET priority=1 WHERE id=?', (self.job['id'],))
+            self.assertEqual(scheduler.urgent_pending_count(), 1)
+            with patch.object(self.h.rolling, 'missing', wraps=self.h.rolling.missing) as completeness:
+                for _ in range(20):
+                    result = self.h.plan_step(urgent_only=True)
+                    if result.state == DISPATCH:
+                        break
+                else:
+                    self.fail('positive urgent population failed to reach original urgent dispatch')
+                completeness.assert_called()
+            self.assertEqual((result.plan[0]['id'], result.plan[0]['priority'], result.plan[0]['deadline']),
+                (self.job['id'], 1, self.job['deadline']))
+            self.assertEqual(result.plan[1]['filters']['slot'], dict(gte=10, lte=100))
+            with self.writer.transaction():
+                self.db.execute('UPDATE acquisition_jobs SET priority=3 WHERE id=?', (self.job['id'],))
+            self.assertEqual(scheduler.urgent_pending_count(), 0)
+            with patch.object(scheduler, 'next', side_effect=AssertionError('zero count reentered scheduler')):
+                self.assertEqual(self.h.plan_step(urgent_only=True).state, IDLE)
+        self.assertEqual(self.db.execute('SELECT status,lo,hi,deadline,token,pages FROM acquisition_jobs WHERE id=?',
+            (self.job['id'],)).fetchone(), ('pending', 10, 100, self.job['deadline'], None, 0))
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(), (0,))
+        self.assertEqual(self.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='shared_coverage_reused'").fetchone(), (0,))
+
+    def test_missing_urgent_count_singleton_fails_closed_before_false_idle(self):
+        self.h.install_planner()
+        scheduler = self.h.acquisition_scheduler
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+        with self.writer.transaction():
+            self.db.execute('DELETE FROM acquisition_schedule_urgent_count_v1 WHERE id=1')
+        with patch.object(scheduler, 'next', side_effect=AssertionError('missing count reached dispatch')):
+            with self.assertRaisesRegex(EvidenceUnavailable, 'acquisition_schedule_urgent_count_unavailable'):
+                self.h.plan_step(urgent_only=True)
+        self.assertEqual(self.db.execute('SELECT status,deadline FROM acquisition_jobs WHERE id=?',
+            (self.job['id'],)).fetchone(), ('pending', self.job['deadline']))
+        self.assertFalse(self.db.in_transaction)
+
+    def test_zero_urgent_still_rejects_invalid_derived_selection_arguments_before_idle(self):
+        self.h.install_planner()
+        scheduler = self.h.acquisition_scheduler
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+        before = self.db.execute('SELECT * FROM acquisition_jobs ORDER BY id').fetchall()
+        with patch.object(scheduler, 'next', side_effect=AssertionError('invalid selection reached scheduler')):
+            for urgent_only in (1, 'urgent'):
+                with self.subTest(urgent_only=urgent_only):
+                    with self.assertRaisesRegex(EvidenceUnavailable, 'acquisition_schedule_urgent'):
+                        self.h.plan_step(urgent_only=urgent_only)
+            invalid_exclusions = ('a'*64, {'a'*64: True}, ['a'*64]*9, ['not-a-job-hash'])
+            for excluding in invalid_exclusions:
+                with self.subTest(excluding=excluding):
+                    with self.assertRaisesRegex(EvidenceUnavailable, 'acquisition_schedule_exclusions'):
+                        self.h.plan_step(urgent_only=True, excluding=excluding)
+        self.assertEqual(self.db.execute('SELECT * FROM acquisition_jobs ORDER BY id').fetchall(), before)
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+        self.assertFalse(self.db.in_transaction)
+
+    def test_falsey_raw_urgency_still_uses_boolean_position_only_selection(self):
+        from meme_machine.solana_candidate_development import IDLE
+
+        self.h.install_planner()
+        scheduler = self.h.acquisition_scheduler
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+        # The original `urgent_only or position_only()` accepts these raw
+        # values: the selection handed to the scheduler is the boolean fallback.
+        with patch('meme_machine.operational.position_continuation.position_only', return_value=True), \
+                patch.object(scheduler, 'next', side_effect=AssertionError('zero urgent entered scheduler')):
+            for urgent_only in (None, 0, False, ''):
+                with self.subTest(urgent_only=urgent_only):
+                    result = self.h.plan_step(urgent_only=urgent_only, excluding=('a'*64,))
+                    self.assertEqual((result.state, result.plan), (IDLE, None))
+        self.assertEqual(self.db.execute('SELECT status,deadline FROM acquisition_jobs WHERE id=?',
+            (self.job['id'],)).fetchone(), ('pending', self.job['deadline']))
+        self.assertFalse(self.db.in_transaction)
+
+    def test_zero_urgent_rejects_invalid_dynamic_clock_before_false_idle_or_state_change(self):
+        from meme_machine.solana_candidate_development import IDLE
+
+        self.h.install_planner()
+        scheduler = self.h.acquisition_scheduler
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+        original_jobs = self.db.execute('SELECT * FROM acquisition_jobs ORDER BY id').fetchall()
+        original_frontier = self.db.execute(
+            'SELECT * FROM acquisition_schedule_urgent_v1 ORDER BY family,priority').fetchall()
+        invalid = (float('nan'), float('inf'), -float('inf'), True, False, -1, 'not-a-clock', None)
+        with patch.object(scheduler, 'next', side_effect=AssertionError('invalid clock reached scheduler')):
+            for value in invalid:
+                with self.subTest(clock=value):
+                    # Replace the history callable after installation: the
+                    # shortcut must validate the current clock, not a cached one.
+                    with patch.object(self.h, 'clock', return_value=value):
+                        with self.assertRaisesRegex(EvidenceUnavailable, 'acquisition_schedule_clock'):
+                            self.h.plan_step(urgent_only=True)
+                    self.assertFalse(self.db.in_transaction)
+            self.assertEqual(self.h.plan_step(urgent_only=True).state, IDLE)
+        self.assertEqual(self.db.execute('SELECT * FROM acquisition_jobs ORDER BY id').fetchall(), original_jobs)
+        self.assertEqual(self.db.execute(
+            'SELECT * FROM acquisition_schedule_urgent_v1 ORDER BY family,priority').fetchall(), original_frontier)
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM acquisition_observations').fetchone(), (0,))
+        self.assertEqual(scheduler.urgent_pending_count(), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

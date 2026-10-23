@@ -578,6 +578,11 @@ class AcquisitionScheduler:
                 return False
         return True
 
+    def validate_clock(self):
+        # Empty work still obeys the original finite/nonnegative owner clock
+        # contract; absence of urgent jobs is not configuration authority.
+        return self._now()
+
     def validate_selection(self, *, excluding=(), urgent=False):
         # Shared with the history zero shortcut so proven empty work cannot
         # turn malformed original controls into a successful IDLE result.
@@ -594,6 +599,7 @@ class AcquisitionScheduler:
         excluded=self.validate_selection(excluding=excluding,urgent=urgent)
         urgent_count=self.urgent_pending_count()
         if urgent and urgent_count==0:
+            self.validate_clock()
             return IDLE
         if urgent_count:
             progress = self._seed_urgent()
@@ -617,6 +623,7 @@ class AcquisitionScheduler:
             if urgent:
                 return IDLE
         else:
+            self.validate_clock()
             # Optional dependency wakes and dispatch remain active even when
             # the exact urgent population is empty.
             self.wake_fanout()

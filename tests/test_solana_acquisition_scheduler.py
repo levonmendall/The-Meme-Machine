@@ -1,13 +1,15 @@
 """Real SQLite scheduling fixtures; no market, provider or financial authority."""
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 import hashlib
+from pathlib import Path
 import sqlite3
+import tempfile
 from types import SimpleNamespace
 import unittest
 
 from meme_machine.solana_acquisition_scheduler import (
     AcquisitionScheduler, DEFERRED, FANOUT, IDLE, JOB_FIELDS, QUEUE, SIGNALS,
-    STATE, URGENT_STATE)
+    STATE, URGENT_COUNT, URGENT_STATE)
 from meme_machine.solana_evidence_plane import EvidenceUnavailable
 
 
@@ -90,6 +92,12 @@ class AcquisitionSchedulerTests(unittest.TestCase):
         expected = self.db.execute(
             "SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone()[0]
         self.assertEqual(self.scheduler.pending_count(), expected)
+        return expected
+
+    def urgent_count_is_exact(self):
+        expected = self.db.execute("SELECT COUNT(*) FROM acquisition_jobs "
+            "WHERE status='pending' AND priority<=2").fetchone()[0]
+        self.assertEqual(self.scheduler.urgent_pending_count(), expected)
         return expected
 
     def defer_rank_two_population(self, count=40):
@@ -568,6 +576,419 @@ class AcquisitionSchedulerTests(unittest.TestCase):
             f'SELECT scope,waiting,after_slot FROM {FANOUT} WHERE job_id=?',
             (identity,)).fetchone(), (scope, 0, None))
         self.assertEqual(self.source(identity), original)
+
+    def test_urgent_counter_tracks_status_and_priority_aba_without_counting_optional_work(self):
+        self.install()
+        self.assertEqual(self.urgent_count_is_exact(), 0)
+        urgent = self.add_job(priority=2)
+        optional = self.add_job(priority=3)
+        complete = self.add_job(priority=0, status='complete')
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.db.execute('UPDATE acquisition_jobs SET priority=1 WHERE id=?', (optional,))
+        self.assertEqual(self.urgent_count_is_exact(), 2)
+        self.db.execute('UPDATE acquisition_jobs SET priority=3 WHERE id=?', (optional,))
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.db.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (urgent,))
+        self.assertEqual(self.urgent_count_is_exact(), 0)
+        self.db.execute("UPDATE acquisition_jobs SET status='pending' WHERE id=?", (urgent,))
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.db.execute('UPDATE acquisition_jobs SET priority=0 WHERE id=?', (urgent,))
+        self.db.execute("UPDATE acquisition_jobs SET status='pending',priority=0 WHERE id=?", (urgent,))
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.db.execute("UPDATE acquisition_jobs SET status='pending',priority=2 WHERE id=?", (complete,))
+        self.assertEqual(self.urgent_count_is_exact(), 2)
+        self.db.execute("UPDATE acquisition_jobs SET status='complete',priority=3 WHERE id=?", (complete,))
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.db.execute('DELETE FROM acquisition_jobs WHERE id=?', (optional,))
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.db.execute('DELETE FROM acquisition_jobs WHERE id=?', (urgent,))
+        self.assertEqual(self.urgent_count_is_exact(), 0)
+
+    def test_urgent_counter_rolls_back_caught_inner_savepoint_and_outer_transaction(self):
+        self.install()
+        first = self.add_job(priority=2)
+        with self.writer.transaction():
+            second = self.add_job(priority=0)
+            self.assertEqual(self.urgent_count_is_exact(), 2)
+            try:
+                with self.writer.transaction():
+                    self.db.execute('UPDATE acquisition_jobs SET priority=3 WHERE id=?', (first,))
+                    abandoned = self.add_job(priority=1)
+                    self.assertEqual(self.urgent_count_is_exact(), 2)
+                    raise RuntimeError('caught inner urgent rollback')
+            except RuntimeError as error:
+                self.assertEqual(str(error), 'caught inner urgent rollback')
+            self.assertIsNone(self.db.execute('SELECT id FROM acquisition_jobs WHERE id=?',
+                                             (abandoned,)).fetchone())
+            self.assertEqual(self.source(first)['priority'], 2)
+            self.assertEqual(self.urgent_count_is_exact(), 2)
+        with self.assertRaisesRegex(RuntimeError, 'outer urgent rollback'):
+            with self.writer.transaction():
+                self.db.execute('DELETE FROM acquisition_jobs WHERE id=?', (first,))
+                self.db.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (second,))
+                self.assertEqual(self.urgent_count_is_exact(), 0)
+                self.add_job(priority=1)
+                self.assertEqual(self.urgent_count_is_exact(), 1)
+                raise RuntimeError('outer urgent rollback')
+        self.assertEqual(self.urgent_count_is_exact(), 2)
+        self.scheduler = AcquisitionScheduler(self.history)
+        self.assertEqual(self.urgent_count_is_exact(), 2)
+
+    def test_urgent_count_initializes_once_from_retained_all_family_pending_jobs(self):
+        self.history.active_families = ('pump',)
+        self.add_job(priority=0)
+        self.add_job(priority=1, family='pumpswap')
+        self.add_job(priority=2, family='meteora')
+        self.add_job(priority=3)
+        self.add_job(priority=0, status='complete')
+        statements = []
+        self.db.set_trace_callback(statements.append)
+        try:
+            self.install()
+        finally:
+            self.db.set_trace_callback(None)
+        self.assertEqual(self.urgent_count_is_exact(), 3)
+        initial_counts = [statement for statement in statements
+            if 'COUNT(*) FROM ACQUISITION_JOBS' in statement.upper()
+            and 'PRIORITY' in statement.upper()]
+        self.assertEqual(len(initial_counts), 1)
+        state = self.db.execute(f'SELECT * FROM {URGENT_COUNT}').fetchall()
+        statements.clear()
+        self.db.set_trace_callback(statements.append)
+        try:
+            self.scheduler = AcquisitionScheduler(self.history)
+        finally:
+            self.db.set_trace_callback(None)
+        self.assertFalse(any('COUNT(*) FROM ACQUISITION_JOBS' in statement.upper()
+                             for statement in statements))
+        self.assertEqual(self.db.execute(f'SELECT * FROM {URGENT_COUNT}').fetchall(), state)
+
+    def test_inactive_urgent_population_keeps_conservative_positive_count(self):
+        self.history.active_families = ('pump',)
+        self.install()
+        inactive = self.add_job(priority=1, family='meteora')
+        optional = self.add_job(priority=3, family='pump')
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.assertEqual(self.scheduler.next(urgent=True), IDLE)
+        self.assertEqual(self.take()['id'], optional)
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.assertEqual(self.db.execute('SELECT status FROM acquisition_jobs WHERE id=?',
+                                         (inactive,)).fetchone()[0], 'pending')
+
+    def test_missing_urgent_count_row_fails_closed_instead_of_reinitializing_zero(self):
+        self.install()
+        self.add_job(priority=1)
+        self.db.execute(f'DELETE FROM {URGENT_COUNT}')
+        with self.assertRaises(EvidenceUnavailable):
+            self.scheduler.urgent_pending_count()
+        with self.assertRaises(EvidenceUnavailable):
+            self.scheduler.next(urgent=True)
+        with self.assertRaises(EvidenceUnavailable):
+            AcquisitionScheduler(self.history)
+        self.assertEqual(self.db.execute(f'SELECT * FROM {URGENT_COUNT}').fetchall(), [])
+
+    def test_weaker_preexisting_urgent_count_schema_is_refused(self):
+        self.add_job(priority=1)
+        self.db.execute(f'CREATE TABLE {URGENT_COUNT}(id INTEGER PRIMARY KEY,pending_urgent INTEGER)')
+        self.db.execute(f'INSERT INTO {URGENT_COUNT} VALUES(1,0)')
+        with self.assertRaises(EvidenceUnavailable):
+            self.install()
+        self.assertEqual(self.db.execute(f'SELECT * FROM {URGENT_COUNT}').fetchall(), [(1, 0)])
+
+    def test_malformed_urgent_count_values_fail_closed_on_read_poll_and_restart(self):
+        self.install()
+        for value in ('corrupt-count', -1, .5):
+            with self.subTest(value=value):
+                self.db.execute(f'UPDATE {URGENT_COUNT} SET pending_urgent=0 WHERE id=1')
+                with self.assertRaises(sqlite3.IntegrityError):
+                    self.db.execute(f'UPDATE {URGENT_COUNT} SET pending_urgent=? WHERE id=1', (value,))
+                self.assertEqual(self.scheduler.urgent_pending_count(), 0)
+                self.db.execute('PRAGMA ignore_check_constraints=ON')
+                try:
+                    self.db.execute(f'UPDATE {URGENT_COUNT} SET pending_urgent=? WHERE id=1', (value,))
+                finally:
+                    self.db.execute('PRAGMA ignore_check_constraints=OFF')
+                with self.assertRaises(EvidenceUnavailable):
+                    self.scheduler.urgent_pending_count()
+                with self.assertRaises(EvidenceUnavailable):
+                    self.scheduler.next(urgent=True)
+                with self.assertRaises(EvidenceUnavailable):
+                    AcquisitionScheduler(self.history)
+                self.assertEqual(self.db.execute(
+                    f'SELECT pending_urgent FROM {URGENT_COUNT} WHERE id=1').fetchone()[0], value)
+
+    def test_empty_urgent_fast_path_skips_seed_and_urgent_retry_work_only(self):
+        self.install()
+        optional = self.add_job(priority=3)
+        self.assertEqual(self.urgent_count_is_exact(), 0)
+        ranks = []
+        original_wake = self.scheduler._wake_rank
+
+        def forbidden_seed():
+            self.fail('empty urgent population entered urgent source seeding')
+
+        def optional_wake_only(rank, **options):
+            self.assertEqual(rank, 3, 'empty urgent population entered urgent retry work')
+            ranks.append(rank)
+            return original_wake(rank, **options)
+
+        self.scheduler._seed_urgent = forbidden_seed
+        self.scheduler._wake_rank = optional_wake_only
+        self.assertEqual(self.scheduler.next(urgent=True), IDLE)
+        self.assertEqual(ranks, [])
+        self.assertEqual(self.take()['id'], optional)
+        self.assertEqual(ranks, [3])
+
+    def test_ten_thousand_optional_jobs_leave_empty_urgent_poll_bounded_without_source_reads(self):
+        self.install()
+        with self.writer.transaction():
+            for _ in range(10000):
+                self.add_job(priority=3)
+        self.assertEqual(self.urgent_count_is_exact(), 0)
+        self.assertEqual(self.scheduler.pending_count(), 10000)
+        instructions = 0
+        statements = []
+
+        def budget():
+            nonlocal instructions
+            instructions += 1
+            return int(instructions >= 5000)
+
+        self.db.set_trace_callback(statements.append)
+        self.db.set_progress_handler(budget, 1)
+        try:
+            for _ in range(5):
+                self.assertEqual(self.scheduler.next(urgent=True), IDLE)
+        finally:
+            self.db.set_progress_handler(None, 0)
+            self.db.set_trace_callback(None)
+        self.assertLess(instructions, 5000)
+        reads = [statement.upper() for statement in statements
+                 if statement.lstrip().upper().startswith('SELECT')]
+        self.assertFalse(any('FROM ACQUISITION_JOBS' in statement for statement in reads))
+        self.assertFalse(any('FROM '+URGENT_STATE.upper() in statement for statement in reads))
+        self.assertFalse(any('FROM '+QUEUE.upper() in statement for statement in reads))
+
+    def test_priority_promotion_and_demotion_preserve_original_order_and_deadline(self):
+        self.install()
+        promoted = self.add_job(priority=3, deadline=600.0)
+        earlier_optional = self.add_job(priority=3, deadline=500.0)
+        urgent = self.add_job(priority=2, deadline=700.0)
+        original = self.source(promoted)
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        self.assertEqual(self.take(urgent=True)['id'], urgent)
+        self.db.execute('UPDATE acquisition_jobs SET priority=1 WHERE id=?', (promoted,))
+        self.assertEqual(self.urgent_count_is_exact(), 2)
+        self.assertEqual(self.take(urgent=True)['id'], promoted)
+        self.assertEqual(self.source(promoted), dict(original, priority=1))
+        self.db.execute('UPDATE acquisition_jobs SET priority=3 WHERE id=?', (promoted,))
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+        selected = self.take(urgent=True)
+        self.assertEqual(selected['id'], urgent)
+        self.finish(selected)
+        self.assertEqual(self.urgent_count_is_exact(), 0)
+        selected = self.take()
+        self.assertEqual(selected['id'], earlier_optional)
+        self.finish(selected)
+        self.assertEqual(self.take()['id'], promoted)
+        self.assertEqual(self.source(promoted), original)
+
+    def test_plain_sqlite_writer_updates_urgent_counter_without_python_functions_and_reopens(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)/'retained.sqlite'
+            database = sqlite3.connect(path, isolation_level=None)
+            try:
+                database.execute(JOBS)
+                history = SimpleNamespace(db=database, writer=SQLiteOwner(database),
+                    clock=lambda: self.now, active_families=('pump',))
+                scheduler = AcquisitionScheduler(history)
+                self.assertEqual(scheduler.urgent_pending_count(), 0)
+            finally:
+                database.close()
+            identity = hashlib.sha256(b'plain-old-source-job').hexdigest()
+            with closing(sqlite3.connect(path, isolation_level=None)) as previous_source:
+                previous_source.execute('INSERT INTO acquisition_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (identity, 'pump', 'plain-source-address', 10, 20, 3, 900.0,
+                     'pending', None, 0, None, None, '0'*64, 10.0, 10.0, None))
+                self.assertEqual(previous_source.execute(
+                    f'SELECT pending_urgent FROM {URGENT_COUNT} WHERE id=1').fetchone(), (0,))
+                previous_source.execute('UPDATE acquisition_jobs SET priority=1 WHERE id=?', (identity,))
+                self.assertEqual(previous_source.execute(
+                    f'SELECT pending_urgent FROM {URGENT_COUNT} WHERE id=1').fetchone(), (1,))
+                previous_source.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (identity,))
+                self.assertEqual(previous_source.execute(
+                    f'SELECT pending_urgent FROM {URGENT_COUNT} WHERE id=1').fetchone(), (0,))
+                previous_source.execute("UPDATE acquisition_jobs SET status='pending' WHERE id=?", (identity,))
+            with closing(sqlite3.connect(path, isolation_level=None)) as restarted:
+                history = SimpleNamespace(db=restarted, writer=SQLiteOwner(restarted),
+                    clock=lambda: self.now, active_families=('pump',))
+                scheduler = AcquisitionScheduler(history)
+                self.assertEqual(scheduler.urgent_pending_count(), 1)
+                selected = scheduler.next(urgent=True)
+                self.assertEqual((selected['id'], selected['priority'], selected['deadline'],
+                    selected['lo'], selected['hi']), (identity, 1, 900.0, 10, 20))
+
+    def test_missing_counter_trigger_after_old_source_urgent_write_cannot_authenticate_retained_zero(self):
+        for missing in ('insert', 'update'):
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as temporary:
+                path = Path(temporary)/'partial-counter.sqlite'
+                with closing(sqlite3.connect(path, isolation_level=None)) as initial:
+                    initial.execute(JOBS)
+                    history = SimpleNamespace(db=initial, writer=SQLiteOwner(initial),
+                        clock=lambda: self.now, active_families=('pump',))
+                    self.assertEqual(AcquisitionScheduler(history).urgent_pending_count(), 0)
+                identity = hashlib.sha256(('missing-'+missing).encode()).hexdigest()
+                trigger = 'acquisition_schedule_urgent_count_'+missing+'_v1'
+                # This connection has no new runtime object or Python UDF. Its
+                # real insert/promotion proves how an absent trigger leaves a
+                # syntactically valid retained zero which is no longer true.
+                with closing(sqlite3.connect(path, isolation_level=None)) as previous_source:
+                    if missing == 'update':
+                        previous_source.execute('''INSERT INTO acquisition_jobs VALUES(?,?,?,?,?,?,?,
+                            'pending',NULL,0,NULL,NULL,?,?,?,NULL)''',
+                            (identity, 'pump', 'retained-old-source', 10, 20, 3,
+                             900.0, '0'*64, 10.0, 10.0))
+                    previous_source.execute('DROP TRIGGER '+trigger)
+                    if missing == 'insert':
+                        previous_source.execute('''INSERT INTO acquisition_jobs VALUES(?,?,?,?,?,?,?,
+                            'pending',NULL,0,NULL,NULL,?,?,?,NULL)''',
+                            (identity, 'pump', 'retained-old-source', 10, 20, 1,
+                             900.0, '0'*64, 10.0, 10.0))
+                    else:
+                        previous_source.execute('UPDATE acquisition_jobs SET priority=1 WHERE id=?',
+                                                (identity,))
+                    self.assertEqual(previous_source.execute(
+                        f'SELECT pending_urgent FROM {URGENT_COUNT} WHERE id=1').fetchone(), (0,))
+                    self.assertEqual(previous_source.execute("SELECT COUNT(*) FROM acquisition_jobs "
+                        "WHERE status='pending' AND priority<=2").fetchone(), (1,))
+                with closing(sqlite3.connect(path, isolation_level=None)) as restarted:
+                    history = SimpleNamespace(db=restarted, writer=SQLiteOwner(restarted),
+                        clock=lambda: self.now, active_families=('pump',))
+                    statements = []
+                    restarted.set_trace_callback(statements.append)
+                    try:
+                        with self.assertRaisesRegex(EvidenceUnavailable,
+                                'acquisition_schedule_urgent_count_schema'):
+                            AcquisitionScheduler(history)
+                    finally:
+                        restarted.set_trace_callback(None)
+                    self.assertFalse(any('COUNT(*) FROM ACQUISITION_JOBS' in statement.upper()
+                                         for statement in statements))
+                    self.assertIsNone(restarted.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?", (trigger,)).fetchone())
+                    self.assertEqual(restarted.execute(
+                        f'SELECT pending_urgent FROM {URGENT_COUNT} WHERE id=1').fetchone(), (0,))
+                    self.assertEqual(restarted.execute('SELECT status,priority,deadline FROM acquisition_jobs '
+                        'WHERE id=?', (identity,)).fetchone(), ('pending', 1, 900.0))
+
+    def test_orphan_counter_triggers_without_table_are_refused_without_fresh_recount(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)/'orphan-counter.sqlite'
+            with closing(sqlite3.connect(path, isolation_level=None)) as initial:
+                initial.execute(JOBS)
+                history = SimpleNamespace(db=initial, writer=SQLiteOwner(initial),
+                    clock=lambda: self.now, active_families=('pump',))
+                AcquisitionScheduler(history)
+            with closing(sqlite3.connect(path, isolation_level=None)) as previous_source:
+                previous_source.execute('DROP TABLE '+URGENT_COUNT)
+                self.assertEqual(previous_source.execute("SELECT COUNT(*) FROM sqlite_master "
+                    "WHERE type='trigger' AND name LIKE 'acquisition_schedule_urgent_count_%'").fetchone(), (3,))
+            with closing(sqlite3.connect(path, isolation_level=None)) as restarted:
+                history = SimpleNamespace(db=restarted, writer=SQLiteOwner(restarted),
+                    clock=lambda: self.now, active_families=('pump',))
+                statements = []
+                restarted.set_trace_callback(statements.append)
+                try:
+                    with self.assertRaisesRegex(EvidenceUnavailable,
+                            'acquisition_schedule_urgent_count_schema'):
+                        AcquisitionScheduler(history)
+                finally:
+                    restarted.set_trace_callback(None)
+                self.assertFalse(any('COUNT(*) FROM ACQUISITION_JOBS' in statement.upper()
+                                     for statement in statements))
+                self.assertIsNone(restarted.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (URGENT_COUNT,)).fetchone())
+                self.assertEqual(restarted.execute("SELECT COUNT(*) FROM sqlite_master "
+                    "WHERE type='trigger' AND name LIKE 'acquisition_schedule_urgent_count_%'").fetchone(), (3,))
+
+    def test_complete_counter_trigger_name_set_still_requires_exact_sql(self):
+        self.install()
+        self.add_job(priority=1)
+        name = 'acquisition_schedule_urgent_count_update_v1'
+        self.db.execute('DROP TRIGGER '+name)
+        self.db.execute('CREATE TRIGGER '+name+''' AFTER UPDATE OF status,priority
+            ON acquisition_jobs BEGIN SELECT 1; END''')
+        with self.assertRaisesRegex(EvidenceUnavailable, 'acquisition_schedule_schema_mismatch'):
+            AcquisitionScheduler(self.history)
+        self.assertEqual(self.urgent_count_is_exact(), 1)
+
+    def test_zero_urgent_still_rejects_invalid_selection_mode_and_exclusions(self):
+        self.install()
+        self.assertEqual(self.scheduler.urgent_pending_count(), 0)
+        invalid = [dict(urgent=1), dict(urgent='true'), dict(urgent=None),
+            dict(urgent=True, excluding='not-an-exclusion-sequence'),
+            dict(urgent=True, excluding={'0'*64: True}),
+            dict(urgent=True, excluding=('invalid-id',)),
+            dict(urgent=True, excluding=tuple(hashlib.sha256(str(n).encode()).hexdigest()
+                                            for n in range(9)))]
+        original_count = self.scheduler.urgent_pending_count
+
+        def premature_count():
+            self.fail('invalid selection reached the empty-count fast path')
+
+        self.scheduler.urgent_pending_count = premature_count
+        try:
+            for selection in invalid:
+                with self.subTest(selection=selection):
+                    with self.assertRaises(EvidenceUnavailable):
+                        self.scheduler.validate_selection(**selection)
+                    with self.assertRaises(EvidenceUnavailable):
+                        self.scheduler.next(**selection)
+        finally:
+            self.scheduler.urgent_pending_count = original_count
+        self.assertEqual(self.scheduler.urgent_pending_count(), 0)
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone(), (0,))
+
+    def test_zero_urgent_fast_paths_reject_invalid_dynamic_clock_before_idle_or_state_work(self):
+        self.install()
+        self.assertEqual(self.scheduler.urgent_pending_count(), 0)
+        tables = (QUEUE, STATE, URGENT_STATE, URGENT_COUNT, FANOUT, SIGNALS,
+                  'acquisition_schedule_signal_cursor_v1')
+        before = {table: self.db.execute('SELECT * FROM '+table).fetchall() for table in tables}
+        invalid = (('nan', float('nan')), ('positive-infinity', float('inf')),
+            ('negative-infinity', float('-inf')), ('true', True), ('false', False),
+            ('negative', -1.0), ('nonnumeric', '100.0'), ('none', None))
+        original_clock = self.history.clock
+        original_now = self.now
+        original_wake = self.scheduler.wake_fanout
+        original_backfill = self.scheduler.backfill
+
+        def premature_work():
+            self.fail('invalid zero-count clock entered signal/backfill work')
+
+        self.scheduler.wake_fanout = premature_work
+        self.scheduler.backfill = premature_work
+        try:
+            for label, value in invalid:
+                for urgent in (True, False):
+                    with self.subTest(clock=label, urgent=urgent):
+                        self.history.clock = lambda value=value: value
+                        try:
+                            with self.assertRaisesRegex(EvidenceUnavailable,
+                                    'acquisition_schedule_clock'):
+                                self.scheduler.next(urgent=urgent)
+                        finally:
+                            self.history.clock = original_clock
+                            self.now = original_now
+                        self.assertEqual({table: self.db.execute('SELECT * FROM '+table).fetchall()
+                                          for table in tables}, before)
+                        self.assertFalse(self.db.in_transaction)
+        finally:
+            self.history.clock = original_clock
+            self.now = original_now
+            self.scheduler.wake_fanout = original_wake
+            self.scheduler.backfill = original_backfill
+        self.assertEqual(self.scheduler.urgent_pending_count(), 0)
 
 
 if __name__ == '__main__':
