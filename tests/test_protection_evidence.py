@@ -801,6 +801,81 @@ class ProtectionEvidenceTests(unittest.TestCase):
             f'SELECT * FROM {TABLE} WHERE sequence<=? ORDER BY sequence', (len(retained),))), retained)
         self.assertEqual(self.book.replay(), financial)
 
+    def test_late_complete_history_fails_its_window_but_keeps_later_recovery_valid(self):
+        native_rows = {table:list(self.book.db.execute(f'SELECT * FROM {table} ORDER BY 1'))
+            for table in ('genesis', 'positions', 'journal')}
+        shared_rows = list(self.shared.execute('SELECT * FROM shared_capital_events ORDER BY sequence'))
+        late = self.shifted_first_turn(6*NS)
+        # Preserve the original obligation and deadline despite delayed actual
+        # processing; COMPLETE records a return, not a claim of timely coverage.
+        late['timing'].update(due_ns=2*NS, deadline_ns=5*NS)
+        late['quote']['deadline_ns'] = 5*NS
+        previous = self.append_turn(late)
+        retained = list(self.book.db.execute(f'SELECT * FROM {TABLE} ORDER BY sequence'))
+        original_usd = self.fixture_read('fixture_usd', late['usd']['acquisition_id'])
+        recovered = self.later_unchanged_turn(late['timing']['next_due_ns'], previous)
+        recovered['usd'].update(acquired_ns=late['usd']['acquired_ns'],
+            acquisition_completed_ns=late['usd']['acquisition_completed_ns'])
+        self.append_turn(recovered)
+        affected = self.check(self.window(end_ns=7*NS, end_wall_ns=107*NS))
+        self.assertEqual(affected.reason, 'original_protection_deadline_missed')
+        self.assertFalse(affected.held_coverage)
+        completed = recovered['timing']['completed_ns']
+        result = self.check(self.window(start_ns=completed, end_ns=11*NS,
+            start_wall_ns=100*NS+completed, end_wall_ns=111*NS,
+            start_cursor=self.mark_ack, end_cursor=self.mark_ack))
+        self.assertTrue(result.ok, result.reason)
+        self.assertTrue(result.held_coverage)
+        self.assertEqual((result.lifecycles, result.turns), (1,1))
+        self.assertEqual(self.fixture_read('fixture_usd', late['usd']['acquisition_id']), original_usd)
+        self.assertEqual(list(self.book.db.execute(
+            f'SELECT * FROM {TABLE} WHERE sequence<=? ORDER BY sequence', (len(retained),))), retained)
+        self.assertEqual({table:list(self.book.db.execute(f'SELECT * FROM {table} ORDER BY 1'))
+            for table in native_rows}, native_rows)
+        self.assertEqual(list(self.shared.execute('SELECT * FROM shared_capital_events ORDER BY sequence')), shared_rows)
+
+    def test_original_deadline_inside_window_counts_before_late_dispatch_and_allows_later_recovery(self):
+        native_rows = {table:list(self.book.db.execute(f'SELECT * FROM {table} ORDER BY 1'))
+            for table in ('genesis', 'positions', 'journal')}
+        shared_rows = list(self.shared.execute('SELECT * FROM shared_capital_events ORDER BY sequence'))
+        previous = self.append_turn()
+        missed = self.later_unchanged_turn(56*NS//10, previous)
+        missed.update(outcome='FAILED', reason='scheduled_dispatch_missed', quote=None,
+            usd=None, usd_requirement='NOT_CONSUMED', shared_ref=None,
+            at_ns=93*NS//10, wall_ns=1093*NS//10, sample_end_ns=93*NS//10)
+        missed['timing'].update(started_ns=9*NS, deadline_ns=8*NS,
+            decision_ns=91*NS//10, risk_completed_ns=92*NS//10,
+            completed_ns=93*NS//10, next_due_ns=123*NS//10)
+        failed = self.append_turn(missed)
+        retained = list(self.book.db.execute(f'SELECT * FROM {TABLE} ORDER BY sequence'))
+        recovered = self.later_unchanged_turn(missed['timing']['next_due_ns'], failed)
+        recovered['turn'] = 3
+        self.append_turn(recovered)
+        # The retained miss has an original8.0 deadline; its later9.0 dispatch
+        # cannot invalidate an earlier7.9 end or conceal a miss at/after8.0.
+        before_deadline = self.check(self.window(start_ns=3*NS, end_ns=79*NS//10,
+            start_wall_ns=103*NS, end_wall_ns=1079*NS//10))
+        self.assertTrue(before_deadline.ok, before_deadline.reason)
+        self.assertTrue(before_deadline.held_coverage)
+        completed = recovered['timing']['completed_ns']
+        later = self.check(self.window(start_ns=completed, end_ns=14*NS,
+            start_wall_ns=100*NS+completed, end_wall_ns=114*NS,
+            start_cursor=self.mark_ack, end_cursor=self.mark_ack))
+        self.assertTrue(later.ok, later.reason)
+        self.assertTrue(later.held_coverage)
+        for end in (8*NS, 82*NS//10):
+            with self.subTest(window_end=end):
+                affected = self.check(self.window(start_ns=3*NS, end_ns=end,
+                    start_wall_ns=103*NS, end_wall_ns=100*NS+end))
+                self.assertFalse(affected.ok, affected.reason)
+                self.assertFalse(affected.held_coverage)
+                self.assertEqual(affected.reason, 'held_turn_failed')
+        self.assertEqual(list(self.book.db.execute(
+            f'SELECT * FROM {TABLE} WHERE sequence<=? ORDER BY sequence', (len(retained),))), retained)
+        self.assertEqual({table:list(self.book.db.execute(f'SELECT * FROM {table} ORDER BY 1'))
+            for table in native_rows}, native_rows)
+        self.assertEqual(list(self.shared.execute('SELECT * FROM shared_capital_events ORDER BY sequence')), shared_rows)
+
     def test_record_wall_time_cannot_be_changed_independently_of_window_clocks(self):
         p = self.turn(); p['wall_ns'] += NS
         self.append_turn(p)

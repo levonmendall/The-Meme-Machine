@@ -765,8 +765,10 @@ def _schedule(p, cadence):
         require(t['native_durable_ns'] is None and t['shared_ack_ns'] is None,
                 'unchanged_hold_has_no_new_commit_or_ack')
     # An honestly FAILED dispatch may start after its original deadline. Keep
-    # that failure and its bounded following schedule; _turn still rejects
-    # failed outcomes and late COMPLETE coverage without retiming anything.
+    # that failure and its bounded following schedule. Recorded COMPLETE means
+    # processing returned, not verified timeliness: _turn rejects deadline
+    # misses in affected/leading coverage. Earlier raw timing failures remain
+    # retained without poisoning a later independently verified recovered turn.
     require(t['due_ns'] <= t['deadline_ns'] <= t['due_ns']+cadence,
             'original_schedule_deadline_invalid')
     require(t['completed_ns'] <= t['next_due_ns'] <= t['completed_ns']+cadence,
