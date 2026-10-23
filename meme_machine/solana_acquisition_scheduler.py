@@ -194,7 +194,7 @@ class AcquisitionScheduler:
             scope=(side+'.coverage_scope' if binding else
                 ("COALESCE((SELECT coverage_scope FROM evidence_bindings WHERE family="+side+".family AND address="+side+".address),"+
                  "'candidate:'||"+side+".family||':'||"+side+".address)" if self._binding_signals and not fallback else
-                 "'candidate:'||"+side+".family||':'||"+side+".address))
+                 "'candidate:'||"+side+".family||':'||"+side+".address"))
             return f'''INSERT INTO {SIGNALS}(family,scope,revision,dirty,scan_revision,after_parent)
                 VALUES({side}.family,{scope},1,1,-1,'') ON CONFLICT(family,scope)
                 DO UPDATE SET revision=revision+1,dirty=1;'''
