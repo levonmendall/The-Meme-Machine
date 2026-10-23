@@ -36,7 +36,6 @@ PROTECTED=(
     'engineering/diagnostics/native_audit_source_guard.template.txt',
     'engineering/diagnostics/build_ea_performance_source_proof.py',
     'engineering/diagnostics/build_operational_candidate_source_proof.py',
-    'engineering/diagnostics/operational_candidate_source_guard.template.txt',
     'meme_machine/operational/managed_native_pump.py',
 )
 NEW_GUARD='tests/test_owner_throughput_source_guard.py'
