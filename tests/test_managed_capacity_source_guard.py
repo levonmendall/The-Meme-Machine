@@ -4,6 +4,7 @@ No operational exemption and no mocked Git source. Every changed/added runtime
 byte is pinned to a committed cut, and original assertions receive authentic
 immutable predecessor bytes only after the complete current cut is verified.
 """
+from tests.test_owner_throughput_source_guard import (throughput_predecessor, throughput_active_delta, throughput_native_delta)
 import ast
 import hashlib
 import json
@@ -48,13 +49,14 @@ def manifest(test):
     test.assertEqual(row['read_guard']['path'],READ_GUARD)
     test.assertEqual(set(row['proof_inputs']),set(PROOF_INPUTS))
     for path,facts in row['proof_inputs'].items():
-        body=(ROOT/path).read_bytes()
+        body=throughput_predecessor(test,path,(ROOT/path).read_bytes(),require_current=True)
         test.assertEqual((len(body),checksum(body)),(facts['bytes'],facts['sha256']),
             path+':exact reproducible proof source')
     return row
 
 
 def capacity_predecessor(test,path,current):
+    current=throughput_predecessor(test,path,current)
     if path==READ_GUARD:return read_guard_predecessor(test,current)
     if path in TEST_CALLERS:return caller_predecessor(test,path,current)
     if path not in MODIFIED:return current
@@ -133,25 +135,26 @@ def active_runtime(test):
     test.assertEqual(git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),IMPLEMENTATION_TREE)
     expected={'M\t'+p for p in MODIFIED}|{'A\t'+p for p in ADDED}
     test.assertEqual(set(git('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine').decode().splitlines()),expected)
-    test.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',
+    test.assertEqual(throughput_active_delta(test,git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),IMPLEMENTATION),b'',
         'all actual current runtime bytes match the complete managed successor')
     for flags in ((),('--ignored',)):
         paths=git('ls-files','--others',*flags,'--exclude-standard','--','meme_machine').decode().splitlines()
         test.assertEqual([p for p in paths if '__pycache__' not in Path(p).parts and not p.endswith('.pyc')],[])
     for path,facts in row['files'].items():
-        body=(ROOT/path).read_bytes()
+        body=throughput_predecessor(test,path,(ROOT/path).read_bytes(),require_current=True)
         test.assertEqual((len(body),checksum(body)),(facts['after_bytes'],facts['after_sha256']),path)
         test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))
         if path in MODIFIED:capacity_predecessor(test,path,body)
     for path in TEST_CALLERS:
-        caller_predecessor(test,path,(ROOT/path).read_bytes(),require_successor=True)
-    guard_predecessor(test,(ROOT/GUARD).read_bytes())
-    read_guard_predecessor(test,(ROOT/READ_GUARD).read_bytes(),require_successor=True)
+        caller_predecessor(test,path,throughput_predecessor(test,path,(ROOT/path).read_bytes(),require_current=True),require_successor=True)
+    guard_predecessor(test,throughput_predecessor(test,GUARD,(ROOT/GUARD).read_bytes(),require_current=True))
+    read_guard_predecessor(test,throughput_predecessor(test,READ_GUARD,(ROOT/READ_GUARD).read_bytes(),require_current=True),require_successor=True)
     return row
 
 
 def capacity_active_delta(test,actual,old_implementation):
     active_runtime(test)
+    actual=throughput_active_delta(test,actual,old_implementation)
     test.assertEqual(actual,git('diff','--name-only',old_implementation,IMPLEMENTATION,'--','meme_machine'),
         'original guard must supply the genuine complete current runtime delta')
     return git('diff','--name-only',old_implementation,BASE,'--','meme_machine')
@@ -159,6 +162,7 @@ def capacity_active_delta(test,actual,old_implementation):
 
 def capacity_native_delta(test,actual,old_implementation):
     active_runtime(test)
+    actual=throughput_native_delta(test,actual,old_implementation)
     historical=git('diff','--name-only',old_implementation,BASE,'--','meme_machine')
     current=git('diff','--name-only',old_implementation,IMPLEMENTATION,'--','meme_machine')
     # The original guard's own negative tests also call its historical API.
@@ -174,7 +178,7 @@ class ManagedCapacitySourceGuard(unittest.TestCase):
     def test_unknown_modified_and_added_runtime_bytes_cannot_pass(self):
         row=manifest(self)
         for path in MODIFIED:
-            body=(ROOT/path).read_bytes()
+            body=throughput_predecessor(self,path,(ROOT/path).read_bytes(),require_current=True)
             with self.subTest(path=path),self.assertRaises(AssertionError):
                 capacity_predecessor(self,path,body+b'\n# unreviewed runtime\n')
         read=Path.read_bytes
@@ -186,7 +190,7 @@ class ManagedCapacitySourceGuard(unittest.TestCase):
     def test_economic_sizing_and_admission_delta_cannot_be_partially_reversed(self):
         for path in MODIFIED:
             before=git('show',BASE+':'+path)
-            body=(ROOT/path).read_bytes()
+            body=throughput_predecessor(self,path,(ROOT/path).read_bytes(),require_current=True)
             self.assertEqual(capacity_predecessor(self,path,before),before)
             self.assertEqual(capacity_predecessor(self,path,body.decode()),before.decode())
             with self.subTest(path=path),self.assertRaises(AssertionError):
@@ -205,13 +209,13 @@ class ManagedCapacitySourceGuard(unittest.TestCase):
             manifest(self)
 
     def test_original_assertion_change_cannot_hide_in_read_dispatch(self):
-        body=(ROOT/GUARD).read_bytes()
+        body=throughput_predecessor(self,GUARD,(ROOT/GUARD).read_bytes(),require_current=True)
         guard_predecessor(self,body)
         for bad in (body+b'\n',body.replace(b'assertEqual',b'assertNotEqual',1)):
             with self.assertRaises(AssertionError):guard_predecessor(self,bad)
 
     def test_valuation_read_hook_cannot_change_original_assertions_or_source(self):
-        body=(ROOT/READ_GUARD).read_bytes()
+        body=throughput_predecessor(self,READ_GUARD,(ROOT/READ_GUARD).read_bytes(),require_current=True)
         before=git('show',BASE+':'+READ_GUARD)
         self.assertEqual(read_guard_predecessor(self,body,require_successor=True),before)
         self.assertEqual(capacity_predecessor(self,READ_GUARD,before),before)
@@ -225,7 +229,7 @@ class ManagedCapacitySourceGuard(unittest.TestCase):
         from engineering.diagnostics.build_managed_capacity_source_proof import nodes
         self.assertEqual(set(TEST_CALLERS),{'tests/test_solana_history_separation.py'})
         for path in TEST_CALLERS:
-            before=git('show',BASE+':'+path);body=(ROOT/path).read_bytes()
+            before=git('show',BASE+':'+path);body=throughput_predecessor(self,path,(ROOT/path).read_bytes(),require_current=True)
             self.assertEqual(caller_predecessor(self,path,body,require_successor=True),before)
             self.assertEqual(capacity_predecessor(self,path,before),before)
             self.assertEqual(capacity_predecessor(self,path,body.decode()),before.decode())
@@ -237,7 +241,7 @@ class ManagedCapacitySourceGuard(unittest.TestCase):
             for name,value in methods.items():
                 self.assertEqual(right.get(name),value,path+':original method '+name)
             for bad in (b'',body[:-1],body+b'\n# unknown caller bytes\n',
-                    body.replace(b'assertEqual',b'assertNotEqual',1),(ROOT/GUARD).read_bytes()):
+                    body.replace(b'assertEqual',b'assertNotEqual',1),throughput_predecessor(self,GUARD,(ROOT/GUARD).read_bytes(),require_current=True)):
                 with self.subTest(path=path),self.assertRaises(AssertionError):
                     capacity_predecessor(self,path,bad)
             with self.assertRaises(AssertionError):

@@ -1,0 +1,383 @@
+{
+  "base": "44c4d556f9d7eb6f0481cbdceabc4c58e8714e65",
+  "base_tree": "c473027bb26189c54cba8cb853d7f741efd5728f",
+  "capacity_base": "83c3716aefc21d59780db64beb8681e772ac628c",
+  "capacity_implementation": "58daaa5afef66169062b74ffe617cfeaa9975c12",
+  "files": {
+    "meme_machine/operational/supervisor.py": {
+      "after_bytes": 58874,
+      "after_sha256": "6d326055735c71f19fc2fd56ab27a032b2ea71828c4d11906407faa356472089",
+      "before_bytes": 58444,
+      "before_sha256": "63658a7ed37f03fa9ead8af863ead8d0f442f4356b8ec33c0c9a0571b1a1cb82",
+      "changed_nodes": [
+        "Supervisor.continuation_health",
+        "__statement_18",
+        "__statement_19",
+        "current_service_cgroup"
+      ],
+      "imports": [
+        "Import(names=[alias(name='fcntl')])",
+        "Import(names=[alias(name='hashlib'), alias(name='stat')])",
+        "Import(names=[alias(name='json')])",
+        "Import(names=[alias(name='math')])",
+        "Import(names=[alias(name='os')])",
+        "Import(names=[alias(name='re')])",
+        "Import(names=[alias(name='signal')])",
+        "Import(names=[alias(name='sqlite3')])",
+        "Import(names=[alias(name='subprocess')])",
+        "Import(names=[alias(name='sys')])",
+        "Import(names=[alias(name='threading')])",
+        "Import(names=[alias(name='time')])",
+        "Import(names=[alias(name='uuid')])",
+        "Import(names=[alias(name='uuid')])",
+        "ImportFrom(module='acceptance', names=[alias(name='observe')], level=1)",
+        "ImportFrom(module='acceptance', names=[alias(name='observe')], level=1)",
+        "ImportFrom(module='admission', names=[alias(name='MODES')], level=1)",
+        "ImportFrom(module='admission', names=[alias(name='require_normal'), alias(name='require_autonomy')], level=1)",
+        "ImportFrom(module='admission', names=[alias(name='require_normal')], level=1)",
+        "ImportFrom(module='admission', names=[alias(name='require_normal')], level=1)",
+        "ImportFrom(module='bounded_provider', names=[alias(name='Budget'), alias(name='PhaseBudget')], level=1)",
+        "ImportFrom(module='contextlib', names=[alias(name='closing')], level=0)",
+        "ImportFrom(module='contextlib', names=[alias(name='contextmanager')], level=0)",
+        "ImportFrom(module='dataclasses', names=[alias(name='dataclass')], level=0)",
+        "ImportFrom(module='datetime', names=[alias(name='datetime'), alias(name='timezone'), alias(name='timedelta')], level=0)",
+        "ImportFrom(module='decimal', names=[alias(name='localcontext')], level=0)",
+        "ImportFrom(module='exceptional_window', names=[alias(name='tick')], level=1)",
+        "ImportFrom(module='meme_machine.lanes.meteora.runner', names=[alias(name='load_policy')], level=0)",
+        "ImportFrom(module='meme_machine.lanes.pons.log_windows', names=[alias(name='protected_capability_path')], level=0)",
+        "ImportFrom(module='meme_machine.lanes.pons.pons_selective_continuation', names=[alias(name='POLICY_HASH', asname='pons')], level=0)",
+        "ImportFrom(module='meme_machine.lanes.pump.pump_acceleration_strategy', names=[alias(name='policy_hash')], level=0)",
+        "ImportFrom(module='meme_machine.lanes.ramses.ramses_strategy', names=[alias(name='POLICY_HASH', asname='ramses')], level=0)",
+        "ImportFrom(module='meme_machine.paper_policy_revision', names=[alias(name='ACTIVE_REVISION')], level=0)",
+        "ImportFrom(module='meme_machine.paper_policy_revision', names=[alias(name='historical_hashes'), alias(name='current_hashes')], level=0)",
+        "ImportFrom(module='meme_machine.paper_policy_revision', names=[alias(name='selected_revision')], level=0)",
+        "ImportFrom(module='meme_machine.portfolio_accounting', names=[alias(name='PortfolioAccounting'), alias(name='inception_receipt'), alias(name='digest'), alias(name='LANES'), alias(name='_atomic_json')], level=0)",
+        "ImportFrom(module='meme_machine.portfolio_accounting', names=[alias(name='validate_inception')], level=0)",
+        "ImportFrom(module='meme_machine.portfolio_snapshot_transport', names=[alias(name='publish_snapshot')], level=0)",
+        "ImportFrom(module='meme_machine.portfolio_snapshot_transport', names=[alias(name='publish_snapshot')], level=0)",
+        "ImportFrom(module='meme_machine.runtime.operating_families', names=[alias(name='ACTIVE_LANES'), alias(name='PAUSED_LANES'), alias(name='require_active')], level=0)",
+        "ImportFrom(module='meme_machine.runtime.policy_compatibility', names=[alias(name='assert_shared_transition')], level=0)",
+        "ImportFrom(module='meme_machine.runtime.policy_compatibility', names=[alias(name='require_flat_portfolio')], level=0)",
+        "ImportFrom(module='meme_machine.runtime.robinhood', names=[alias(name='provider_authority', asname='authority')], level=0)",
+        "ImportFrom(module='meme_machine.runtime.robinhood.provider_authority', names=[alias(name='endpoint')], level=0)",
+        "ImportFrom(module='meme_machine.runtime.usd_valuation', names=[alias(name='ValuationUnavailable'), alias(name='utc')], level=0)",
+        "ImportFrom(module='meme_machine.shared_capital.model', names=[alias(name='CapitalError')], level=0)",
+        "ImportFrom(module='meme_machine.shared_capital.reporting', names=[alias(name='reporting_snapshot'), alias(name='export_from_snapshot'), alias(name='summary_from_snapshot')], level=0)",
+        "ImportFrom(module='meme_machine.shared_capital.runtime', names=[alias(name='process_identity')], level=0)",
+        "ImportFrom(module='meme_machine.shared_capital.runtime', names=[alias(name='selected'), alias(name='connection')], level=0)",
+        "ImportFrom(module='meme_machine.solana_prewarm_startup', names=[alias(name='released'), alias(name='published_program_frontiers')], level=0)",
+        "ImportFrom(module='meme_machine.solana_rolling_history', names=[alias(name='program_scope')], level=0)",
+        "ImportFrom(module='observation', names=[alias(name='owner_learning_observation')], level=1)",
+        "ImportFrom(module='observation', names=[alias(name='portfolio_summary')], level=1)",
+        "ImportFrom(module='observation', names=[alias(name='provider_queue')], level=1)",
+        "ImportFrom(module='pathlib', names=[alias(name='Path')], level=0)",
+        "ImportFrom(module='pause', names=[alias(name='assert_clear')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='close_bootstrap')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='close_bootstrap')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='close_bootstrap')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='cpu_capacity'), alias(name='outstanding'), alias(name='provider_failure'), alias(name='provider_recovered')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='funding_lanes'), alias(name='position_lanes')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='funding_lanes')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='load_envelope')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='position_lanes')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='position_lanes')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='provider_failure')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='readiness'), alias(name='funding_lanes')], level=1)",
+        "ImportFrom(module='position_continuation', names=[alias(name='readiness'), alias(name='funding_lanes')], level=1)",
+        "ImportFrom(module='restored_provider_history', names=[alias(name='require_restored_history')], level=1)",
+        "ImportFrom(module='storage_guard', names=[alias(name='verify_storage')], level=1)"
+      ],
+      "status": "M"
+    }
+  },
+  "guard": {
+    "after_bytes": 16228,
+    "after_sha256": "b491b78c46103b42344b921d0a0b7fca013a2562f73f46702ea654dba14dc8c9",
+    "before_bytes": 15247,
+    "before_sha256": "20f4715b8cfa09a268ab6189d7091df09ebb75cb790cbf2fe3832d9b0333d094",
+    "changed_nodes": [
+      "ManagedCapacitySourceGuard.test_economic_sizing_and_admission_delta_cannot_be_partially_reversed",
+      "ManagedCapacitySourceGuard.test_exact_external_test_caller_preserves_every_original_method_and_rejects_unknown_bytes",
+      "ManagedCapacitySourceGuard.test_original_assertion_change_cannot_hide_in_read_dispatch",
+      "ManagedCapacitySourceGuard.test_unknown_modified_and_added_runtime_bytes_cannot_pass",
+      "ManagedCapacitySourceGuard.test_valuation_read_hook_cannot_change_original_assertions_or_source",
+      "__statement_1",
+      "__statement_10",
+      "__statement_11",
+      "__statement_12",
+      "__statement_13",
+      "__statement_14",
+      "__statement_15",
+      "__statement_16",
+      "__statement_17",
+      "__statement_18",
+      "__statement_19",
+      "__statement_2",
+      "__statement_20",
+      "__statement_21",
+      "__statement_3",
+      "__statement_4",
+      "__statement_5",
+      "__statement_6",
+      "__statement_7",
+      "__statement_8",
+      "__statement_9",
+      "active_runtime",
+      "capacity_active_delta",
+      "capacity_native_delta",
+      "capacity_predecessor",
+      "manifest"
+    ],
+    "changes": [
+      {
+        "after": "\nNo operational exemption and no mocked Git source. Every changed/added runtime\nbyte is pinned to a committed cut, and original assertions receive authentic\nimmutable predecessor bytes only after the complete current cut is verified.\n\"\"\"\nfrom tests.test_owner_throughput_source_guard import (throughput_predecessor, throughput_active_delta, throughput_native_delta)\nimport ast\nimport hashlib\nimport json\nfrom pathlib import Path\nimport subprocess\n",
+        "before": "\nNo operational exemption and no mocked Git source. Every changed/added runtime\nbyte is pinned to a committed cut, and original assertions receive authentic\nimmutable predecessor bytes only after the complete current cut is verified.\n\"\"\"\nimport ast\nimport hashlib\nimport json\nfrom pathlib import Path\nimport subprocess\n"
+      },
+      {
+        "after": "    test.assertEqual(row['test_callers'],TEST_CALLERS)\n    test.assertEqual(row['guard']['path'],GUARD)\n    test.assertEqual(row['read_guard']['path'],READ_GUARD)\n    test.assertEqual(set(row['proof_inputs']),set(PROOF_INPUTS))\n    for path,facts in row['proof_inputs'].items():\n        body=throughput_predecessor(test,path,(ROOT/path).read_bytes(),require_current=True)\n        test.assertEqual((len(body),checksum(body)),(facts['bytes'],facts['sha256']),\n            path+':exact reproducible proof source')\n    return row\n\n\ndef capacity_predecessor(test,path,current):\n    current=throughput_predecessor(test,path,current)\n    if path==READ_GUARD:return read_guard_predecessor(test,current)\n    if path in TEST_CALLERS:return caller_predecessor(test,path,current)\n    if path not in MODIFIED:return current\n    row=manifest(test)['files'][path]\n    text=type(current) is str\n",
+        "before": "    test.assertEqual(row['test_callers'],TEST_CALLERS)\n    test.assertEqual(row['guard']['path'],GUARD)\n    test.assertEqual(row['read_guard']['path'],READ_GUARD)\n    test.assertEqual(set(row['proof_inputs']),set(PROOF_INPUTS))\n    for path,facts in row['proof_inputs'].items():\n        body=(ROOT/path).read_bytes()\n        test.assertEqual((len(body),checksum(body)),(facts['bytes'],facts['sha256']),\n            path+':exact reproducible proof source')\n    return row\n\n\ndef capacity_predecessor(test,path,current):\n    if path==READ_GUARD:return read_guard_predecessor(test,current)\n    if path in TEST_CALLERS:return caller_predecessor(test,path,current)\n    if path not in MODIFIED:return current\n    row=manifest(test)['files'][path]\n    text=type(current) is str\n"
+      },
+      {
+        "after": "    row=manifest(test)\n    test.assertEqual(git('rev-parse',BASE+'^{tree}').decode().strip(),BASE_TREE)\n    test.assertEqual(git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),IMPLEMENTATION_TREE)\n    expected={'M\\t'+p for p in MODIFIED}|{'A\\t'+p for p in ADDED}\n    test.assertEqual(set(git('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine').decode().splitlines()),expected)\n    test.assertEqual(throughput_active_delta(test,git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),IMPLEMENTATION),b'',\n        'all actual current runtime bytes match the complete managed successor')\n    for flags in ((),('--ignored',)):\n        paths=git('ls-files','--others',*flags,'--exclude-standard','--','meme_machine').decode().splitlines()\n        test.assertEqual([p for p in paths if '__pycache__' not in Path(p).parts and not p.endswith('.pyc')],[])\n    for path,facts in row['files'].items():\n        body=throughput_predecessor(test,path,(ROOT/path).read_bytes(),require_current=True)\n        test.assertEqual((len(body),checksum(body)),(facts['after_bytes'],facts['after_sha256']),path)\n        test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))\n        if path in MODIFIED:capacity_predecessor(test,path,body)\n    for path in TEST_CALLERS:\n        caller_predecessor(test,path,throughput_predecessor(test,path,(ROOT/path).read_bytes(),require_current=True),require_successor=True)\n    guard_predecessor(test,throughput_predecessor(test,GUARD,(ROOT/GUARD).read_bytes(),require_current=True))\n    read_guard_predecessor(test,throughput_predecessor(test,READ_GUARD,(ROOT/READ_GUARD).read_bytes(),require_current=True),require_successor=True)\n    return row\n\n\ndef capacity_active_delta(test,actual,old_implementation):\n    active_runtime(test)\n    actual=throughput_active_delta(test,actual,old_implementation)\n    test.assertEqual(actual,git('diff','--name-only',old_implementation,IMPLEMENTATION,'--','meme_machine'),\n        'original guard must supply the genuine complete current runtime delta')\n    return git('diff','--name-only',old_implementation,BASE,'--','meme_machine')\n\n\ndef capacity_native_delta(test,actual,old_implementation):\n    active_runtime(test)\n    actual=throughput_native_delta(test,actual,old_implementation)\n    historical=git('diff','--name-only',old_implementation,BASE,'--','meme_machine')\n    current=git('diff','--name-only',old_implementation,IMPLEMENTATION,'--','meme_machine')\n    # The original guard's own negative tests also call its historical API.\n    # Both accepted inputs are exact real Git queries; no unknown path is lost.\n    test.assertIn(actual,(historical,current))\n",
+        "before": "    row=manifest(test)\n    test.assertEqual(git('rev-parse',BASE+'^{tree}').decode().strip(),BASE_TREE)\n    test.assertEqual(git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),IMPLEMENTATION_TREE)\n    expected={'M\\t'+p for p in MODIFIED}|{'A\\t'+p for p in ADDED}\n    test.assertEqual(set(git('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine').decode().splitlines()),expected)\n    test.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',\n        'all actual current runtime bytes match the complete managed successor')\n    for flags in ((),('--ignored',)):\n        paths=git('ls-files','--others',*flags,'--exclude-standard','--','meme_machine').decode().splitlines()\n        test.assertEqual([p for p in paths if '__pycache__' not in Path(p).parts and not p.endswith('.pyc')],[])\n    for path,facts in row['files'].items():\n        body=(ROOT/path).read_bytes()\n        test.assertEqual((len(body),checksum(body)),(facts['after_bytes'],facts['after_sha256']),path)\n        test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))\n        if path in MODIFIED:capacity_predecessor(test,path,body)\n    for path in TEST_CALLERS:\n        caller_predecessor(test,path,(ROOT/path).read_bytes(),require_successor=True)\n    guard_predecessor(test,(ROOT/GUARD).read_bytes())\n    read_guard_predecessor(test,(ROOT/READ_GUARD).read_bytes(),require_successor=True)\n    return row\n\n\ndef capacity_active_delta(test,actual,old_implementation):\n    active_runtime(test)\n    test.assertEqual(actual,git('diff','--name-only',old_implementation,IMPLEMENTATION,'--','meme_machine'),\n        'original guard must supply the genuine complete current runtime delta')\n    return git('diff','--name-only',old_implementation,BASE,'--','meme_machine')\n\n\ndef capacity_native_delta(test,actual,old_implementation):\n    active_runtime(test)\n    historical=git('diff','--name-only',old_implementation,BASE,'--','meme_machine')\n    current=git('diff','--name-only',old_implementation,IMPLEMENTATION,'--','meme_machine')\n    # The original guard's own negative tests also call its historical API.\n    # Both accepted inputs are exact real Git queries; no unknown path is lost.\n    test.assertIn(actual,(historical,current))\n"
+      },
+      {
+        "after": "        active_runtime(self)\n\n    def test_unknown_modified_and_added_runtime_bytes_cannot_pass(self):\n        row=manifest(self)\n        for path in MODIFIED:\n            body=throughput_predecessor(self,path,(ROOT/path).read_bytes(),require_current=True)\n            with self.subTest(path=path),self.assertRaises(AssertionError):\n                capacity_predecessor(self,path,body+b'\\n# unreviewed runtime\\n')\n        read=Path.read_bytes\n        for path in ADDED:\n            with self.subTest(path=path),patch.object(Path,'read_bytes',\n",
+        "before": "        active_runtime(self)\n\n    def test_unknown_modified_and_added_runtime_bytes_cannot_pass(self):\n        row=manifest(self)\n        for path in MODIFIED:\n            body=(ROOT/path).read_bytes()\n            with self.subTest(path=path),self.assertRaises(AssertionError):\n                capacity_predecessor(self,path,body+b'\\n# unreviewed runtime\\n')\n        read=Path.read_bytes\n        for path in ADDED:\n            with self.subTest(path=path),patch.object(Path,'read_bytes',\n"
+      },
+      {
+        "after": "                active_runtime(self)\n\n    def test_economic_sizing_and_admission_delta_cannot_be_partially_reversed(self):\n        for path in MODIFIED:\n            before=git('show',BASE+':'+path)\n            body=throughput_predecessor(self,path,(ROOT/path).read_bytes(),require_current=True)\n            self.assertEqual(capacity_predecessor(self,path,before),before)\n            self.assertEqual(capacity_predecessor(self,path,body.decode()),before.decode())\n            with self.subTest(path=path),self.assertRaises(AssertionError):\n                capacity_predecessor(self,path,body[:-1])\n\n",
+        "before": "                active_runtime(self)\n\n    def test_economic_sizing_and_admission_delta_cannot_be_partially_reversed(self):\n        for path in MODIFIED:\n            before=git('show',BASE+':'+path)\n            body=(ROOT/path).read_bytes()\n            self.assertEqual(capacity_predecessor(self,path,before),before)\n            self.assertEqual(capacity_predecessor(self,path,body.decode()),before.decode())\n            with self.subTest(path=path),self.assertRaises(AssertionError):\n                capacity_predecessor(self,path,body[:-1])\n\n"
+      },
+      {
+        "after": "        read=Path.read_bytes\n        with patch.object(Path,'read_bytes',lambda p:b'{}' if p==MANIFEST else read(p)),self.assertRaises(AssertionError):\n            manifest(self)\n\n    def test_original_assertion_change_cannot_hide_in_read_dispatch(self):\n        body=throughput_predecessor(self,GUARD,(ROOT/GUARD).read_bytes(),require_current=True)\n        guard_predecessor(self,body)\n        for bad in (body+b'\\n',body.replace(b'assertEqual',b'assertNotEqual',1)):\n            with self.assertRaises(AssertionError):guard_predecessor(self,bad)\n\n    def test_valuation_read_hook_cannot_change_original_assertions_or_source(self):\n        body=throughput_predecessor(self,READ_GUARD,(ROOT/READ_GUARD).read_bytes(),require_current=True)\n        before=git('show',BASE+':'+READ_GUARD)\n        self.assertEqual(read_guard_predecessor(self,body,require_successor=True),before)\n        self.assertEqual(capacity_predecessor(self,READ_GUARD,before),before)\n        self.assertEqual(capacity_predecessor(self,READ_GUARD,body.decode()),before.decode())\n        for bad in (body+b'\\n',body.replace(b'assertEqual',b'assertNotEqual',1),body[:-1]):\n",
+        "before": "        read=Path.read_bytes\n        with patch.object(Path,'read_bytes',lambda p:b'{}' if p==MANIFEST else read(p)),self.assertRaises(AssertionError):\n            manifest(self)\n\n    def test_original_assertion_change_cannot_hide_in_read_dispatch(self):\n        body=(ROOT/GUARD).read_bytes()\n        guard_predecessor(self,body)\n        for bad in (body+b'\\n',body.replace(b'assertEqual',b'assertNotEqual',1)):\n            with self.assertRaises(AssertionError):guard_predecessor(self,bad)\n\n    def test_valuation_read_hook_cannot_change_original_assertions_or_source(self):\n        body=(ROOT/READ_GUARD).read_bytes()\n        before=git('show',BASE+':'+READ_GUARD)\n        self.assertEqual(read_guard_predecessor(self,body,require_successor=True),before)\n        self.assertEqual(capacity_predecessor(self,READ_GUARD,before),before)\n        self.assertEqual(capacity_predecessor(self,READ_GUARD,body.decode()),before.decode())\n        for bad in (body+b'\\n',body.replace(b'assertEqual',b'assertNotEqual',1),body[:-1]):\n"
+      },
+      {
+        "after": "\n    def test_exact_external_test_caller_preserves_every_original_method_and_rejects_unknown_bytes(self):\n        from engineering.diagnostics.build_managed_capacity_source_proof import nodes\n        self.assertEqual(set(TEST_CALLERS),{'tests/test_solana_history_separation.py'})\n        for path in TEST_CALLERS:\n            before=git('show',BASE+':'+path);body=throughput_predecessor(self,path,(ROOT/path).read_bytes(),require_current=True)\n            self.assertEqual(caller_predecessor(self,path,body,require_successor=True),before)\n            self.assertEqual(capacity_predecessor(self,path,before),before)\n            self.assertEqual(capacity_predecessor(self,path,body.decode()),before.decode())\n            self.assertEqual(capacity_predecessor(self,path,before.decode()),before.decode())\n            left,right=nodes(before),nodes(body)\n",
+        "before": "\n    def test_exact_external_test_caller_preserves_every_original_method_and_rejects_unknown_bytes(self):\n        from engineering.diagnostics.build_managed_capacity_source_proof import nodes\n        self.assertEqual(set(TEST_CALLERS),{'tests/test_solana_history_separation.py'})\n        for path in TEST_CALLERS:\n            before=git('show',BASE+':'+path);body=(ROOT/path).read_bytes()\n            self.assertEqual(caller_predecessor(self,path,body,require_successor=True),before)\n            self.assertEqual(capacity_predecessor(self,path,before),before)\n            self.assertEqual(capacity_predecessor(self,path,body.decode()),before.decode())\n            self.assertEqual(capacity_predecessor(self,path,before.decode()),before.decode())\n            left,right=nodes(before),nodes(body)\n"
+      },
+      {
+        "after": "                and not name.endswith('.__layout__') and '__statement_' not in name}\n            self.assertTrue(methods)\n            for name,value in methods.items():\n                self.assertEqual(right.get(name),value,path+':original method '+name)\n            for bad in (b'',body[:-1],body+b'\\n# unknown caller bytes\\n',\n                    body.replace(b'assertEqual',b'assertNotEqual',1),throughput_predecessor(self,GUARD,(ROOT/GUARD).read_bytes(),require_current=True)):\n                with self.subTest(path=path),self.assertRaises(AssertionError):\n                    capacity_predecessor(self,path,bad)\n            with self.assertRaises(AssertionError):\n                caller_predecessor(self,path,before,require_successor=True)\n        with self.assertRaises(AssertionError):\n",
+        "before": "                and not name.endswith('.__layout__') and '__statement_' not in name}\n            self.assertTrue(methods)\n            for name,value in methods.items():\n                self.assertEqual(right.get(name),value,path+':original method '+name)\n            for bad in (b'',body[:-1],body+b'\\n# unknown caller bytes\\n',\n                    body.replace(b'assertEqual',b'assertNotEqual',1),(ROOT/GUARD).read_bytes()):\n                with self.subTest(path=path),self.assertRaises(AssertionError):\n                    capacity_predecessor(self,path,bad)\n            with self.assertRaises(AssertionError):\n                caller_predecessor(self,path,before,require_successor=True)\n        with self.assertRaises(AssertionError):\n"
+      }
+    ],
+    "imports": [
+      "Import(names=[alias(name='ast')])",
+      "Import(names=[alias(name='hashlib')])",
+      "Import(names=[alias(name='json')])",
+      "Import(names=[alias(name='subprocess')])",
+      "Import(names=[alias(name='unittest')])",
+      "ImportFrom(module='engineering.diagnostics.build_managed_capacity_source_proof', names=[alias(name='nodes')], level=0)",
+      "ImportFrom(module='engineering.diagnostics.build_managed_capacity_source_proof', names=[alias(name='nodes')], level=0)",
+      "ImportFrom(module='engineering.diagnostics.build_managed_capacity_source_proof', names=[alias(name='nodes')], level=0)",
+      "ImportFrom(module='pathlib', names=[alias(name='Path')], level=0)",
+      "ImportFrom(module='tests.test_owner_throughput_source_guard', names=[alias(name='throughput_predecessor'), alias(name='throughput_active_delta'), alias(name='throughput_native_delta')], level=0)",
+      "ImportFrom(module='unittest.mock', names=[alias(name='patch')], level=0)"
+    ],
+    "path": "tests/test_managed_capacity_source_guard.py",
+    "status": "M"
+  },
+  "implementation": "b0821a36741a2dc0246da2dc5a17e039352667aa",
+  "implementation_tree": "db88371162ba3149aeaf11e536b93476ac2658f4",
+  "legacy_inputs": {},
+  "proof_inputs": {
+    "engineering/diagnostics/build_owner_throughput_source_proof.py": {
+      "bytes": 16127,
+      "sha256": "fbac310bd51d60c10d3f27dbe8cd082cfd28a3fff2a8998e27f74db71543a7af"
+    },
+    "engineering/diagnostics/owner_throughput_source_guard.template.txt": {
+      "bytes": 21988,
+      "sha256": "62403b15d44a7786c41b0d8b4b9b8ecfc7cca89a316be2cbb9f119b220c51d2b"
+    }
+  },
+  "protected": {
+    "engineering/diagnostics/build_ea_performance_source_proof.py": {
+      "bytes": 2776,
+      "sha256": "f633b5af6598cea1dbe7a0c02bf308f045334c363f5734b23895816bf43f879d"
+    },
+    "engineering/diagnostics/build_managed_capacity_source_proof.py": {
+      "bytes": 10374,
+      "sha256": "7a5140ad6ac1a657df3dde79bbeb2a1f91993c5cc5fe66e437dcccfe08670109"
+    },
+    "engineering/diagnostics/build_native_audit_source_proof.py": {
+      "bytes": 15687,
+      "sha256": "b25f82809cc91599d0eb5b394557f208e4303aae466689f5cdaaecdb77cb66ca"
+    },
+    "engineering/diagnostics/build_operational_candidate_source_proof.py": {
+      "bytes": 5034,
+      "sha256": "9551ea966843774c865c1b3ae1701e2cd1f8884a36780016707b1e795afc88b4"
+    },
+    "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
+      "bytes": 12869,
+      "sha256": "2c6e689c40973b45a193b5a07e11d1c01d4e8cc8a1c7a7a823913c4d1cfba083"
+    },
+    "engineering/diagnostics/native_audit_source_guard.template.txt": {
+      "bytes": 11608,
+      "sha256": "224372b9fb54787ac4a3f5799753d969b33a681a97f1727230f959e5c9ec1e48"
+    },
+    "meme_machine/operational/managed_native_pump.py": {
+      "bytes": 34296,
+      "sha256": "25145d71bf488ccf6dc82a31deb137f3f3d28f563a47b94fe9f6b4f201eb08eb"
+    },
+    "tests/fixtures/ea_performance_source_delta.json": {
+      "bytes": 127368,
+      "sha256": "9b99d04abfa913311a0c7dc771390908a3a60e4c36f88c4f241d6ba4fc0a8e50"
+    },
+    "tests/fixtures/managed_capacity_source_delta.json": {
+      "bytes": 21816,
+      "sha256": "f788ebc579985a953a5dea7fae115aeb305e14558e876e5874b177a86060f50b"
+    },
+    "tests/fixtures/native_audit_source_delta.json": {
+      "bytes": 120952,
+      "sha256": "0c4fe23635a33644c0d0dc5dbb2e352980771b91cc8cd6a4c8a51a86e5c8d31a"
+    },
+    "tests/fixtures/operational_candidate_source_delta.json": {
+      "bytes": 326364,
+      "sha256": "f1982ceef86d7acab5666c66bf951651d0f565dfd765300b691195b372f1b79c"
+    },
+    "tests/fixtures/pump_restore_reference_source_delta.json": {
+      "bytes": 26456,
+      "sha256": "c9d5139401a5fb5b06bdd019ff796abefd1375dd2278e89a55741ae285e971a8"
+    },
+    "tests/test_ea_performance_source_guard.py": {
+      "bytes": 13802,
+      "sha256": "49221885f27f305564cecf12a298f4f302ea0d7da1bfce431b53fe7914ce6eef"
+    },
+    "tests/test_native_audit_source_guard.py": {
+      "bytes": 12056,
+      "sha256": "2ac30e1fcd35323b69f5fab110c36c63e5f9c2128956cb7669ffeb4555ac1fa4"
+    },
+    "tests/test_operational_candidate_source_guard.py": {
+      "bytes": 20196,
+      "sha256": "a5e8aaf018df946f60443c7cb31f3c6c750053a27fcc0c21004fa2e5d6f1ed48"
+    },
+    "tests/test_pump_restore_source_guard.py": {
+      "bytes": 11129,
+      "sha256": "acfc626404cee8a6b7353065688c427199eba3affe30d35ceb3b6e2cc2535d99"
+    },
+    "tests/test_robinhood_usd_valuation.py": {
+      "bytes": 377078,
+      "sha256": "81356067c797764a8aa650ac73f057a43579d805918a4d48cf0cf0df3ddd9e78"
+    }
+  },
+  "schema": "authenticated-owner-throughput-source-delta-v1",
+  "test_files": {
+    "tests/test_operational_cpu_capacity.py": {
+      "after_bytes": 10118,
+      "after_sha256": "cd4fb23cd6539f4e1a73050c84bdb6214aaadf40f8c85284681a47c5ee4c716b",
+      "before_bytes": 10048,
+      "before_sha256": "6848cf2e423383d7457102beae3a72ad4162bed5752c94ca05966730f7dea7d6",
+      "changed_nodes": [
+        "SupervisorCpuTests.sample"
+      ],
+      "imports": [
+        "Import(names=[alias(name='json')])",
+        "Import(names=[alias(name='unittest')])",
+        "ImportFrom(module='copy', names=[alias(name='deepcopy')], level=0)",
+        "ImportFrom(module='decimal', names=[alias(name='Decimal')], level=0)",
+        "ImportFrom(module='meme_machine.operational.position_continuation', names=[alias(name='cpu_capacity'), alias(name='validate_continuous'), alias(name='validate_envelope')], level=0)",
+        "ImportFrom(module='meme_machine.operational.supervisor', names=[alias(name='SOURCE_ROOT'), alias(name='Supervisor')], level=0)",
+        "ImportFrom(module='meme_machine.shared_capital.model', names=[alias(name='CapitalError')], level=0)",
+        "ImportFrom(module='pathlib', names=[alias(name='Path')], level=0)",
+        "ImportFrom(module='types', names=[alias(name='SimpleNamespace')], level=0)",
+        "ImportFrom(module='unittest.mock', names=[alias(name='patch')], level=0)"
+      ],
+      "status": "M"
+    },
+    "tests/test_operational_service_cgroup.py": {
+      "after_bytes": 3721,
+      "after_sha256": "6e5f197f5ab0954c11a0a3e6874a624590631e5f51c2ecc35acb0baf9d7f2ad2",
+      "changed_nodes": [
+        "ServiceCgroupTests.__layout__",
+        "ServiceCgroupTests.sample",
+        "ServiceCgroupTests.test_foreign_ambiguous_malformed_or_oversized_membership_never_reads_limits",
+        "ServiceCgroupTests.test_original_unit_keeps_its_original_limits",
+        "ServiceCgroupTests.test_pilot_uses_its_own_enforced_limits_while_original_unit_is_unbounded",
+        "__statement_0",
+        "__statement_1",
+        "__statement_2",
+        "__statement_3",
+        "__statement_4",
+        "__statement_5",
+        "__statement_6"
+      ],
+      "imports": [
+        "Import(names=[alias(name='unittest')])",
+        "ImportFrom(module='meme_machine.operational.supervisor', names=[alias(name='Supervisor')], level=0)",
+        "ImportFrom(module='pathlib', names=[alias(name='Path')], level=0)",
+        "ImportFrom(module='tests.test_operational_cpu_capacity', names=[alias(name='profiles')], level=0)",
+        "ImportFrom(module='types', names=[alias(name='SimpleNamespace')], level=0)",
+        "ImportFrom(module='unittest.mock', names=[alias(name='patch')], level=0)"
+      ],
+      "status": "A"
+    },
+    "tests/test_solana_source_drain.py": {
+      "after_bytes": 89620,
+      "after_sha256": "39c4a2561db13a2e47aa6995527a9a8208191768763843c4b3b97573985c6c1e",
+      "before_bytes": 112966,
+      "before_sha256": "220b424169761e0b19bb9a59034c625ad3ea95bb0466a9f8ea97717c33c2ab76",
+      "changed_nodes": [
+        "SourceDrainTests.__layout__",
+        "SourceDrainTests.actual_live",
+        "SourceDrainTests.repair_stage_barrier",
+        "SourceDrainTests.test_batched_head_repair_uses_same_delivery_receipt_install_stage_contract",
+        "SourceDrainTests.test_head_repair_delivery_accounting_wait_precedes_reported_http_availability",
+        "SourceDrainTests.test_head_repair_durable_receipt_return_wait_retains_owner_before_join_install",
+        "SourceDrainTests.test_head_repair_receipt_admission_wait_cannot_publish_join_or_economics",
+        "SourceDrainTests.test_head_repair_transport_wait_retains_exact_owner_while_ws_is_pressured"
+      ],
+      "imports": [
+        "Import(names=[alias(name='asyncio')])",
+        "Import(names=[alias(name='based58')])",
+        "Import(names=[alias(name='based58')])",
+        "Import(names=[alias(name='based58')])",
+        "Import(names=[alias(name='based58')])",
+        "Import(names=[alias(name='based58')])",
+        "Import(names=[alias(name='copy')])",
+        "Import(names=[alias(name='gc')])",
+        "Import(names=[alias(name='json')])",
+        "Import(names=[alias(name='sqlite3')])",
+        "Import(names=[alias(name='tempfile')])",
+        "Import(names=[alias(name='time')])",
+        "Import(names=[alias(name='unittest')])",
+        "Import(names=[alias(name='weakref')])",
+        "ImportFrom(module='contextlib', names=[alias(name='closing')], level=0)",
+        "ImportFrom(module='contextlib', names=[alias(name='nullcontext')], level=0)",
+        "ImportFrom(module='contextlib', names=[alias(name='nullcontext')], level=0)",
+        "ImportFrom(module='dataclasses', names=[alias(name='replace')], level=0)",
+        "ImportFrom(module='dataclasses', names=[alias(name='replace')], level=0)",
+        "ImportFrom(module='meme_machine', names=[alias(name='solana_selective_source', asname='source_module')], level=0)",
+        "ImportFrom(module='meme_machine.solana_candidate_join', names=[alias(name='CandidateTransactionJoin')], level=0)",
+        "ImportFrom(module='meme_machine.solana_candidate_join', names=[alias(name='CandidateTransactionJoin')], level=0)",
+        "ImportFrom(module='meme_machine.solana_candidate_join', names=[alias(name='MAX_PENDING_SLOTS')], level=0)",
+        "ImportFrom(module='meme_machine.solana_candidate_join', names=[alias(name='scope_labels')], level=0)",
+        "ImportFrom(module='meme_machine.solana_evidence_plane', names=[alias(name='EvidenceUnavailable')], level=0)",
+        "ImportFrom(module='meme_machine.solana_rolling_history', names=[alias(name='program_scope')], level=0)",
+        "ImportFrom(module='meme_machine.solana_selective_history', names=[alias(name='PROGRAMS')], level=0)",
+        "ImportFrom(module='meme_machine.solana_selective_history', names=[alias(name='economic_records')], level=0)",
+        "ImportFrom(module='meme_machine.solana_selective_history', names=[alias(name='economic_records')], level=0)",
+        "ImportFrom(module='meme_machine.solana_selective_history', names=[alias(name='economic_records')], level=0)",
+        "ImportFrom(module='meme_machine.solana_selective_runtime', names=[alias(name='CONTROL')], level=0)",
+        "ImportFrom(module='meme_machine.solana_selective_runtime', names=[alias(name='CONTROL')], level=0)",
+        "ImportFrom(module='meme_machine.solana_selective_runtime', names=[alias(name='CONTROL')], level=0)",
+        "ImportFrom(module='meme_machine.solana_selective_source', names=[alias(name='SelectiveSource'), alias(name='CandidateCommitQueue')], level=0)",
+        "ImportFrom(module='meme_machine.solana_source_drain', names=[alias(name='AcceptedQueue'), alias(name='next_owned'), alias(name='join_owned'), alias(name='settle_owned'), alias(name='receive_until_closed'), alias(name='INTAKE_CLOSED')], level=0)",
+        "ImportFrom(module='meme_machine.solana_source_drain', names=[alias(name='CONTROL_RECOVERY_KEY'), alias(name='control_recovery'), alias(name='preserve_control_recovery'), alias(name='complete_control_recovery')], level=0)",
+        "ImportFrom(module='meme_machine.solana_source_drain', names=[alias(name='finish_owned')], level=0)",
+        "ImportFrom(module='meme_machine.yellowstone', names=[alias(name='geyser_pb2', asname='pb')], level=0)",
+        "ImportFrom(module='pathlib', names=[alias(name='Path')], level=0)",
+        "ImportFrom(module='tests.test_scout_commit_batches', names=[alias(name='update')], level=0)",
+        "ImportFrom(module='tests.test_solana_closure', names=[alias(name='state_at'), alias(name='NOW')], level=0)",
+        "ImportFrom(module='tests.test_solana_prewarm_startup', names=[alias(name='proof')], level=0)",
+        "ImportFrom(module='tests.test_solana_prewarm_startup', names=[alias(name='proof')], level=0)",
+        "ImportFrom(module='tests.test_solana_prewarm_startup', names=[alias(name='proof')], level=0)",
+        "ImportFrom(module='tests.test_solana_selective_evidence', names=[alias(name='FIXTURE')], level=0)",
+        "ImportFrom(module='types', names=[alias(name='SimpleNamespace')], level=0)",
+        "ImportFrom(module='unittest.mock', names=[alias(name='AsyncMock')], level=0)",
+        "ImportFrom(module='unittest.mock', names=[alias(name='patch')], level=0)"
+      ],
+      "status": "M"
+    }
+  }
+}

@@ -1,0 +1,376 @@
+"""Complete exact owner-throughput successor; all historical assertions remain.
+
+Actual runtime and test-caller bytes are checked before authentic immutable
+predecessors are supplied to the original managed/economic/audit guards.
+"""
+import ast
+import hashlib
+import json
+from pathlib import Path
+import subprocess
+import unittest
+from unittest.mock import patch
+
+ROOT=Path(__file__).resolve().parents[1]
+BASE='44c4d556f9d7eb6f0481cbdceabc4c58e8714e65'
+BASE_TREE='c473027bb26189c54cba8cb853d7f741efd5728f'
+IMPLEMENTATION='b0821a36741a2dc0246da2dc5a17e039352667aa'
+IMPLEMENTATION_TREE='db88371162ba3149aeaf11e536b93476ac2658f4'
+CAPACITY_BASE='83c3716aefc21d59780db64beb8681e772ac628c'
+CAPACITY_IMPLEMENTATION='58daaa5afef66169062b74ffe617cfeaa9975c12'
+ACTIVE_ORIGINS=(CAPACITY_IMPLEMENTATION,'c0190478fcfe64e4db96c54189ec470cdb5ec686')
+NATIVE_ORIGINS=('6eb8ab1ba1702224c1354c570db4f87aeb7b5ccd',)
+MANIFEST=ROOT/'tests/fixtures/owner_throughput_source_delta.json'
+MANIFEST_SHA256='7420705a107b1e8b58af3ff80fa53289e0f22c106be75fe167dae86d8f6f14e7'
+MODIFIED=('meme_machine/operational/supervisor.py',)
+ADDED=()
+TEST_CALLERS=('tests/test_operational_cpu_capacity.py', 'tests/test_solana_source_drain.py')
+TEST_ADDED=('tests/test_operational_service_cgroup.py',)
+LEGACY_PATHS=()
+GUARD='tests/test_managed_capacity_source_guard.py'
+NEW_GUARD='tests/test_owner_throughput_source_guard.py'
+NEW_MANIFEST='tests/fixtures/owner_throughput_source_delta.json'
+GENERATED_TEST_OUTPUTS=(GUARD,NEW_GUARD,NEW_MANIFEST)
+PROOF_INPUTS=('engineering/diagnostics/build_owner_throughput_source_proof.py',
+    'engineering/diagnostics/owner_throughput_source_guard.template.txt')
+PROTECTED=(
+    'tests/fixtures/managed_capacity_source_delta.json',
+    'engineering/diagnostics/build_managed_capacity_source_proof.py',
+    'engineering/diagnostics/managed_capacity_source_guard.template.txt',
+    'tests/test_native_audit_source_guard.py',
+    'tests/test_ea_performance_source_guard.py',
+    'tests/test_operational_candidate_source_guard.py',
+    'tests/test_pump_restore_source_guard.py',
+    'tests/test_robinhood_usd_valuation.py',
+    'tests/fixtures/native_audit_source_delta.json',
+    'tests/fixtures/ea_performance_source_delta.json',
+    'tests/fixtures/operational_candidate_source_delta.json',
+    'tests/fixtures/pump_restore_reference_source_delta.json',
+    'engineering/diagnostics/build_native_audit_source_proof.py',
+    'engineering/diagnostics/native_audit_source_guard.template.txt',
+    'engineering/diagnostics/build_ea_performance_source_proof.py',
+    'engineering/diagnostics/build_operational_candidate_source_proof.py',
+    'meme_machine/operational/managed_native_pump.py',
+)
+
+
+def git(*args):
+    return subprocess.check_output(['git','--no-optional-locks',*args],cwd=ROOT)
+
+
+def checksum(raw):return hashlib.sha256(raw).hexdigest()
+
+
+def manifest(test):
+    raw=MANIFEST.read_bytes()
+    test.assertEqual(checksum(raw),MANIFEST_SHA256,'complete exact owner-throughput proof')
+    value=json.loads(raw)
+    test.assertEqual(value['schema'],'authenticated-owner-throughput-source-delta-v1')
+    test.assertEqual((value['base'],value['base_tree'],value['implementation'],value['implementation_tree']),
+        (BASE,BASE_TREE,IMPLEMENTATION,IMPLEMENTATION_TREE))
+    test.assertEqual((value['capacity_base'],value['capacity_implementation']),
+        (CAPACITY_BASE,CAPACITY_IMPLEMENTATION))
+    test.assertEqual(set(value['files']),set(MODIFIED+ADDED))
+    test.assertEqual(set(value['test_files']),set(TEST_CALLERS+TEST_ADDED))
+    test.assertEqual(set(value['legacy_inputs']),set(LEGACY_PATHS))
+    test.assertEqual(set(value['protected']),set(PROTECTED))
+    test.assertEqual(set(value['proof_inputs']),set(PROOF_INPUTS))
+    test.assertEqual(value['guard']['path'],GUARD)
+    for path,row in value['proof_inputs'].items():
+        body=(ROOT/path).read_bytes()
+        test.assertEqual((len(body),checksum(body)),(row['bytes'],row['sha256']),
+            path+':exact reproducible proof input')
+    return value
+
+
+def _ast(test,path,before,after,row):
+    if not path.endswith('.py'):return
+    from engineering.diagnostics.build_owner_throughput_source_proof import nodes,imports
+    left={} if before is None else nodes(before);right=nodes(after)
+    test.assertEqual(sorted(k for k in left.keys()|right.keys() if left.get(k)!=right.get(k)),
+        row['changed_nodes'],path+':complete explicit AST delta')
+    test.assertEqual(imports(after),row['imports'],path+':complete import identity')
+
+
+def throughput_predecessor(test,path,current,*,require_current=False):
+    """Only exact listed source views; no path filtering or runtime authority.
+
+    The explicit83 input is retained for original historical/idempotence tests.
+    Fresh working reads require the final bytes, even when an older legitimate
+    input would be accepted by the historical API. Added files have no invented
+    predecessor and remain their exact authenticated current bytes.
+    """
+    if path not in MODIFIED+ADDED+TEST_CALLERS+TEST_ADDED:return current
+    test.assertIn(type(current),(bytes,str));text=type(current) is str
+    raw=current.encode() if text else current
+    value=manifest(test);row=(value['files']|value['test_files'])[path]
+    before=git('show',BASE+':'+path) if row['status']=='M' else None
+    if before is not None:
+        test.assertEqual((len(before),checksum(before)),(row['before_bytes'],row['before_sha256']))
+    after=git('show',IMPLEMENTATION+':'+path)
+    test.assertEqual((len(after),checksum(after)),(row['after_bytes'],row['after_sha256']))
+    if raw==after:
+        _ast(test,path,before,after,row)
+        result=before if before is not None else after
+        return result.decode() if text else result
+    if not require_current and before is not None and raw==before:return current
+    if not require_current and path in value['legacy_inputs']:
+        legacy=value['legacy_inputs'][path]
+        test.assertEqual(legacy['reference'],CAPACITY_BASE)
+        original=git('show',CAPACITY_BASE+':'+path)
+        test.assertEqual((len(original),checksum(original)),(legacy['bytes'],legacy['sha256']))
+        if raw==original:return current
+    test.fail(path+':unknown, partial, crossed or noncurrent source bytes')
+
+
+def guard_predecessor(test,current):
+    """Invert only catalogued read/dispatch hooks; every original byte returns."""
+    row=manifest(test)['guard']
+    test.assertEqual((len(current),checksum(current)),(row['after_bytes'],row['after_sha256']),
+        'exact narrow managed guard wiring')
+    restored=current
+    for change in reversed(row['changes']):
+        before,after=change['before'].encode(),change['after'].encode()
+        test.assertTrue(after);test.assertEqual(restored.count(after),1)
+        restored=restored.replace(after,before,1)
+    test.assertEqual((len(restored),checksum(restored)),(row['before_bytes'],row['before_sha256']))
+    test.assertEqual(restored,git('show',BASE+':'+GUARD),'every original assertion restored byte for byte')
+    from engineering.diagnostics.build_owner_throughput_source_proof import rewrite_guard
+    test.assertEqual(rewrite_guard(restored),current,'only the reviewed fresh read/delta hooks')
+    return restored
+
+
+def current_test_census(test):
+    """Only separately authenticated proof outputs may differ after freeze.
+
+    Include the entire tests subtree: source fixtures and non-Python inputs
+    cannot change invisibly merely because no historical caller reads them.
+    Output permission here is a census check, never a content exemption.
+    """
+    for line in git('diff','--name-status',IMPLEMENTATION,'--','tests').decode().splitlines():
+        row=line.split('\t');test.assertEqual(len(row),2,'no renamed/copied test input')
+        status,path=row
+        test.assertIn(status,('M','A'),'no removed or changed-type test input')
+        test.assertIn(path,GENERATED_TEST_OUTPUTS,'unreviewed current tracked test/fixture change')
+    for flags in ((),('--ignored',)):
+        extra=git('ls-files','--others',*flags,'--exclude-standard','--','tests').decode().splitlines()
+        test.assertEqual([p for p in extra if p not in GENERATED_TEST_OUTPUTS
+            and not p.endswith('.pyc')],[],
+            'no unknown current untracked/ignored test or fixture input')
+
+
+def active_runtime(test):
+    """Authenticate the real checkout without invoking any legacy source view."""
+    value=manifest(test)
+    test.assertEqual(git('rev-parse',BASE+'^{tree}').decode().strip(),BASE_TREE)
+    test.assertEqual(git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),IMPLEMENTATION_TREE)
+    test.assertEqual(git('diff','--name-only',CAPACITY_IMPLEMENTATION,BASE,'--','meme_machine'),b'')
+    expected={'M\t'+p for p in MODIFIED}|{'A\t'+p for p in ADDED}
+    test.assertEqual(set(git('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine').decode().splitlines()),expected)
+    test_delta=[]
+    for line in git('diff','--name-status',BASE,IMPLEMENTATION,'--','tests').decode().splitlines():
+        status,path=line.split('\t')
+        if path not in (GUARD,NEW_GUARD,NEW_MANIFEST) and path.endswith('.py'):test_delta.append(line)
+    test.assertEqual(set(test_delta),{'M\t'+p for p in TEST_CALLERS}|{'A\t'+p for p in TEST_ADDED},
+        'complete changed/added Python test-caller census')
+    current_test_census(test)
+    test.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',
+        'complete actual runtime equals exact combined committed source')
+    for flags in ((),('--ignored',)):
+        extra=git('ls-files','--others',*flags,'--exclude-standard','--','meme_machine').decode().splitlines()
+        test.assertEqual([p for p in extra if '__pycache__' not in Path(p).parts and not p.endswith('.pyc')],[])
+    for path,row in (value['files']|value['test_files']).items():
+        test.assertEqual(row['status'],'M' if path in MODIFIED+TEST_CALLERS else 'A')
+        body=(ROOT/path).read_bytes();test.assertFalse((ROOT/path).is_symlink())
+        test.assertEqual((len(body),checksum(body)),(row['after_bytes'],row['after_sha256']),path)
+        test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))
+        before=git('show',BASE+':'+path) if row['status']=='M' else None
+        _ast(test,path,before,body,row)
+    for path,row in value['protected'].items():
+        body=(ROOT/path).read_bytes()
+        test.assertEqual((len(body),checksum(body)),(row['bytes'],row['sha256']),path+':original protected bytes')
+        test.assertEqual(body,git('show',BASE+':'+path))
+        test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))
+    guard_predecessor(test,(ROOT/GUARD).read_bytes())
+    from engineering.diagnostics.build_owner_throughput_source_proof import render_guard
+    test.assertEqual((ROOT/NEW_GUARD).read_bytes(),render_guard((ROOT/PROOF_INPUTS[1]).read_bytes(),value,MANIFEST_SHA256),
+        'complete current outer guard equals its authenticated generated template')
+    return value
+
+
+def throughput_active_delta(test,actual,old_implementation):
+    """Authenticate supplied current evidence, then query the real predecessor."""
+    test.assertIn(old_implementation,ACTIVE_ORIGINS,'only original authenticated active-query origins')
+    active_runtime(test)
+    test.assertEqual(actual,git('diff','--name-only',old_implementation,IMPLEMENTATION,'--','meme_machine'),
+        'supplied actual current delta must be complete; never erase unknown paths')
+    return git('diff','--name-only',old_implementation,BASE,'--','meme_machine')
+
+
+def throughput_native_delta(test,actual,old_implementation):
+    """Keep the original historical API and genuine immutable Git queries."""
+    test.assertIn(old_implementation,NATIVE_ORIGINS,'only the original authenticated native-query origin')
+    active_runtime(test)
+    historical=git('diff','--name-only',old_implementation,CAPACITY_BASE,'--','meme_machine')
+    predecessor=git('diff','--name-only',old_implementation,BASE,'--','meme_machine')
+    current=git('diff','--name-only',old_implementation,IMPLEMENTATION,'--','meme_machine')
+    test.assertIn(actual,(historical,predecessor,current),'only complete genuine historical/current deltas')
+    return historical if actual==historical else predecessor
+
+
+class OwnerThroughputSourceGuard(unittest.TestCase):
+    def test_complete_actual_runtime_and_all_original_assertions_are_pinned(self):
+        active_runtime(self)
+
+    def test_known_source_layers_preserve_text_and_bytes_and_unknown_inputs_fail(self):
+        value=manifest(self)
+        for path in MODIFIED+TEST_CALLERS:
+            before=git('show',BASE+':'+path);after=(ROOT/path).read_bytes()
+            with self.subTest(path=path):
+                self.assertEqual(throughput_predecessor(self,path,after,require_current=True),before)
+                self.assertEqual(throughput_predecessor(self,path,after.decode()),before.decode())
+                self.assertEqual(throughput_predecessor(self,path,before),before)
+                self.assertEqual(throughput_predecessor(self,path,before.decode()),before.decode())
+                if before!=after:
+                    with self.assertRaises(AssertionError):throughput_predecessor(self,path,before,require_current=True)
+                if path in value['legacy_inputs']:
+                    original=git('show',CAPACITY_BASE+':'+path)
+                    self.assertEqual(throughput_predecessor(self,path,original),original)
+                    self.assertEqual(throughput_predecessor(self,path,original.decode()),original.decode())
+                for bad in (b'',after[:-1],after+b'\n# unknown bytes\n',(ROOT/GUARD).read_bytes()):
+                    with self.assertRaises(AssertionError):throughput_predecessor(self,path,bad)
+        self.assertEqual(throughput_predecessor(self,'unrelated/source.py',b'unchanged'),b'unchanged')
+
+    def test_partial_runtime_reversal_is_not_a_known_source_layer(self):
+        from engineering.diagnostics.build_owner_throughput_source_proof import inverse_record
+        partials=0
+        for path in MODIFIED:
+            if not path.endswith('.py'):continue
+            before=git('show',BASE+':'+path);after=(ROOT/path).read_bytes()
+            for change in inverse_record(before,after)['changes']:
+                partial=after.replace(change['after'].encode(),change['before'].encode(),1)
+                if partial in (before,after):continue
+                partials+=1
+                with self.subTest(path=path),self.assertRaises(AssertionError):
+                    throughput_predecessor(self,path,partial)
+        self.assertGreater(partials,0,'at least one genuine partial-reversal witness')
+
+    def test_added_helpers_and_catalogued_test_callers_have_no_source_exemption(self):
+        original=Path.read_bytes
+        for path in ADDED+TEST_ADDED+TEST_CALLERS:
+            for bad in (b'',(ROOT/path).read_bytes()+b'\n# unknown helper/caller\n'):
+                with self.subTest(path=path),patch.object(Path,'read_bytes',
+                        lambda p,bad=bad,path=path:bad if p==ROOT/path else original(p)),self.assertRaises(AssertionError):
+                    active_runtime(self)
+
+    def test_changed_removed_untracked_ignored_and_wrong_tree_runtime_fail(self):
+        original=git
+        commands=(
+            (('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine'),b'D\tmeme_machine/removed.py\n'),
+            (('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'meme_machine/unlisted.py\n'),
+            (('ls-files','--others','--exclude-standard','--','meme_machine'),b'meme_machine/unlisted.py\n'),
+            (('ls-files','--others','--ignored','--exclude-standard','--','meme_machine'),b'meme_machine/unlisted.json\n'),
+            (('rev-parse',IMPLEMENTATION+'^{tree}'),b'0'*40+b'\n'),
+        )
+        for command,reply in commands:
+            def supplied(*args):return reply if args==command else original(*args)
+            with self.subTest(command=command),patch(__name__+'.git',side_effect=supplied),self.assertRaises(AssertionError):
+                active_runtime(self)
+
+    def test_current_test_source_and_fixture_changes_cannot_escape_frozen_census(self):
+        original=git
+        changed=('diff','--name-status',IMPLEMENTATION,'--','tests')
+        untracked=('ls-files','--others','--exclude-standard','--','tests')
+        ignored=('ls-files','--others','--ignored','--exclude-standard','--','tests')
+        commands=(
+            (changed,b'M\ttests/test_unlisted_existing.py\n'),
+            (changed,b'M\ttests/fixtures/unlisted.json\n'),
+            (changed,b'A\ttests/fixtures/extra.bin\n'),
+            (changed,('D\t'+GUARD+'\n').encode()),
+            (changed,('R100\ttests/prior.py\t'+NEW_GUARD+'\n').encode()),
+            (untracked,b'tests/test_unlisted.py\n'),
+            (untracked,b'tests/fixtures/unlisted.json\n'),
+            (untracked,b'tests/__pycache__/hidden.py\n'),
+            (ignored,b'tests/fixtures/ignored.bin\n'),
+            (ignored,b'tests/__pycache__/hidden.json\n'),
+        )
+        for command,reply in commands:
+            def supplied(*args):return reply if args==command else original(*args)
+            with self.subTest(command=command,reply=reply),patch(__name__+'.git',side_effect=supplied),self.assertRaises(AssertionError):
+                active_runtime(self)
+
+    def test_only_exact_proof_outputs_and_python_cache_artifacts_may_follow_runtime_freeze(self):
+        original=git
+        changed=('diff','--name-status',IMPLEMENTATION,'--','tests')
+        untracked=('ls-files','--others','--exclude-standard','--','tests')
+        ignored=('ls-files','--others','--ignored','--exclude-standard','--','tests')
+        cases=(
+            {changed:''.join('M\t'+p+'\n' for p in GENERATED_TEST_OUTPUTS).encode(),
+                untracked:b'',ignored:b''},
+            {changed:('M\t'+GUARD+'\n').encode(),
+                untracked:(NEW_GUARD+'\n'+NEW_MANIFEST+'\n').encode(),
+                ignored:b'tests/__pycache__/fixture.cpython-312.pyc\ntests/cache.pyc\n'},
+        )
+        for replies in cases:
+            def supplied(*args):return replies[args] if args in replies else original(*args)
+            with self.subTest(replies=replies),patch(__name__+'.git',side_effect=supplied):
+                current_test_census(self)
+        # Each allowed generated path still has a complete independent content
+        # proof: old guard inverse, new guard self-render, or manifest SHA256.
+        read=Path.read_bytes
+        for path in GENERATED_TEST_OUTPUTS:
+            raw=(ROOT/path).read_bytes()
+            with self.subTest(path=path),patch.object(Path,'read_bytes',
+                    lambda p,path=path,raw=raw:raw+b'\n' if p==ROOT/path else read(p)),self.assertRaises(AssertionError):
+                active_runtime(self)
+
+    def test_original_assertion_manifests_proof_inputs_and_managed_pump_stay_exact(self):
+        body=(ROOT/GUARD).read_bytes();before=git('show',BASE+':'+GUARD)
+        self.assertEqual(guard_predecessor(self,body),before)
+        for bad in (body+b'\n',body.replace(b'assertEqual',b'assertNotEqual',1),body[:-1]):
+            with self.assertRaises(AssertionError):guard_predecessor(self,bad)
+        read=Path.read_bytes
+        for path in PROTECTED+PROOF_INPUTS:
+            raw=(ROOT/path).read_bytes()
+            with self.subTest(path=path),patch.object(Path,'read_bytes',
+                    lambda p,path=path,raw=raw:raw+b'\n' if p==ROOT/path else read(p)),self.assertRaises(AssertionError):
+                active_runtime(self)
+        current=(ROOT/NEW_GUARD).read_bytes()
+        with patch.object(Path,'read_bytes',lambda p:current+b'\n' if p==ROOT/NEW_GUARD else read(p)),self.assertRaises(AssertionError):
+            active_runtime(self)
+        raw=MANIFEST.read_bytes()
+        for bad in (b'{}',raw+b'\n',raw.replace(BASE.encode(),b'f'*40,1)):
+            with patch.object(Path,'read_bytes',lambda p,bad=bad:bad if p==MANIFEST else read(p)),self.assertRaises(AssertionError):
+                manifest(self)
+
+    def test_supplied_git_deltas_cannot_drop_add_or_partially_restore_paths(self):
+        for origin in ACTIVE_ORIGINS:
+            current=git('diff','--name-only',origin,IMPLEMENTATION,'--','meme_machine')
+            predecessor=git('diff','--name-only',origin,BASE,'--','meme_machine')
+            self.assertEqual(throughput_active_delta(self,current,origin),predecessor)
+            for bad in (current+b'meme_machine/unknown.py\n',b'',b'meme_machine/subset.py\n'):
+                if bad==current:continue
+                with self.assertRaises(AssertionError):throughput_active_delta(self,bad,origin)
+        for origin in NATIVE_ORIGINS:
+            historical=git('diff','--name-only',origin,CAPACITY_BASE,'--','meme_machine')
+            predecessor=git('diff','--name-only',origin,BASE,'--','meme_machine')
+            current=git('diff','--name-only',origin,IMPLEMENTATION,'--','meme_machine')
+            self.assertEqual(throughput_native_delta(self,historical,origin),historical)
+            for actual in (predecessor,current):
+                self.assertEqual(throughput_native_delta(self,actual,origin),
+                    historical if actual==historical else predecessor)
+            for bad in (current+b'meme_machine/unknown.py\n',b'',b'meme_machine/subset.py\n'):
+                if bad in (historical,predecessor,current):continue
+                with self.assertRaises(AssertionError):throughput_native_delta(self,bad,origin)
+        with self.assertRaises(AssertionError):throughput_active_delta(self,b'',BASE)
+        with self.assertRaises(AssertionError):throughput_native_delta(self,b'',BASE)
+
+    def test_legacy_git_mutation_negative_still_reaches_exact_dispatch(self):
+        from tests import test_managed_capacity_source_guard as managed
+        original=managed.git
+        def altered(*args):
+            if args==('diff','--name-only',managed.IMPLEMENTATION,'--','meme_machine'):
+                return b'meme_machine/unlisted.py\n'
+            return original(*args)
+        with patch.object(managed,'git',side_effect=altered),self.assertRaises(AssertionError):
+            managed.active_runtime(self)
