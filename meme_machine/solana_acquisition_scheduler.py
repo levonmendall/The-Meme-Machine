@@ -173,24 +173,30 @@ class AcquisitionScheduler:
         # bounded below, rather than an unbounded trigger-side fanout update.
         self._ddl(f'''CREATE TABLE IF NOT EXISTS {FANOUT}(
             job_id TEXT PRIMARY KEY,job_version INTEGER NOT NULL,
-            family TEXT NOT NULL,address TEXT NOT NULL,after_slot INTEGER,
+            family TEXT NOT NULL,scope TEXT NOT NULL,after_slot INTEGER,
             waiting INTEGER NOT NULL CHECK(waiting IN (0,1)),observed_revision INTEGER NOT NULL)''',
             'table', FANOUT)
         self._ddl(f'''CREATE INDEX IF NOT EXISTS acquisition_schedule_fanout_wait_v1
-            ON {FANOUT}(family,address,waiting,job_id)''', 'index', 'acquisition_schedule_fanout_wait_v1')
+            ON {FANOUT}(family,scope,waiting,job_id)''', 'index', 'acquisition_schedule_fanout_wait_v1')
         self._ddl(f'''CREATE TABLE IF NOT EXISTS {SIGNALS}(
-            sequence INTEGER PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,
+            sequence INTEGER PRIMARY KEY,family TEXT NOT NULL,scope TEXT NOT NULL,
             revision INTEGER NOT NULL CHECK(revision>=0),dirty INTEGER NOT NULL CHECK(dirty IN (0,1)),
-            scan_revision INTEGER NOT NULL,after_parent TEXT NOT NULL,UNIQUE(family,address))''', 'table', SIGNALS)
+            scan_revision INTEGER NOT NULL,after_parent TEXT NOT NULL,UNIQUE(family,scope))''', 'table', SIGNALS)
         self._ddl(f'''CREATE INDEX IF NOT EXISTS acquisition_schedule_signals_dirty_v1
             ON {SIGNALS}(dirty,sequence)''', 'index', 'acquisition_schedule_signals_dirty_v1')
         self._ddl('''CREATE TABLE IF NOT EXISTS acquisition_schedule_signal_cursor_v1(
             id INTEGER PRIMARY KEY CHECK(id=1),after_sequence INTEGER NOT NULL)''',
             'table','acquisition_schedule_signal_cursor_v1')
         self.db.execute('INSERT OR IGNORE INTO acquisition_schedule_signal_cursor_v1 VALUES(1,0)')
-        def notify(side):
-            return f'''INSERT INTO {SIGNALS}(family,address,revision,dirty,scan_revision,after_parent)
-                VALUES({side}.family,{side}.address,1,1,-1,'') ON CONFLICT(family,address)
+        self._binding_signals = self.db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='evidence_bindings'").fetchone() is not None
+        def notify(side, *, binding=False, fallback=False):
+            scope=(side+'.coverage_scope' if binding else
+                ("COALESCE((SELECT coverage_scope FROM evidence_bindings WHERE family="+side+".family AND address="+side+".address),"+
+                 "'candidate:'||"+side+".family||':'||"+side+".address)" if self._binding_signals and not fallback else
+                 "'candidate:'||"+side+".family||':'||"+side+".address))
+            return f'''INSERT INTO {SIGNALS}(family,scope,revision,dirty,scan_revision,after_parent)
+                VALUES({side}.family,{scope},1,1,-1,'') ON CONFLICT(family,scope)
                 DO UPDATE SET revision=revision+1,dirty=1;'''
         changed=' OR '.join('NEW.'+field+' IS NOT OLD.'+field for field in MATERIAL_FIELDS)
         for action in ('INSERT','UPDATE','DELETE'):
@@ -203,6 +209,14 @@ class AcquisitionScheduler:
             name='acquisition_schedule_signal_'+action.lower()+'_v1'
             self._ddl(f'''CREATE TRIGGER IF NOT EXISTS {name} AFTER {event} ON acquisition_jobs{when}
                 BEGIN {body} END''','trigger',name)
+        if self._binding_signals:
+            for action in ('INSERT','UPDATE','DELETE'):
+                sides=('OLD','NEW') if action=='UPDATE' else (('OLD',) if action=='DELETE' else ('NEW',))
+                body=' '.join(notify(side,binding=canonical_scope,fallback=not canonical_scope)
+                    for side in sides for canonical_scope in (True,False))
+                name='acquisition_schedule_binding_signal_'+action.lower()+'_v1'
+                self._ddl(f'''CREATE TRIGGER IF NOT EXISTS {name} AFTER {action} ON evidence_bindings
+                    BEGIN {body} END''','trigger',name)
         self._ddl(f'''CREATE TRIGGER IF NOT EXISTS acquisition_schedule_fanout_nonpending_v1
             AFTER UPDATE OF status ON acquisition_jobs WHEN NEW.status!='pending'
             BEGIN DELETE FROM {FANOUT} WHERE job_id=NEW.id; END''',
@@ -211,50 +225,76 @@ class AcquisitionScheduler:
             AFTER DELETE ON acquisition_jobs BEGIN DELETE FROM {FANOUT} WHERE job_id=OLD.id; END''',
             'trigger','acquisition_schedule_fanout_delete_v1')
 
+    def _scope(self, job):
+        row=(self.db.execute('SELECT coverage_scope FROM evidence_bindings WHERE family=? AND address=?',
+            (job['family'],job['address'])).fetchone() if self._binding_signals else None)
+        return row[0] if row is not None else 'candidate:'+job['family']+':'+job['address']
+
+    def _fanout_job(self, job):
+        row=self.db.execute(f'''SELECT q.version FROM {QUEUE} q JOIN acquisition_jobs j ON j.id=q.id
+            WHERE q.id=? AND j.status='pending' ''',(job['id'],)).fetchone()
+        _require(row==(job.get('_scheduler_version'),), 'acquisition_schedule_fanout_stale')
+
     def fanout_after(self, job):
-        row=self.db.execute(f'SELECT job_version,after_slot,waiting FROM {FANOUT} WHERE job_id=?',
+        with self.writer.transaction():
+            return self._fanout_after(job)
+
+    def _fanout_after(self, job):
+        self._fanout_job(job)
+        scope=self._scope(job)
+        row=self.db.execute(f'SELECT job_version,after_slot,waiting,scope FROM {FANOUT} WHERE job_id=?',
             (job['id'],)).fetchone()
-        if row is None or row[0]!=job['_scheduler_version']:
+        if row is None or row[0]!=job['_scheduler_version'] or row[3]!=scope:
             self.db.execute(f'''INSERT INTO {FANOUT} VALUES(?,?,?,?,NULL,0,0)
                 ON CONFLICT(job_id) DO UPDATE SET job_version=excluded.job_version,
-                family=excluded.family,address=excluded.address,after_slot=NULL,waiting=0,observed_revision=0''',
-                (job['id'],job['_scheduler_version'],job['family'],job['address']))
+                family=excluded.family,scope=excluded.scope,after_slot=NULL,waiting=0,observed_revision=0''',
+                (job['id'],job['_scheduler_version'],job['family'],scope))
             return None
         return row[1]
 
     def fanout_advance(self, job, through):
-        _require(type(through) is int and job['lo']<=through<=job['hi'], 'acquisition_schedule_fanout')
-        self.fanout_after(job)
-        self.db.execute(f'''UPDATE {FANOUT} SET after_slot=?,waiting=0 WHERE job_id=? AND job_version=?''',
-            (through,job['id'],job['_scheduler_version']))
+        with self.writer.transaction():
+            _require(type(through) is int and job['lo']<=through<=job['hi'], 'acquisition_schedule_fanout')
+            after=self._fanout_after(job)
+            _require(after is None or through>=after, 'acquisition_schedule_fanout_backwards')
+            self.db.execute(f'''UPDATE {FANOUT} SET after_slot=?,waiting=0 WHERE job_id=? AND job_version=?''',
+                (through,job['id'],job['_scheduler_version']))
 
     def fanout_wait(self, job):
+        with self.writer.transaction():
+            self._fanout_wait(job)
+
+    def _fanout_wait(self, job):
         # Called AFTER this parent's child insertions in the same transaction.
         # Its own work therefore cannot wake it ahead of its new children.
-        self.fanout_after(job)
+        self._fanout_after(job)
         self.db.execute(f'''INSERT OR IGNORE INTO {SIGNALS}
-            (family,address,revision,dirty,scan_revision,after_parent) VALUES(?,?,0,0,-1,'')''',
-            (job['family'],job['address']))
-        revision=self.db.execute(f'SELECT revision FROM {SIGNALS} WHERE family=? AND address=?',
-            (job['family'],job['address'])).fetchone()[0]
+            (family,scope,revision,dirty,scan_revision,after_parent) VALUES(?,?,0,0,-1,'')''',
+            (job['family'],self._scope(job)))
+        revision=self.db.execute(f'SELECT revision FROM {SIGNALS} WHERE family=? AND scope=?',
+            (job['family'],self._scope(job))).fetchone()[0]
         self.db.execute(f'''UPDATE {FANOUT} SET after_slot=NULL,waiting=1,observed_revision=?
             WHERE job_id=? AND job_version=?''',(revision,job['id'],job['_scheduler_version']))
         self.defer(job,job['deadline'])
 
     def wake_fanout(self):
+        with self.writer.transaction():
+            self._wake_fanout()
+
+    def _wake_fanout(self):
         after=self.db.execute('SELECT after_sequence FROM acquisition_schedule_signal_cursor_v1 WHERE id=1').fetchone()[0]
-        row=self.db.execute(f'''SELECT sequence,family,address,revision,scan_revision,after_parent
+        row=self.db.execute(f'''SELECT sequence,family,scope,revision,scan_revision,after_parent
             FROM {SIGNALS} WHERE dirty=1 AND sequence>? ORDER BY sequence LIMIT 1''',(after,)).fetchone()
         if row is None:
-            row=self.db.execute(f'''SELECT sequence,family,address,revision,scan_revision,after_parent
+            row=self.db.execute(f'''SELECT sequence,family,scope,revision,scan_revision,after_parent
                 FROM {SIGNALS} WHERE dirty=1 ORDER BY sequence LIMIT 1''').fetchone()
         if row is None:return
-        sequence,family,address,revision,target,after_parent=row
+        sequence,family,scope,revision,target,after_parent=row
         if target<0:target=revision
         rows=self.db.execute(f'''SELECT job_id,job_version,observed_revision FROM {FANOUT}
-            INDEXED BY acquisition_schedule_fanout_wait_v1 WHERE family=? AND address=?
+            INDEXED BY acquisition_schedule_fanout_wait_v1 WHERE family=? AND scope=?
             AND waiting=1 AND job_id>? ORDER BY job_id LIMIT ?''',
-            (family,address,after_parent,STEP)).fetchall()
+            (family,scope,after_parent,STEP)).fetchall()
         for identity,version,observed in rows:
             if observed<target:
                 self.db.execute(f'''UPDATE {QUEUE} SET ready=1,retry_at=0,dependency=NULL
@@ -497,6 +537,7 @@ class AcquisitionScheduler:
         _require(type(urgent) is bool, 'acquisition_schedule_urgent')
         excluded = _excluded(excluding)
         progress = self._seed_urgent()
+        self.wake_fanout()
         remaining = STEP
         for rank in range(3):
             due = self._wake_rank(rank, limit=remaining)
@@ -515,7 +556,6 @@ class AcquisitionScheduler:
                 return DEFERRED
         if urgent:
             return IDLE
-        self.wake_fanout()
         progress = self.backfill()
         if not progress['complete']:
             return DEFERRED

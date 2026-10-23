@@ -6,7 +6,8 @@ from types import SimpleNamespace
 import unittest
 
 from meme_machine.solana_acquisition_scheduler import (
-    AcquisitionScheduler, DEFERRED, IDLE, JOB_FIELDS, QUEUE, STATE, URGENT_STATE)
+    AcquisitionScheduler, DEFERRED, FANOUT, IDLE, JOB_FIELDS, QUEUE, SIGNALS,
+    STATE, URGENT_STATE)
 from meme_machine.solana_evidence_plane import EvidenceUnavailable
 
 
@@ -61,11 +62,12 @@ class AcquisitionSchedulerTests(unittest.TestCase):
         return self.scheduler
 
     def add_job(self, *, priority=3, deadline=1000.0, family='pump',
-                created=10.0, status='pending', identity=None):
+                created=10.0, status='pending', identity=None, address=None,
+                lo=0, hi=10):
         self.serial += 1
         identity = identity or hashlib.sha256(('job-'+str(self.serial)).encode()).hexdigest()
         self.db.execute('INSERT INTO acquisition_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-            (identity, family, 'address-'+str(self.serial), 0, 10, priority, deadline,
+            (identity, family, address or 'address-'+str(self.serial), lo, hi, priority, deadline,
              status, None, 0, None, None, '0'*64, created, created, None))
         return identity
 
@@ -305,6 +307,267 @@ class AcquisitionSchedulerTests(unittest.TestCase):
             self.scheduler.next(excluding=tuple(ordered[:9]))
         self.assertEqual(self.db.execute(f'SELECT * FROM {STATE}').fetchall(), before)
         self.assertEqual(self.db.execute(f'SELECT COUNT(*) FROM {QUEUE} WHERE ready=0').fetchone()[0], 0)
+
+    def test_fanout_child_cursor_and_wait_roll_back_atomically_and_survive_restart(self):
+        self.install()
+        identity = self.add_job(address='fanout-parent')
+        parent = self.take()
+        self.assertEqual(parent['id'], identity)
+        original = self.source(identity)
+        queue_before = self.db.execute(f'SELECT * FROM {QUEUE} WHERE id=?',
+                                       (identity,)).fetchone()
+        child = None
+        with self.assertRaisesRegex(RuntimeError, 'rollback fanout'):
+            with self.writer.transaction():
+                child = self.add_job(address=parent['address'], lo=0, hi=4)
+                self.scheduler.fanout_advance(parent, 4)
+                self.assertEqual(self.scheduler.fanout_after(parent), 4)
+                self.scheduler.fanout_wait(parent)
+                self.assertEqual(self.db.execute(
+                    f'SELECT after_slot,waiting FROM {FANOUT} WHERE job_id=?',
+                    (identity,)).fetchone(), (None, 1))
+                self.assertEqual(self.db.execute(
+                    f'SELECT ready,retry_at FROM {QUEUE} WHERE id=?',
+                    (identity,)).fetchone(), (0, parent['deadline']))
+                raise RuntimeError('rollback fanout')
+        self.assertIsNone(self.db.execute('SELECT id FROM acquisition_jobs WHERE id=?',
+                                         (child,)).fetchone())
+        self.assertIsNone(self.db.execute(f'SELECT job_id FROM {FANOUT} WHERE job_id=?',
+                                         (identity,)).fetchone())
+        self.assertEqual(self.db.execute(f'SELECT * FROM {QUEUE} WHERE id=?',
+                                        (identity,)).fetchone(), queue_before)
+        self.assertEqual(self.source(identity), original)
+
+        with self.writer.transaction():
+            child = self.add_job(address=parent['address'], lo=0, hi=4)
+            self.scheduler.fanout_advance(parent, 4)
+        self.scheduler = AcquisitionScheduler(self.history)
+        self.assertEqual(self.scheduler.fanout_after(parent), 4)
+        self.assertIsNotNone(self.db.execute('SELECT id FROM acquisition_jobs WHERE id=?',
+                                            (child,)).fetchone())
+        with self.writer.transaction():
+            self.scheduler.fanout_wait(parent)
+        wait_before = self.db.execute(f'SELECT * FROM {FANOUT} WHERE job_id=?',
+                                      (identity,)).fetchone()
+        queue_before = self.db.execute(f'SELECT * FROM {QUEUE} WHERE id=?',
+                                       (identity,)).fetchone()
+        self.scheduler = AcquisitionScheduler(self.history)
+        self.assertEqual(self.db.execute(f'SELECT * FROM {FANOUT} WHERE job_id=?',
+                                        (identity,)).fetchone(), wait_before)
+        self.assertEqual(self.db.execute(f'SELECT * FROM {QUEUE} WHERE id=?',
+                                        (identity,)).fetchone(), queue_before)
+        self.assertEqual(self.source(identity), original)
+
+    def test_fanout_wait_does_not_self_wake_after_many_point_one_second_turns(self):
+        self.install()
+        identity = self.add_job(address='fanout-clock')
+        parent = self.take()
+        self.scheduler.fanout_wait(parent)
+        for _ in range(40):
+            self.now += .11
+            self.assertEqual(self.scheduler.next(), IDLE)
+        self.assertEqual(self.db.execute(
+            f'SELECT ready,retry_at FROM {QUEUE} WHERE id=?',
+            (identity,)).fetchone(), (0, parent['deadline']))
+        self.assertEqual(self.db.execute(
+            f'SELECT waiting,after_slot FROM {FANOUT} WHERE job_id=?',
+            (identity,)).fetchone(), (1, None))
+        self.assertEqual(self.db.execute('SELECT status FROM acquisition_jobs WHERE id=?',
+                                         (identity,)).fetchone()[0], 'pending')
+
+    def test_only_committed_child_state_change_wakes_waiting_parent(self):
+        self.install()
+        identity = self.add_job(address='fanout-child', deadline=900.0)
+        child = self.add_job(address='fanout-child', lo=0, hi=4)
+        parent = self.take()
+        self.assertEqual(parent['id'], identity)
+        original = self.source(identity)
+        self.scheduler.fanout_wait(parent)
+        self.assertEqual(self.take(excluding=(child,)), IDLE)
+        with self.assertRaisesRegex(RuntimeError, 'rollback child'):
+            with self.writer.transaction():
+                self.db.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (child,))
+                self.scheduler.wake_fanout()
+                self.assertEqual(self.db.execute(
+                    f'SELECT ready FROM {QUEUE} WHERE id=?', (identity,)).fetchone(), (1,))
+                raise RuntimeError('rollback child')
+        self.assertEqual(self.db.execute(
+            f'SELECT ready FROM {QUEUE} WHERE id=?', (identity,)).fetchone(), (0,))
+        self.assertEqual(self.db.execute(
+            f'SELECT waiting FROM {FANOUT} WHERE job_id=?', (identity,)).fetchone(), (1,))
+        self.db.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (child,))
+        self.assertEqual(self.take()['id'], identity)
+        self.assertEqual(self.db.execute(
+            f'SELECT waiting,after_slot FROM {FANOUT} WHERE job_id=?',
+            (identity,)).fetchone(), (0, None))
+        self.assertEqual(self.source(identity), original)
+
+    def test_hot_child_signals_do_not_reset_more_than_sixteen_waiting_parents(self):
+        self.install()
+        address = 'fanout-many'
+        identities = [self.add_job(address=address, deadline=800.0+number)
+                      for number in range(40)]
+        child = self.add_job(address=address, deadline=1500.0, lo=0, hi=4)
+        for identity in identities:
+            parent = self.take()
+            self.assertEqual(parent['id'], identity)
+            self.scheduler.fanout_wait(parent)
+        for _ in range(4):
+            self.scheduler.wake_fanout()
+        self.assertEqual(self.db.execute(
+            f'SELECT COUNT(*) FROM {FANOUT} WHERE waiting=1').fetchone()[0], 40)
+        self.db.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (child,))
+        self.scheduler.wake_fanout()
+        self.assertEqual(self.db.execute(
+            f'SELECT COUNT(*) FROM {FANOUT} WHERE waiting=1').fetchone()[0], 24)
+        scan = self.db.execute(
+            f'SELECT scan_revision,after_parent FROM {SIGNALS} WHERE family=? AND scope=?',
+            ('pump', 'candidate:pump:'+address)).fetchone()
+        self.assertGreaterEqual(scan[0], 0)
+        self.assertEqual(scan[1], sorted(identities)[15])
+
+        # Ongoing changes to this child's durable progress increase revision,
+        # but must not restart the current bounded parent-keyset pass.
+        self.db.execute('UPDATE acquisition_jobs SET last_slot=1 WHERE id=?', (child,))
+        self.assertEqual(self.db.execute(
+            f'SELECT scan_revision,after_parent FROM {SIGNALS} WHERE family=? AND scope=?',
+            ('pump', 'candidate:pump:'+address)).fetchone(), scan)
+        self.scheduler.wake_fanout()
+        self.assertEqual(self.db.execute(
+            f'SELECT COUNT(*) FROM {FANOUT} WHERE waiting=1').fetchone()[0], 8)
+        next_scan = self.db.execute(
+            f'SELECT scan_revision,after_parent FROM {SIGNALS} WHERE family=? AND scope=?',
+            ('pump', 'candidate:pump:'+address)).fetchone()
+        self.assertEqual(next_scan, (scan[0], sorted(identities)[31]))
+        self.db.execute('UPDATE acquisition_jobs SET last_slot=2 WHERE id=?', (child,))
+        self.scheduler.wake_fanout()
+        self.assertEqual(self.db.execute(
+            f'SELECT COUNT(*) FROM {FANOUT} WHERE waiting=1').fetchone()[0], 0)
+        self.assertEqual(self.db.execute(
+            f'SELECT COUNT(*) FROM {QUEUE} WHERE ready=1').fetchone()[0], 40)
+        self.assertEqual(self.count_is_exact(), 40)
+
+    def test_unrelated_candidate_change_does_not_wake_fanout_parent(self):
+        self.install()
+        identity = self.add_job(address='fanout-unchanged', deadline=900.0)
+        other = self.add_job(address='fanout-unrelated')
+        parent = self.take()
+        self.assertEqual(parent['id'], identity)
+        self.scheduler.fanout_wait(parent)
+        self.db.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (other,))
+        for _ in range(8):
+            self.now += .11
+            self.assertEqual(self.scheduler.next(), IDLE)
+        self.assertEqual(self.db.execute(
+            f'SELECT ready FROM {QUEUE} WHERE id=?', (identity,)).fetchone(), (0,))
+        self.assertEqual(self.db.execute(
+            f'SELECT waiting FROM {FANOUT} WHERE job_id=?', (identity,)).fetchone(), (1,))
+
+    def test_changed_parent_version_discards_previous_fanout_cursor(self):
+        self.install()
+        identity = self.add_job(address='fanout-new-version')
+        original = self.take()
+        self.scheduler.fanout_advance(original, 4)
+        self.assertEqual(self.scheduler.fanout_after(original), 4)
+        self.db.execute('UPDATE acquisition_jobs SET deadline=800 WHERE id=?', (identity,))
+        current = self.take()
+        self.assertEqual(current['id'], identity)
+        self.assertGreater(current['_scheduler_version'], original['_scheduler_version'])
+        self.assertIsNone(self.scheduler.fanout_after(current))
+        self.assertEqual(self.db.execute(
+            f'SELECT job_version,after_slot,waiting FROM {FANOUT} WHERE job_id=?',
+            (identity,)).fetchone(), (current['_scheduler_version'], None, 0))
+        self.assertFalse(self.scheduler.defer(original, 300.0))
+        self.assertEqual(self.source(identity)['deadline'], 800.0)
+        self.scheduler.fanout_advance(current, 6)
+        before = self.db.execute(f'SELECT * FROM {FANOUT} WHERE job_id=?',
+                                 (identity,)).fetchone()
+        for operation in (lambda: self.scheduler.fanout_after(original),
+                          lambda: self.scheduler.fanout_advance(original, 7),
+                          lambda: self.scheduler.fanout_wait(original)):
+            with self.assertRaisesRegex(EvidenceUnavailable, 'acquisition_schedule_fanout_stale'):
+                operation()
+            self.assertEqual(self.db.execute(f'SELECT * FROM {FANOUT} WHERE job_id=?',
+                                            (identity,)).fetchone(), before)
+
+    def binding_table(self, bindings):
+        self.db.execute('''CREATE TABLE evidence_bindings(
+            family TEXT NOT NULL,address TEXT NOT NULL,coverage_scope TEXT NOT NULL,
+            PRIMARY KEY(family,address))''')
+        self.db.executemany('INSERT INTO evidence_bindings VALUES(?,?,?)', bindings)
+
+    def test_alias_child_durable_change_wakes_same_authenticated_scope_parent(self):
+        scope = 'candidate:pump:shared-market'
+        self.binding_table([('pump', 'parent-alias', scope),
+                            ('pump', 'child-alias', scope)])
+        self.install()
+        identity = self.add_job(address='parent-alias', deadline=900.0)
+        child = self.add_job(address='child-alias', lo=0, hi=4)
+        parent = self.take()
+        self.assertEqual(parent['id'], identity)
+        original = self.source(identity)
+        self.scheduler.fanout_wait(parent)
+        self.assertEqual(self.db.execute(
+            f'SELECT scope,waiting FROM {FANOUT} WHERE job_id=?',
+            (identity,)).fetchone(), (scope, 1))
+        self.assertEqual(self.take(excluding=(child,)), IDLE)
+        self.db.execute("UPDATE acquisition_jobs SET status='complete' WHERE id=?", (child,))
+        self.assertEqual(self.take()['id'], identity)
+        self.assertEqual(self.source(identity), original)
+
+    def test_rebinding_signals_both_old_and_new_scope_waiting_parents(self):
+        old_scope = 'candidate:pump:old-market'
+        new_scope = 'candidate:pump:new-market'
+        self.binding_table([('pump', 'old-parent', old_scope),
+                            ('pump', 'new-parent', new_scope),
+                            ('pump', 'moving-child', old_scope)])
+        self.install()
+        old_parent = self.add_job(address='old-parent', deadline=800.0)
+        new_parent = self.add_job(address='new-parent', deadline=801.0)
+        child = self.add_job(address='moving-child')
+        for identity in (old_parent, new_parent):
+            parent = self.take()
+            self.assertEqual(parent['id'], identity)
+            self.scheduler.fanout_wait(parent)
+        original = {identity: self.source(identity) for identity in (old_parent, new_parent, child)}
+        for _ in range(4):
+            self.scheduler.wake_fanout()
+        self.assertEqual(self.db.execute(
+            f'SELECT COUNT(*) FROM {FANOUT} WHERE waiting=1').fetchone()[0], 2)
+        self.db.execute('UPDATE evidence_bindings SET coverage_scope=? WHERE family=? AND address=?',
+                        (new_scope, 'pump', 'moving-child'))
+        for _ in range(8):
+            self.scheduler.wake_fanout()
+        self.assertEqual(self.db.execute(
+            f'SELECT job_id,waiting FROM {FANOUT} ORDER BY job_id').fetchall(),
+            [(identity, 0) for identity in sorted((old_parent, new_parent))])
+        self.assertEqual({identity: self.source(identity) for identity in original}, original)
+
+    def test_new_binding_wakes_parent_waiting_on_original_unbound_fallback(self):
+        scope = 'candidate:pump:bound-market'
+        self.binding_table([])
+        self.install()
+        identity = self.add_job(address='initially-unbound')
+        parent = self.take()
+        self.scheduler.fanout_wait(parent)
+        original = self.source(identity)
+        self.assertEqual(self.db.execute(
+            f'SELECT scope,waiting FROM {FANOUT} WHERE job_id=?',
+            (identity,)).fetchone(), ('candidate:pump:initially-unbound', 1))
+        for _ in range(4):
+            self.scheduler.wake_fanout()
+        self.db.execute('INSERT INTO evidence_bindings VALUES(?,?,?)',
+                        ('pump', 'initially-unbound', scope))
+        for _ in range(8):
+            self.scheduler.wake_fanout()
+        self.assertEqual(self.db.execute(
+            f'SELECT ready FROM {QUEUE} WHERE id=?', (identity,)).fetchone(), (1,))
+        self.assertEqual(self.scheduler.next()['id'], identity)
+        self.assertIsNone(self.scheduler.fanout_after(parent))
+        self.assertEqual(self.db.execute(
+            f'SELECT scope,waiting,after_slot FROM {FANOUT} WHERE job_id=?',
+            (identity,)).fetchone(), (scope, 0, None))
+        self.assertEqual(self.source(identity), original)
 
 
 if __name__ == '__main__':
