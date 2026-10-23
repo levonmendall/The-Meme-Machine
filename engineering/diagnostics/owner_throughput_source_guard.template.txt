@@ -30,6 +30,7 @@ LEGACY_PATHS=@LEGACY_PATHS@
 GUARD='tests/test_managed_capacity_source_guard.py'
 NEW_GUARD='tests/test_owner_throughput_source_guard.py'
 NEW_MANIFEST='tests/fixtures/owner_throughput_source_delta.json'
+GENERATED_TEST_OUTPUTS=(GUARD,NEW_GUARD,NEW_MANIFEST)
 PROOF_INPUTS=('engineering/diagnostics/build_owner_throughput_source_proof.py',
     'engineering/diagnostics/owner_throughput_source_guard.template.txt')
 PROTECTED=(
@@ -139,6 +140,25 @@ def guard_predecessor(test,current):
     return restored
 
 
+def current_test_census(test):
+    """Only separately authenticated proof outputs may differ after freeze.
+
+    Include the entire tests subtree: source fixtures and non-Python inputs
+    cannot change invisibly merely because no historical caller reads them.
+    Output permission here is a census check, never a content exemption.
+    """
+    for line in git('diff','--name-status',IMPLEMENTATION,'--','tests').decode().splitlines():
+        row=line.split('\t');test.assertEqual(len(row),2,'no renamed/copied test input')
+        status,path=row
+        test.assertIn(status,('M','A'),'no removed or changed-type test input')
+        test.assertIn(path,GENERATED_TEST_OUTPUTS,'unreviewed current tracked test/fixture change')
+    for flags in ((),('--ignored',)):
+        extra=git('ls-files','--others',*flags,'--exclude-standard','--','tests').decode().splitlines()
+        test.assertEqual([p for p in extra if p not in GENERATED_TEST_OUTPUTS
+            and '__pycache__' not in Path(p).parts and not p.endswith('.pyc')],[],
+            'no unknown current untracked/ignored test or fixture input')
+
+
 def active_runtime(test):
     """Authenticate the real checkout without invoking any legacy source view."""
     value=manifest(test)
@@ -153,6 +173,7 @@ def active_runtime(test):
         if path not in (GUARD,NEW_GUARD,NEW_MANIFEST) and path.endswith('.py'):test_delta.append(line)
     test.assertEqual(set(test_delta),{'M\t'+p for p in TEST_CALLERS}|{'A\t'+p for p in TEST_ADDED},
         'complete changed/added Python test-caller census')
+    current_test_census(test)
     test.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',
         'complete actual runtime equals exact combined committed source')
     for flags in ((),('--ignored',)):
@@ -254,6 +275,51 @@ class OwnerThroughputSourceGuard(unittest.TestCase):
         for command,reply in commands:
             def supplied(*args):return reply if args==command else original(*args)
             with self.subTest(command=command),patch(__name__+'.git',side_effect=supplied),self.assertRaises(AssertionError):
+                active_runtime(self)
+
+    def test_current_test_source_and_fixture_changes_cannot_escape_frozen_census(self):
+        original=git
+        changed=('diff','--name-status',IMPLEMENTATION,'--','tests')
+        untracked=('ls-files','--others','--exclude-standard','--','tests')
+        ignored=('ls-files','--others','--ignored','--exclude-standard','--','tests')
+        commands=(
+            (changed,b'M\ttests/test_unlisted_existing.py\n'),
+            (changed,b'M\ttests/fixtures/unlisted.json\n'),
+            (changed,b'A\ttests/fixtures/extra.bin\n'),
+            (changed,('D\t'+GUARD+'\n').encode()),
+            (changed,('R100\ttests/prior.py\t'+NEW_GUARD+'\n').encode()),
+            (untracked,b'tests/test_unlisted.py\n'),
+            (untracked,b'tests/fixtures/unlisted.json\n'),
+            (ignored,b'tests/fixtures/ignored.bin\n'),
+        )
+        for command,reply in commands:
+            def supplied(*args):return reply if args==command else original(*args)
+            with self.subTest(command=command,reply=reply),patch(__name__+'.git',side_effect=supplied),self.assertRaises(AssertionError):
+                active_runtime(self)
+
+    def test_only_exact_proof_outputs_and_python_cache_artifacts_may_follow_runtime_freeze(self):
+        original=git
+        changed=('diff','--name-status',IMPLEMENTATION,'--','tests')
+        untracked=('ls-files','--others','--exclude-standard','--','tests')
+        ignored=('ls-files','--others','--ignored','--exclude-standard','--','tests')
+        cases=(
+            {changed:''.join('M\t'+p+'\n' for p in GENERATED_TEST_OUTPUTS).encode(),
+                untracked:b'',ignored:b''},
+            {changed:('M\t'+GUARD+'\n').encode(),
+                untracked:(NEW_GUARD+'\n'+NEW_MANIFEST+'\n').encode(),
+                ignored:b'tests/__pycache__/fixture.cpython-312.pyc\ntests/cache.pyc\n'},
+        )
+        for replies in cases:
+            def supplied(*args):return replies.get(args,original(*args))
+            with self.subTest(replies=replies),patch(__name__+'.git',side_effect=supplied):
+                current_test_census(self)
+        # Each allowed generated path still has a complete independent content
+        # proof: old guard inverse, new guard self-render, or manifest SHA256.
+        read=Path.read_bytes
+        for path in GENERATED_TEST_OUTPUTS:
+            raw=(ROOT/path).read_bytes()
+            with self.subTest(path=path),patch.object(Path,'read_bytes',
+                    lambda p,path=path,raw=raw:raw+b'\n' if p==ROOT/path else read(p)),self.assertRaises(AssertionError):
                 active_runtime(self)
 
     def test_original_assertion_manifests_proof_inputs_and_managed_pump_stay_exact(self):
