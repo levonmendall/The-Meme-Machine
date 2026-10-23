@@ -155,7 +155,7 @@ def current_test_census(test):
     for flags in ((),('--ignored',)):
         extra=git('ls-files','--others',*flags,'--exclude-standard','--','tests').decode().splitlines()
         test.assertEqual([p for p in extra if p not in GENERATED_TEST_OUTPUTS
-            and '__pycache__' not in Path(p).parts and not p.endswith('.pyc')],[],
+            and not p.endswith('.pyc')],[],
             'no unknown current untracked/ignored test or fixture input')
 
 
@@ -290,7 +290,9 @@ class OwnerThroughputSourceGuard(unittest.TestCase):
             (changed,('R100\ttests/prior.py\t'+NEW_GUARD+'\n').encode()),
             (untracked,b'tests/test_unlisted.py\n'),
             (untracked,b'tests/fixtures/unlisted.json\n'),
+            (untracked,b'tests/__pycache__/hidden.py\n'),
             (ignored,b'tests/fixtures/ignored.bin\n'),
+            (ignored,b'tests/__pycache__/hidden.json\n'),
         )
         for command,reply in commands:
             def supplied(*args):return reply if args==command else original(*args)
