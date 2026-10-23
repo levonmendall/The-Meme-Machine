@@ -429,7 +429,11 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
                 for future in urgent_futures:
                     await asyncio.wrap_future(future)
                 current = await plain(lambda state: _snapshot(state, initial, full=False))
-                if current['complete']:
+                if (current['complete']
+                        and (schedule != 'idle-epochs' or last_outcome == 'IDLE')):
+                    # A split callback may satisfy row predicates halfway
+                    # through a housekeeping cycle. Only its real IDLE result
+                    # establishes the variant's comparable final work boundary.
                     if cancel_dispatch and cancellation_probe is None:
                         # Optional work above remains legitimately blocked on
                         # absent local-history workers. Only after its own
@@ -470,7 +474,8 @@ async def run_owner_throughput_comparison(directory, *, retained=256, eligible=3
                     idle_sleep='one_event_loop_yield', owner_clock='real_monotonic',
                     mode=schedule),
                 schedule_observations=dict(epochs=epochs, outcome_counts=outcomes,
-                    initial_scheduler_tick=1.101, final_scheduler_tick=clock.tick),
+                    initial_scheduler_tick=1.101, final_scheduler_tick=clock.tick,
+                    final_outcome=last_outcome),
                 limitations=['Fresh deterministic fixtures, not live population, Btree layout or original availability.',
                     'Projection installation follows actual constructors on fresh fixtures; this is not a matched retained-state EC2 upgrade.',
                     'Candidate rebuild and additional idle epochs remain measured work; no scheduler projection is forced complete.',
@@ -541,6 +546,8 @@ class OwnerThroughputComparisonTests(unittest.IsolatedAsyncioTestCase):
             self.assertGreaterEqual(observed['epochs'], 1)
             self.assertLessEqual(observed['epochs'], report['turns'])
             self.assertEqual(observed['outcome_counts']['DISPATCH'], 0)
+            self.assertGreaterEqual(observed['outcome_counts']['IDLE'], 1)
+            self.assertEqual(observed['final_outcome'], 'IDLE')
             self.assertEqual(sum(observed['outcome_counts'].values()), report['counters']['callbacks'])
             self.assertAlmostEqual(observed['final_scheduler_tick'],
                 1.101+(observed['epochs']-1)*.101)
