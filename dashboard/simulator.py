@@ -41,13 +41,14 @@ METRICS = {
         'pairs_seen', 'events_seen', 'events_processed', 'duplicates', 'gaps',
         'queue_depth', 'entries', 'exits', 'round_trips', 'open_positions',
         'winners', 'losers', 'recovered_events', 'dropped_events',
-        'unrecovered_events'), 'COUNT') | {
+        'unrecovered_events', 'sampled_block_debt', 'launch_events'), 'COUNT') | {
             'average_hold_seconds': 'SECONDS',
             'trade_frequency_per_hour': 'PER_HOUR'},
     'strategy': dict.fromkeys((
         'evaluated', 'eligible', 'rejected', 'volume_quality_passes'), 'COUNT'),
     'operational': {
         'heartbeat_age_seconds': 'SECONDS', 'processing_latency_ms': 'MILLISECONDS',
+        'range_processing_ms': 'MILLISECONDS',
         'cpu_seconds': 'SECONDS', 'memory_bytes': 'BYTES',
         'provider_requests': 'COUNT', 'provider_failures': 'COUNT',
         'connected': 'COUNT'},
