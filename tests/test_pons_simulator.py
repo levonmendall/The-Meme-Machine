@@ -1,6 +1,7 @@
 """Actual fresh-ledger/replay boundaries; no market provider or financial stub."""
 from contextlib import closing, redirect_stdout
 from decimal import Decimal
+from datetime import datetime
 import io
 import json
 import os
@@ -25,6 +26,7 @@ class PonsSimulatorTests(unittest.TestCase):
         self.state = self.base / 'separate-experiment/state'
         self.addCleanup(patch.stopall)
         patch.object(simulator, 'STATE', self.state).start()
+        patch.object(simulator, 'LOCATION', 'workspace').start()
         patch.dict(os.environ, {}, clear=True).start()
 
     def rows(self):
@@ -321,6 +323,100 @@ class PonsSimulatorTests(unittest.TestCase):
         for relative in ('continuous-profile.json', 'simulator-storage.json', 'simulator-provider.json',
                          'simulator-provider-initialization.json', 'shared/provider-usage.continuous.sqlite'):
             self.assertFalse((self.state / relative).exists(), relative)
+
+    def test_location_is_fixed_and_unknown_location_or_ec2_prepare_cannot_write(self):
+        self.assertEqual(simulator.LOCATIONS['ec2'], Path(
+            '/opt/mm-ec2-admin-runner/_work/meme-machine-admin/pons-simulator-experiment-20261024'))
+        for location, reason in (('/arbitrary/state', 'SIMULATOR_LOCATION_INVALID'),
+                                 ('ec2', 'SIMULATOR_EC2_RESEED_FORBIDDEN')):
+            with self.subTest(location=location), patch.object(simulator, 'LOCATION', location), \
+                    patch.object(simulator, 'approved_risk') as risk:
+                with self.assertRaisesRegex(simulator.SimulatorFailure, reason):
+                    simulator.prepare()
+                risk.assert_not_called()
+        with patch.object(simulator, 'LOCATION', '/arbitrary/state'), \
+                patch.object(simulator, 'require_provider_clock') as clock:
+            with self.assertRaisesRegex(simulator.SimulatorFailure, 'SIMULATOR_LOCATION_INVALID'):
+                simulator.configure_runtime()
+            clock.assert_not_called()
+        self.assertFalse(self.state.parent.exists())
+
+    def test_retired_workspace_refuses_every_entry_to_writes_and_exports_old_authority_time(self):
+        financial = simulator.prepare()['financial']
+        with closing(simulator.readonly(self.state / 'shared-capital.sqlite')) as db:
+            ledger_at = json.loads(db.execute('SELECT body FROM shared_capital_projection').fetchone()[0])['at']
+        marker = dict(schema='pons-simulator-authority-retired-v1', epoch_id=simulator.EPOCH,
+            inception_sha256=financial['inception_sha256'], destination_location='ec2',
+            financial_journal_hash=financial['journal_hash'], retired_at='2026-10-24T00:00:00Z',
+            checkpoint_sha256='a' * 64)
+        simulator.write_once(self.state / simulator.RETIRED_MARKER, marker)
+        before = self.rows()
+        with patch.object(simulator, 'require_provider_clock'), \
+                patch.object(simulator, 'source_binding') as source, \
+                patch('meme_machine.operational.bounded_provider.Budget.create') as create:
+            result = simulator.runtime('shadow')
+            self.assertIn('SIMULATOR_AUTHORITY_RETIRED', result['blockers'])
+            self.assertFalse(result['native_runtime_started'])
+            for operation in (simulator.configure_runtime, simulator.ensure_provider_usage,
+                              simulator.native_child, lambda: simulator.write_once(self.state / 'new.json', {})):
+                with self.assertRaisesRegex(simulator.SimulatorFailure, 'SIMULATOR_AUTHORITY_RETIRED'):
+                    operation()
+            source.assert_not_called(); create.assert_not_called()
+        with patch.object(simulator.time, 'time', return_value=ledger_at + 86400):
+            retained = simulator.export_state()
+            self.assertEqual(simulator.status()['state'], 'RETIRED_MIRROR')
+        self.assertTrue(retained['authority_retired'])
+        self.assertEqual(retained['authority'], 'RETIRED_MIRROR')
+        self.assertEqual(int(datetime.fromisoformat(retained['portfolio']['as_of'].replace('Z', '+00:00')).timestamp()), ledger_at)
+        self.assertEqual(retained['journal_hash'], financial['journal_hash'])
+        self.assertEqual(self.rows(), before)
+        self.assertFalse((self.state / 'new.json').exists())
+        self.assertFalse((self.state / 'continuous-profile.json').exists())
+
+    def test_ec2_replays_exact_imported_checkpoint_before_any_configuration_write(self):
+        financial = simulator.prepare()['financial']
+        before = self.rows()
+        with patch.object(simulator, 'LOCATION', 'ec2'), \
+                patch.object(simulator, 'require_provider_clock'), \
+                patch.object(simulator, 'continuous_profile') as profile, \
+                patch.object(simulator, 'verify_experimental_storage') as storage:
+            with self.assertRaisesRegex(simulator.SimulatorFailure, 'SIMULATOR_RESTORED_CHECKPOINT_REQUIRED'):
+                simulator.configure_runtime()
+            profile.assert_not_called(); storage.assert_not_called()
+            with patch.object(simulator, 'RESTORED_INCEPTION', financial['inception_sha256']), \
+                    patch.object(simulator, 'RESTORED_JOURNAL', financial['journal_hash']), \
+                    patch.object(simulator, 'RESTORED_PROJECTION', financial['projection_sha256']):
+                self.assertEqual(simulator.export_state()['journal_hash'], financial['journal_hash'])
+                with patch.object(simulator, 'RESTORED_PROJECTION', 'f' * 64):
+                    with self.assertRaisesRegex(simulator.SimulatorFailure, 'SIMULATOR_RESTORED_CHECKPOINT_REQUIRED'):
+                        simulator.export_state()
+        self.assertEqual(self.rows(), before)
+        self.assertFalse((self.state / 'continuous-profile.json').exists())
+
+    def test_ec2_native_launcher_retains_existing_observer_admission_and_cache_paths(self):
+        observer = self.base / 'observer'
+        observer.mkdir()
+        for name in ('provider.sqlite', 'evidence.sqlite'):
+            (observer / name).write_bytes(b'retained provider evidence')
+        kind = simulator.supervisor_type()
+        service = kind.__new__(kind)
+        service.frozen_source = dict(commit='a' * 40, tree='b' * 40)
+        service.expected_affinity = {3}
+        facts = dict(start=22, parent=os.getpid(), affinities=[{3}], limits={
+            'Max address space': (simulator.NATIVE_AS, simulator.NATIVE_AS),
+            'Max open files': (simulator.NOFILE, simulator.NOFILE), 'Max core file size': (0, 0)})
+        child = SimpleNamespace(pid=202)
+        with patch.object(simulator, 'LOCATION', 'ec2'), patch.object(simulator, 'OBSERVER', observer), \
+                patch.object(kind, 'runtime_lanes', return_value=('pons',)), \
+                patch.object(simulator, 'process_facts', return_value=facts), \
+                patch.object(simulator.subprocess, 'Popen', return_value=child) as spawn:
+            service.launch_lane('pons', [], self.base, {'MM_PROVIDER_DB': 'obsolete', 'MM_RPC_CACHE_DB': 'obsolete'})
+        passed = spawn.call_args.kwargs['env']
+        self.assertEqual(passed['MM_PONS_SIMULATOR_LOCATION'], 'ec2')
+        self.assertEqual(passed['MM_PROVIDER_DB'], str(observer / 'provider.sqlite'))
+        self.assertEqual(passed['MM_RPC_CACHE_DB'], str(observer / 'evidence.sqlite'))
+        for name in ('provider.sqlite', 'evidence.sqlite'):
+            self.assertEqual((observer / name).read_bytes(), b'retained provider evidence')
 
 
 if __name__ == '__main__':

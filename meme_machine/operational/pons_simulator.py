@@ -20,9 +20,17 @@ import threading
 import time
 
 
-EXPERIMENT = Path('/workspace/experiments/pons-simulator-20261024')
+LOCATION = os.environ.get('MM_PONS_SIMULATOR_LOCATION', 'workspace')
+LOCATIONS = dict(workspace=Path('/workspace/experiments/pons-simulator-20261024'),
+    ec2=Path('/opt/mm-ec2-admin-runner/_work/meme-machine-admin/pons-simulator-experiment-20261024'))
+EXPERIMENT = LOCATIONS.get(LOCATION, LOCATIONS['workspace'])
 STATE = EXPERIMENT / 'state'
 EPOCH = 'paper-pons-simulator-1000-20261024'
+RESTORED_INCEPTION = '0098b5790dee06e6b540a1e02fad0db562d115006f10b3575b36ba4e0f221474'
+RESTORED_JOURNAL = 'df1f211d6b64f26e0eea33c92d51a913fb2ca604da163d93044a1130d6f4de1a'
+RESTORED_PROJECTION = 'c77501ffd4a25e2053e320c31b19dae95d2fd39d04168b7f4e3f57b07a462da1'
+OBSERVER = Path('/opt/mm-ec2-admin-runner/_work/meme-machine-admin/pons-simulator-observer')
+RETIRED_MARKER = 'simulator-authority-retired.json'
 SOURCE = Path(__file__).resolve().parents[2]
 RISK_FILE = SOURCE / 'operational/shared-capital-activation/risk-policy.shared-1000.proposed.json'
 RISK_FILE_SHA256 = 'f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034'
@@ -50,7 +58,23 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
 
 
+def writable_authority():
+    require(LOCATION in LOCATIONS, 'SIMULATOR_LOCATION_INVALID')
+    if STATE.exists() or STATE.is_symlink():
+        physical(STATE)
+    require(not (STATE / RETIRED_MARKER).exists() and not (STATE / RETIRED_MARKER).is_symlink(),
+            'SIMULATOR_AUTHORITY_RETIRED')
+
+
+def provider_paths():
+    return dict(MM_PROVIDER_DB=str(OBSERVER / 'provider.sqlite' if LOCATION == 'ec2'
+                                else STATE / 'shared/robinhood-provider.sqlite'),
+                MM_RPC_CACHE_DB=str(OBSERVER / 'evidence.sqlite' if LOCATION == 'ec2'
+                                   else STATE / 'shared/robinhood-evidence.sqlite'))
+
+
 def write_once(path, value):
+    writable_authority()
     raw = canonical(value)
     physical(path)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
@@ -128,6 +152,7 @@ def continuous_profile():
 
 def ensure_provider_usage():
     """One durable fresh-experiment ledger, then ordinary reopen; never reset."""
+    writable_authority()
     from .bounded_provider import Budget
     profile = continuous_profile()
     path = STATE / 'shared/provider-usage.continuous.sqlite'
@@ -232,6 +257,7 @@ def source_binding():
 
 
 def native_child():
+    writable_authority()
     require(os.environ.get('MM_MODE') == 'PAPER' and os.environ.get('MM_STATE_ROOT') == str(STATE)
             and os.environ.get('MM_PAPER_EPOCH') == EPOCH
             and os.environ.get('MM_RUNTIME_LANE') == 'pons', 'SIMULATOR_NATIVE_SCOPE_REQUIRED')
@@ -264,7 +290,8 @@ def supervisor_type():
         def launch_lane(self, lane, args, folder, env):
             require(lane == 'pons' and self.runtime_lanes() == ('pons',), 'SIMULATOR_PONS_ONLY_REQUIRED')
             scoped = dict(env, MM_PONS_SIMULATOR_SOURCE_COMMIT=self.frozen_source['commit'],
-                          MM_PONS_SIMULATOR_SOURCE_TREE=self.frozen_source['tree'])
+                          MM_PONS_SIMULATOR_SOURCE_TREE=self.frozen_source['tree'],
+                          MM_PONS_SIMULATOR_LOCATION=LOCATION, **provider_paths())
             child = subprocess.Popen([sys.executable, '-m', 'meme_machine.operational.pons_simulator', 'native-child'],
                 cwd=folder, env=scoped, start_new_session=True)
             try:
@@ -403,6 +430,7 @@ def readonly(path):
 
 def export_state():
     """Replay the actual selected authority; never construct a financial writer."""
+    require(LOCATION in LOCATIONS, 'SIMULATOR_LOCATION_INVALID')
     from meme_machine.shared_capital.reporting import read_authority, export
     from meme_machine.shared_capital.runtime import selected
     physical(STATE)
@@ -420,7 +448,12 @@ def export_state():
                 'SIMULATOR_REPLAY_HEAD_INVALID')
         require(ledger['epoch_id'] == EPOCH and Decimal(ledger['initial_capital']) == 1000
                 and ledger['policy'] == approved_risk(), 'SIMULATOR_EPOCH_OR_RISK_MISMATCH')
-        projection = export(reader, at=int(time.time()))
+        if LOCATION == 'ec2':
+            require(ledger['inception_sha256'] == RESTORED_INCEPTION
+                    and db.execute('SELECT hash,state_hash FROM shared_capital_events WHERE sequence=2').fetchone()
+                    == (RESTORED_JOURNAL, RESTORED_PROJECTION), 'SIMULATOR_RESTORED_CHECKPOINT_REQUIRED')
+        retired = (STATE / RETIRED_MARKER).exists() or (STATE / RETIRED_MARKER).is_symlink()
+        projection = export(reader, at=ledger['at'] if retired else int(time.time()))
     with closing(readonly(database)) as db:
         pending = db.execute('SELECT count(*) FROM portfolio_native_pending').fetchone()[0]
     counts = {key: len(ledger.get(key, {})) for key in OBLIGATIONS}
@@ -432,6 +465,7 @@ def export_state():
         require(all(p['regime'] == 'pons_current' for p in ledger[bucket].values()),
                 'SIMULATOR_FOREIGN_OBLIGATION')
     return dict(epoch_id=EPOCH, inception_sha256=ledger['inception_sha256'],
+        authority='RETIRED_MIRROR' if retired else 'SELECTED', authority_retired=retired,
         sequence=head[0], journal_hash=head[1], projection_sha256=head[2],
         replay=replay, obligations=counts, portfolio=projection,
         admission_mode=ledger.get('runtime_admission', {}).get('mode'),
@@ -442,6 +476,8 @@ def export_state():
 
 def prepare():
     """Create one new $1,000 epoch; existing or interrupted state is preserved."""
+    require(LOCATION in LOCATIONS, 'SIMULATOR_LOCATION_INVALID')
+    require(LOCATION == 'workspace', 'SIMULATOR_EC2_RESEED_FORBIDDEN')
     require(not STATE.exists() and not STATE.is_symlink(), 'SIMULATOR_EPOCH_EXISTS_NO_RESEED')
     risk = approved_risk()
     # Only the experiment's new ancestors may be created. The native constructor
@@ -497,6 +533,10 @@ def runtime_blockers(environ=None):
     env = os.environ if environ is None else environ
     blockers = []
     try:
+        writable_authority()
+    except SimulatorFailure as error:
+        blockers.append(str(error))
+    try:
         require_provider_clock()
     except SimulatorFailure:
         blockers.append('PROVIDER_CLOCK_IDENTITY_UNAVAILABLE')
@@ -515,11 +555,21 @@ def status():
                   real_money_authority=False, blockers=runtime_blockers())
     if STATE.exists() or STATE.is_symlink():
         result.update(state='LEDGER_RECONCILED', financial=export_state())
+        if result['financial']['authority_retired']:
+            result['state'] = 'RETIRED_MIRROR'
     return result
 
 
 def configure_runtime():
+    writable_authority()
     require_provider_clock()
+    if LOCATION == 'ec2':
+        restored = export_state()
+        require(restored['provider_usage_bound'] or restored['sequence'] == 2,
+                'SIMULATOR_RESTORED_CHECKPOINT_REQUIRED')
+        for path in provider_paths().values():
+            require(Path(path).is_file(), 'SIMULATOR_OBSERVER_PROVIDER_HISTORY_REQUIRED')
+            physical(Path(path))
     from .supervisor import validate_environment
     from meme_machine.runtime.robinhood.provider_authority import endpoint, reference
     endpoint()  # Configuration identity only. No secret is returned or serialized.
@@ -537,8 +587,7 @@ def configure_runtime():
         MM_PROVIDER_OPERATION_MODE='CONTINUOUS',
         MM_PROVIDER_USAGE_DB=str(STATE / 'shared/provider-usage.continuous.sqlite'),
         MM_CONTINUOUS_PROVIDER_ENVELOPE=str(STATE / 'continuous-profile.json'),
-        MM_PROVIDER_DB=str(STATE / 'shared/robinhood-provider.sqlite'),
-        MM_RPC_CACHE_DB=str(STATE / 'shared/robinhood-evidence.sqlite'),
+        **provider_paths(),
         MM_ROBINHOOD_STATE_DIR=str(STATE / 'shared'),
         MM_VOLUME_QUALITY_ENABLED='1', MM_PONS_OBSERVATION_ROUTE='canonical_primary',
         MM_PONS_USD_BRIDGE_ROUTES='verified_two_hop_v1', MM_PONS_USD_ACQUISITION_OVERLAP='1')
@@ -555,7 +604,7 @@ def native_drain():
     progress = json.loads(progress_path.read_text())
     physical(STATE / 'pons/health.json')
     health = json.loads((STATE / 'pons/health.json').read_text())
-    with closing(readonly(STATE / 'shared/robinhood-evidence.candidates.sqlite')) as db:
+    with closing(readonly(Path(provider_paths()['MM_RPC_CACHE_DB']).with_suffix('.candidates.sqlite'))) as db:
         rows = dict(db.execute("SELECT key,body FROM runtime WHERE key IN ('pons_current_startup','pons_cohort')"))
         require(set(rows) == {'pons_current_startup', 'pons_cohort'}, 'SIMULATOR_NATIVE_CHECKPOINT_REQUIRED')
         startup, checkpoint = (json.loads(rows[key]) for key in ('pons_current_startup', 'pons_cohort'))
