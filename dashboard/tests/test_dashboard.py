@@ -359,6 +359,26 @@ class DashboardTests(unittest.TestCase):
             for route in ('portfolio','positions','trades','system','start-run'):
                 self.assertEqual(self.get(route,method)[0], 405)
 
+    def test_historical_research_static_read_needs_no_portfolio_and_is_allowlisted(self):
+        body = b'{"schema":"pons-historical-research-v1","status":"UNAVAILABLE"}'
+        artifact = self.root/'pons-research-v1.json'
+        artifact.write_bytes(body)
+        path = '/dashboard/pons-research-v1.json'
+        with patch('dashboard.api.STATIC', self.root), \
+             patch.object(self.reader, 'view', side_effect=AssertionError('portfolio read')):
+            for method in ('GET', 'HEAD'):
+                code, headers, raw = self.api.response(method, path)
+                self.assertEqual((code, raw), (200, body))
+                self.assertEqual(headers['Content-Type'], 'application/json')
+                self.assertEqual(headers['Cache-Control'], 'no-store')
+                self.assertIn("connect-src 'self'", headers['Content-Security-Policy'])
+            for method in ('POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'):
+                self.assertEqual(self.api.response(method, path)[0], 405)
+            for unknown in ('/dashboard/pons-research-v2.json', '/dashboard/../pons-research-v1.json'):
+                self.assertEqual(self.api.response('GET', unknown)[0], 404)
+            artifact.unlink()
+            self.assertEqual(self.api.response('GET', path)[0], 503)
+
     def test_reads_cannot_network_execute_or_write(self):
         before = {p.name:p.read_bytes() for p in self.root.iterdir()}
         original_open = builtins.open
@@ -378,6 +398,7 @@ class DashboardTests(unittest.TestCase):
             for route in ('portfolio','lanes','lanes/pons','positions','trades','equity','system','analytics'):
                 self.assertEqual(self.get(route)[0], 200)
             self.assertEqual(self.api.response('GET','/dashboard')[0],200)
+            self.assertEqual(self.api.response('GET','/dashboard/pons-research-v1.json')[0],200)
         self.assertEqual(before,{p.name:p.read_bytes() for p in self.root.iterdir()})
 
     def test_export_failure_does_not_invoke_canonical_runtime(self):

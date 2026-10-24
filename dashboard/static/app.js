@@ -49,6 +49,41 @@ async function api(path, params={}) {
   } finally { clearTimeout(timer); }
 }
 
+// A bundled, historical finding only; never a quote, ledger or observer feed.
+async function ponsResearchSnapshot() {
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 2500);
+  try {
+    const response = await fetch('/dashboard/pons-research-v1.json', {
+      signal:controller.signal, cache:'no-store', credentials:'same-origin'
+    });
+    return response.ok ? await response.json() : null;
+  } catch { return null; } finally { clearTimeout(timer); }
+}
+function ponsResearchPanel(s) {
+  const text = (v,n) => typeof v === 'string' && v.length > 0 && v.length <= n;
+  const utc = v => text(v,27) && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/.test(v) &&
+    Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0,19) === v.slice(0,19);
+  const rows = (v,n) => Array.isArray(v) && v.length <= n && v.every(x => text(x,600));
+  const valid = s?.schema === 'pons-historical-research-v1' && s.status === 'HISTORICAL' &&
+    utc(s.actual_market_asof) && utc(s.captured_at) && Date.parse(s.actual_market_asof) <= Date.parse(s.captured_at) &&
+    Date.parse(s.captured_at) <= Date.now() && text(s.source_app_commit,40) && /^[0-9a-f]{40}$/.test(s.source_app_commit) &&
+    text(s.report_sha256,64) && /^[0-9a-f]{64}$/.test(s.report_sha256) && typeof s.run_id === 'string' && /^[1-9][0-9]{0,19}$/.test(s.run_id) &&
+    s.report_url === 'https://github.com/levonmendall/meme-machine-admin/actions/runs/'+s.run_id &&
+    text(s.confidence,160) && text(s.coverage,1000) && rows(s.observations,3) && s.observations.length > 0 && rows(s.shadow_hypotheses,2);
+  const list = values => '<ul>'+values.map(v => '<li>'+esc(v)+'</li>').join('')+'</ul>';
+  return `<section class="panel" aria-label="Historical Pons market research">
+    <div class="panelhead"><h2>Pons historical market research</h2>${badge('UNKNOWN',valid?'HISTORICAL RESEARCH':'RESEARCH UNAVAILABLE')}</div>
+    <div class="panelbody"><p class="status-notice">Historical observed price paths only. No fills, P&amp;L, live quotes or strategy promotion. Shadow hypotheses remain unvalidated.</p>
+    ${valid ? `<p>Market evidence as of ${esc(s.actual_market_asof)} · Report captured ${esc(s.captured_at)}</p>
+      <p>Confidence: ${esc(s.confidence)} · Coverage: ${esc(s.coverage)}</p>
+      <h3>Observed findings</h3>${list(s.observations)}
+      <h3>Unvalidated shadow hypotheses</h3>${s.shadow_hypotheses.length ? list(s.shadow_hypotheses) : '<p>None recorded.</p>'}
+      <p class="identity">Source APP commit: ${esc(s.source_app_commit)}<br>Report SHA-256: ${esc(s.report_sha256)}</p>
+      <a class="link" href="${esc(s.report_url)}" rel="noreferrer">Research run ${esc(s.run_id)} →</a>` :
+      '<p class="status-notice">No verified historical research snapshot is installed.</p>'}
+    </div></section>`;
+}
+
 // Independent, authenticated Pons observation. This never alters the old PAPER feed.
 const PONS_FRESH_SECONDS = 60;
 async function ponsObserverFeed() {
@@ -413,11 +448,11 @@ function operationsPanel(s,detailed=false) {
     </div></section>`;
 }
 async function overview(p) {
-  const [observer,lanes,chart,positions,trades,system,...laneCharts] = await Promise.all([
-    ponsObserverFeed(),api('lanes'),api('equity',{period:state.period,series:state.series}),api('positions',{limit:5}),api('trades',{limit:5}),api('system'),...LANES.map(l=>api('equity',{series:l,limit:60}))]);
+  const [observer,research,lanes,chart,positions,trades,system,...laneCharts] = await Promise.all([
+    ponsObserverFeed(),ponsResearchSnapshot(),api('lanes'),api('equity',{period:state.period,series:state.series}),api('positions',{limit:5}),api('trades',{limit:5}),api('system'),...LANES.map(l=>api('equity',{series:l,limit:60}))]);
   const charts=Object.fromEntries(LANES.map((l,i)=>[l,laneCharts[i]]));
   return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}
-    ${ponsObserverPanel(observer)}${operationsPanel(system.data)}${laneCards(lanes.data,charts)}
+    ${ponsObserverPanel(observer)}${ponsResearchPanel(research)}${operationsPanel(system.data)}${laneCards(lanes.data,charts)}
     <div class="chart-row overview-charts">
       ${chartPanel(chart)}
       <section class="panel"><div class="panelhead"><h2>P&L by lane</h2></div><div class="panelbody">${laneDonut(lanes.data,p)}</div></section>
