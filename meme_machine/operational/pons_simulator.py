@@ -31,7 +31,7 @@ PROFILE_SOURCE = SOURCE / 'operational/pump-first-release/deployment/paper-conti
 PROFILE_SOURCE_SHA256 = '7d07d80ca00218e4a65b05c873cb10ae2686ebe9109cd7fd4d61d5b39e0e048f'
 PARENT_AS = 1024**3
 NATIVE_AS = 6 * 1024**3
-NOFILE = 32768
+NOFILE = 8192
 RESOURCE_CONTRACT = 'experimental_process_limits_v1'
 OBLIGATIONS = ('reservations', 'commitments', 'obligations', 'pending_deliveries',
                'pending_backing', 'runtime_pending', 'runtime_inbox')
@@ -131,11 +131,26 @@ def ensure_provider_usage():
     from .bounded_provider import Budget
     profile = continuous_profile()
     path = STATE / 'shared/provider-usage.continuous.sqlite'
+    marker_path = STATE / 'simulator-provider-initialization.json'
+    financial = export_state()
+    marker = dict(schema='pons-simulator-provider-initialization-v1', epoch_id=EPOCH,
+        inception_sha256=financial['inception_sha256'], profile_sha256=hashlib.sha256(canonical(profile)).hexdigest())
     physical(path)
+    if marker_path.exists() or marker_path.is_symlink():
+        require(read_json(marker_path) == marker and path.is_file(), 'SIMULATOR_PROVIDER_HISTORY_REQUIRED')
+    elif not path.exists():
+        require(not financial['provider_usage_bound'], 'SIMULATOR_PROVIDER_HISTORY_REQUIRED')
+        # Durable intent PRECEDES creation. An interrupted creation or missing
+        # ledger cannot be mistaken for a new zero-consumption allowance.
+        write_once(marker_path, marker)
     budget = Budget(path) if path.exists() else Budget.create(path, continuous=profile)
     require(budget.continuous and budget.envelope == profile,
             'SIMULATOR_EXISTING_PROVIDER_PROFILE_MISMATCH')
-    budget.preflight_file()
+    budget.preflight_file(STATE / 'continuous-profile.json')
+    if not marker_path.exists():
+        # An already-existing authenticated ledger may acquire the new marker;
+        # none of its clocks, counters or receipts is changed or re-created.
+        write_once(marker_path, marker)
     return budget
 
 
@@ -160,9 +175,11 @@ def process_facts(pid):
     require(0 < len(tasks) <= 128, 'SIMULATOR_PROCESS_TOPOLOGY_CHANGED')
     affinities = [set(os.sched_getaffinity(int(task.name))) for task in tasks]
     children = {int(value) for task in tasks for value in (task / 'children').read_text().split()}
+    cgroup = (root / 'cgroup').read_text()
+    require(len(cgroup) <= 4096, 'SIMULATOR_CGROUP_UNAVAILABLE')
     require(stamp() == (start, parent), 'SIMULATOR_PROCESS_IDENTITY_CHANGED')
     return dict(pid=pid, start=start, parent=parent, rss=int(status['VmRSS'].split()[0]) * 1024,
-                limits=limits, affinities=affinities, children=children)
+                limits=limits, affinities=affinities, children=children, cgroup=cgroup)
 
 
 def own_cgroup_memory():
@@ -198,10 +215,27 @@ def install_process_limits(*, native=False):
     return set(os.sched_getaffinity(0))
 
 
+def source_binding():
+    git = ['/usr/bin/git', '--no-optional-locks', '-c', 'safe.directory=' + str(SOURCE),
+           '-c', 'core.hooksPath=/dev/null',
+           '-c', 'core.fsmonitor=false', '-C', str(SOURCE)]
+    env = dict(PATH='/usr/bin:/bin', LANG='C', HOME='/nonexistent', GIT_OPTIONAL_LOCKS='0',
+               GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL='/dev/null')
+    hashes = subprocess.check_output(git + ['rev-parse', 'HEAD', 'HEAD^{tree}'],
+        env=env, stderr=subprocess.DEVNULL, timeout=5).decode('ascii').splitlines()
+    require(len(hashes) == 2 and all(len(value) == 40 and all(c in '0123456789abcdef' for c in value)
+                                   for value in hashes), 'SIMULATOR_SOURCE_UNAVAILABLE')
+    dirty = subprocess.check_output(git + ['status', '--porcelain', '--untracked-files=all'],
+                                   env=env, stderr=subprocess.DEVNULL, timeout=5)
+    require(not dirty, 'SIMULATOR_FROZEN_CLEAN_SOURCE_REQUIRED')
+    return dict(commit=hashes[0], tree=hashes[1])
+
+
 def native_child():
     require(os.environ.get('MM_MODE') == 'PAPER' and os.environ.get('MM_STATE_ROOT') == str(STATE)
             and os.environ.get('MM_PAPER_EPOCH') == EPOCH
             and os.environ.get('MM_RUNTIME_LANE') == 'pons', 'SIMULATOR_NATIVE_SCOPE_REQUIRED')
+    source_binding()
     install_process_limits(native=True)
     os.execv(sys.executable, [sys.executable, '-m', 'meme_machine.operational.lane',
         '--lane', 'pons', '--state-root', str(STATE)])
@@ -215,10 +249,14 @@ def supervisor_type():
             self.expected_affinity = set(os.sched_getaffinity(0))
             self.parent_start = process_facts(os.getpid())['start']
             self.native_start = None
+            self.storage_device = None
+            self.resource_failure = None
 
         def verify_storage(self):
             require(self.root == STATE, 'SIMULATOR_STATE_SCOPE_CHANGED')
-            return verify_experimental_storage()
+            binding = verify_experimental_storage()
+            self.storage_device = binding['device']
+            return binding
 
         def launch_lane(self, lane, args, folder, env):
             require(lane == 'pons' and self.runtime_lanes() == ('pons',), 'SIMULATOR_PONS_ONLY_REQUIRED')
@@ -226,6 +264,21 @@ def supervisor_type():
                 cwd=folder, env=env, start_new_session=True)
             try:
                 self.native_start = (child.pid, process_facts(child.pid)['start'])
+                deadline = time.monotonic() + 10
+                while True:
+                    facts = process_facts(child.pid)
+                    require((child.pid, facts['start']) == self.native_start,
+                            'SIMULATOR_PROCESS_IDENTITY_CHANGED')
+                    if facts['limits'].get('Max address space') == (NATIVE_AS, NATIVE_AS):
+                        require(facts['parent'] == os.getpid()
+                                and all(affinity == self.expected_affinity for affinity in facts['affinities'])
+                                and facts['limits'].get('Max open files') == (NOFILE, NOFILE)
+                                and facts['limits'].get('Max core file size') == (0, 0),
+                                'SIMULATOR_NATIVE_LIMIT_NOT_ENFORCED')
+                        break
+                    require(child.poll() is None and time.monotonic() < deadline,
+                            'SIMULATOR_NATIVE_LIMIT_ADMISSION_DEADLINE')
+                    time.sleep(.02)
             except BaseException:
                 child.kill(); child.wait(timeout=5)
                 raise
@@ -240,6 +293,7 @@ def supervisor_type():
                 require(parent['start'] == self.parent_start
                         and (child['pid'], child['start']) == self.native_start
                         and child['parent'] == parent['pid']
+                        and child['cgroup'] == parent['cgroup']
                         and parent['children'] == {child['pid']} and not child['children'],
                         'SIMULATOR_PROCESS_TOPOLOGY_CHANGED')
                 require(len(self.expected_affinity) == 1 and all(affinity == self.expected_affinity
@@ -254,18 +308,22 @@ def supervisor_type():
                 rss = parent['rss'] + child['rss']
                 ceiling = self.provider_budget.envelope['maximum_rss_bytes']
                 require(rss < ceiling and memory < ceiling, 'SIMULATOR_MEMORY_PRESSURE')
-                storage_space()
+                require(storage_space()['device'] == self.storage_device,
+                        'SIMULATOR_STORAGE_BINDING_CHANGED')
                 self.resource_measurement = dict(limits_verified=True, resource_contract=RESOURCE_CONTRACT,
                     cgroup_scope='INHERITED_SHARED', cgroup_memory_bytes=memory,
                     inherited_cgroup_memory_max=inherited_maximum, aggregate_rss_bytes=rss,
                     parent_as_bytes=PARENT_AS, native_as_bytes=NATIVE_AS,
-                    aggregate_address_space_ceiling=PARENT_AS + NATIVE_AS,
+                    aggregate_current_address_space_soft_limit=PARENT_AS + NATIVE_AS,
                     configured_cpu_cores='1', cpu_affinity=sorted(self.expected_affinity),
                     maximum_queue_depth=64, maximum_queue_wait_seconds=5,
                     original_cgroup_contract_verified=False)
             except (OSError, ValueError, KeyError, ArithmeticError):
                 self.resource_measurement = dict(limits_verified=False, resource_contract=RESOURCE_CONTRACT,
                     state='UNAVAILABLE', original_cgroup_contract_verified=False)
+                self.resource_failure = 'SIMULATOR_RESOURCE_EVIDENCE_UNAVAILABLE'
+                if self.admission == 'OBSERVATION':
+                    self.stop_requested = True
                 reason = reason or 'simulator_resource_evidence_unavailable'
             return reason
 
@@ -364,6 +422,7 @@ def export_state():
         sequence=head[0], journal_hash=head[1], projection_sha256=head[2],
         replay=replay, obligations=counts, portfolio=projection,
         admission_mode=ledger.get('runtime_admission', {}).get('mode'),
+        provider_usage_bound=bool(ledger.get('runtime_admission', {}).get('continuous_provider_db')),
         current_readiness_verified=False, held_protection_demonstrated=False,
         autonomous_acceptance=False)
 
@@ -436,11 +495,17 @@ def status():
 
 def configure_runtime():
     from .supervisor import validate_environment
-    from meme_machine.runtime.robinhood.provider_authority import endpoint
+    from meme_machine.runtime.robinhood.provider_authority import endpoint, reference
     endpoint()  # Configuration identity only. No secret is returned or serialized.
     validate_environment(required_lanes=('pons',))
     profile = continuous_profile()
     verify_experimental_storage()
+    provider = dict(schema='pons-simulator-provider-v1', epoch_id=EPOCH, reference=reference())
+    path = STATE / 'simulator-provider.json'
+    if path.exists() or path.is_symlink():
+        require(read_json(path) == provider, 'SIMULATOR_PROVIDER_BINDING_CHANGED')
+    else:
+        write_once(path, provider)
     ensure_provider_usage()
     os.environ.update(MM_MODE='PAPER', MM_STATE_ROOT=str(STATE), MM_PAPER_EPOCH=EPOCH,
         MM_PROVIDER_OPERATION_MODE='CONTINUOUS',
@@ -483,7 +548,7 @@ def native_drain():
                 current_survivor_recovery=True, held_protection_demonstrated=False)
 
 
-def shadow(service):
+def shadow(service, binding):
     """The ordinary owner runs; one read-only observer measures the usable window."""
     from .acceptance import observe
     from .position_continuation import readiness
@@ -525,6 +590,7 @@ def shadow(service):
     finally:
         stopped.set(); thread.join(6)
     require(not thread.is_alive(), 'SIMULATOR_SHADOW_OBSERVER_DID_NOT_JOIN')
+    require(service.resource_failure is None, service.resource_failure or 'SIMULATOR_SHADOW_RESOURCE_FAILURE')
     require(measured['failure'] is None, measured['failure'] or 'SIMULATOR_SHADOW_FAILED')
     require(measured['ready'] is not None and measured['last_sample'] - measured['ready'] >= 120
             and measured['last_cursor'] > measured['first_cursor'], 'SIMULATOR_SHADOW_WINDOW_INCOMPLETE')
@@ -539,6 +605,8 @@ def shadow(service):
         startup_seconds=measured['ready'] - began, samples=measured['samples'],
         first_cursor=measured['first_cursor'], last_cursor=measured['last_cursor'],
         funding_mode='OBSERVATION', native=drain, resource_contract=RESOURCE_CONTRACT,
+        source=binding, profile_sha256=hashlib.sha256((STATE / 'continuous-profile.json').read_bytes()).hexdigest(),
+        provider=read_json(STATE / 'simulator-provider.json'),
         held_protection_demonstrated=False, autonomous_acceptance=False)
     # Successful history is append-only; later failures never replace it with PASS.
     path = STATE / ('simulator-shadow-' + str(time.time_ns()) + '.json')
@@ -553,6 +621,7 @@ def runtime(command):
     if blockers:
         return dict(state='BLOCKED', epoch_id=EPOCH, requested_command=command, blockers=blockers,
             native_runtime_started=False, shadow_accepted=False, real_money_authority=False)
+    binding = source_binding()
     configure_runtime()
     if command == 'run':
         # First NORMAL is deliberately separate from a successful live shadow.
@@ -563,14 +632,26 @@ def runtime(command):
         current = export_state()
         require(prior.get('schema') == 'pons-simulator-shadow-v1' and prior.get('epoch_id') == EPOCH
                 and prior.get('inception_sha256') == current['inception_sha256']
+                and prior.get('source') == binding
+                and prior.get('profile_sha256') == hashlib.sha256((STATE / 'continuous-profile.json').read_bytes()).hexdigest()
+                and prior.get('provider') == read_json(STATE / 'simulator-provider.json')
                 and prior.get('usable_seconds', 0) >= 120
-                and 0 <= time.time() - prior.get('ended_at', 0) <= 900,
+                and (current['admission_mode'] == 'NORMAL'
+                     or 0 <= time.time() - prior.get('ended_at', 0) <= 900),
                 'SIMULATOR_DRAINED_SHADOW_REQUIRED')
-        native_drain()
+        if current['admission_mode'] != 'NORMAL':
+            require(prior.get('sequence') == current['sequence']
+                    and prior.get('journal_hash') == current['journal_hash']
+                    and all(value == 0 for value in current['obligations'].values()),
+                    'SIMULATOR_SHADOW_FINANCIAL_CONTINUITY_REQUIRED')
+            native_drain()
+        # A later NORMAL resume may hold legitimate P&L and pending positions.
+        # Ordinary native startup restores those owners before discovery; fresh
+        # current-process readiness still closes all new allocations meanwhile.
     install_process_limits()
     service = supervisor_type()(admission='OBSERVATION' if command == 'shadow' else 'NORMAL')
     if command == 'shadow':
-        return shadow(service)
+        return shadow(service, binding)
     service.run()
     return dict(state='STOPPED', financial=export_state(), paper_only=True, real_money_authority=False)
 

@@ -202,12 +202,16 @@ class PonsSimulatorTests(unittest.TestCase):
         service.native_start = (202, 22)
         service.processes = {'pons': SimpleNamespace(pid=202)}
         service.provider_budget = SimpleNamespace(envelope={'maximum_rss_bytes': 6 * 1024**3})
-        base = dict(start=11, parent=1, pid=101, rss=1024, children={202}, affinities=[{3}],
+        service.storage_device = 77
+        service.admission = 'OBSERVATION'
+        service.stop_requested = False
+        service.resource_failure = None
+        base = dict(start=11, parent=1, pid=101, rss=1024, children={202}, affinities=[{3}], cgroup='0::/\n',
             limits={'Max address space': (simulator.PARENT_AS, simulator.NATIVE_AS),
                     'Max open files': (simulator.NOFILE, simulator.NOFILE), 'Max core file size': (0, 0)})
         child = dict(base, start=22, parent=101, pid=202, children=set(),
                      limits=dict(base['limits'], **{'Max address space': (simulator.NATIVE_AS, simulator.NATIVE_AS)}))
-        for mutation in (None, 'limit', 'affinity', 'children', 'identity'):
+        for mutation in (None, 'limit', 'affinity', 'children', 'identity', 'device'):
             parent, native = deepcopy(base), deepcopy(child)
             if mutation == 'limit': native['limits']['Max address space'] = (simulator.NATIVE_AS + 1,) * 2
             if mutation == 'affinity': native['affinities'] = [{3, 4}]
@@ -216,11 +220,14 @@ class PonsSimulatorTests(unittest.TestCase):
             with self.subTest(mutation=mutation), patch.object(simulator.os, 'getpid', return_value=101), \
                     patch.object(simulator, 'process_facts', side_effect=[parent, native]), \
                     patch.object(simulator, 'own_cgroup_memory', return_value=(4096, 16 * 1024**3)), \
-                    patch.object(simulator, 'storage_space'):
+                    patch.object(simulator, 'storage_space', return_value={'device': 78 if mutation == 'device' else 77}):
                 reason = service.resource_health(100., None)
             self.assertEqual(service.resource_measurement['limits_verified'], mutation is None)
             self.assertFalse(service.resource_measurement['original_cgroup_contract_verified'])
             self.assertEqual(reason is None, mutation is None)
+            if mutation is not None:
+                self.assertTrue(service.stop_requested)
+                self.assertEqual(service.resource_failure, 'SIMULATOR_RESOURCE_EVIDENCE_UNAVAILABLE')
 
     def test_existing_provider_usage_is_reopened_without_counter_or_clock_reset(self):
         simulator.prepare()
@@ -233,6 +240,30 @@ class PonsSimulatorTests(unittest.TestCase):
         reopened = simulator.ensure_provider_usage()
         self.assertEqual(reopened.snapshot(), before)
         self.assertEqual(reopened.snapshot()['http_attempts'], '17')
+
+    def test_missing_previously_initialized_provider_ledger_never_mints_a_new_allowance(self):
+        simulator.prepare()
+        budget = simulator.ensure_provider_usage()
+        path = budget.path
+        retained = path.with_name('retained-provider.sqlite')
+        path.rename(retained)
+        with patch('meme_machine.operational.bounded_provider.Budget.create') as create:
+            with self.assertRaisesRegex(simulator.SimulatorFailure, 'SIMULATOR_PROVIDER_HISTORY_REQUIRED'):
+                simulator.ensure_provider_usage()
+            create.assert_not_called()
+        self.assertTrue(retained.is_file())
+        self.assertFalse(path.exists())
+
+    def test_interrupted_first_provider_creation_retains_intent_and_refuses_unchanged_retry(self):
+        simulator.prepare()
+        with patch('meme_machine.operational.bounded_provider.Budget.create', side_effect=OSError('disposable failure')):
+            with self.assertRaises(OSError):
+                simulator.ensure_provider_usage()
+        self.assertTrue((self.state / 'simulator-provider-initialization.json').is_file())
+        with patch('meme_machine.operational.bounded_provider.Budget.create') as create:
+            with self.assertRaisesRegex(simulator.SimulatorFailure, 'SIMULATOR_PROVIDER_HISTORY_REQUIRED'):
+                simulator.ensure_provider_usage()
+            create.assert_not_called()
 
 
 if __name__ == '__main__':
