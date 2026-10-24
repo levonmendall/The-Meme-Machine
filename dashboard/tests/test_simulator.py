@@ -531,6 +531,26 @@ class SimulatorStrategyVersionTests(SimulatorFixture):
 
 
 class SimulatorChannelTests(SimulatorFixture):
+    def test_in_app_browser_query_parameters_preserve_fixed_assets_and_owner_auth(self):
+        channel = simulator.SimulatorChannel()
+        for target in ('/dashboard/pons-simulator',
+                       '/dashboard/pons-simulator/',
+                       '/dashboard/pons-simulator/app.js',
+                       '/dashboard/pons-simulator/style.css'):
+            code, _, canonical = channel.response('GET', target)
+            self.assertEqual(code, 200)
+            for query in ('?utm_source=chatgpt&ref=app', '?source=share%20sheet'):
+                with self.subTest(target=target, query=query):
+                    status, headers, content = channel.response('GET', target + query)
+                    self.assertEqual(status, 200)
+                    self.assertEqual(content, canonical)
+                    self.assertEqual(headers['Cache-Control'], 'no-store')
+        self.assertEqual(channel.response('GET', '/api/pons-simulator/state?ref=app')[0], 400)
+        base = self.server()
+        decorated = '/dashboard/pons-simulator?utm_source=chatgpt'
+        self.assertEqual(self.request(base, decorated)[0], 401)
+        self.assertEqual(self.request(base, decorated, authorization=OWNER_AUTH)[0], 200)
+
     def test_missing_configuration_is_explicit_and_original_routes_are_not_claimed(self):
         channel = simulator.SimulatorChannel()
         status, headers, raw = channel.response('GET', '/api/pons-simulator/state')

@@ -468,7 +468,9 @@ class SimulatorChannel:
         headers = dict(HEADERS)
         if method not in ('GET', 'HEAD'):
             return 405, dict(headers, **{'Content-Type': 'application/json', 'Allow': 'GET, HEAD'}), b'{"error":"read_only"}'
-        if parsed.query:
+        # Fixed page assets may receive tracking parameters from in-app browsers.
+        # The API read route keeps strict query rejection.
+        if parsed.query and parsed.path not in files:
             return 400, dict(headers, **{'Content-Type': 'application/json'}), b'{"error":"invalid_request"}'
         if parsed.path in files:
             name, mime = files[parsed.path]
