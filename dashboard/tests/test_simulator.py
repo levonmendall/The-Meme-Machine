@@ -601,6 +601,26 @@ class SimulatorChannelTests(SimulatorFixture):
 
 
 class SimulatorHTTPTests(SimulatorFixture):
+    def test_primary_dashboard_displays_pons_current_and_survivor_without_replacing_paper(self):
+        base = self.server()
+        status, _, html = self.request(base, '/dashboard', authorization=OWNER_AUTH)
+        self.assertEqual(status, 200)
+        self.assertIn(b'THE <strong>MEME MACHINE</strong>', html)
+        status, _, javascript = self.request(base, '/dashboard/app.js', authorization=OWNER_AUTH)
+        self.assertEqual(status, 200)
+        self.assertIn(b"/api/pons-simulator/state", javascript)
+        self.assertIn(b'Pons Current', javascript)
+        self.assertIn(b'Pons Survivor', javascript)
+        self.assertIn(b'Original PAPER remains a separate, stopped portfolio', javascript)
+        self.assertIn(b"api('portfolio')", javascript)
+        self.assertNotIn(b'/dashboard/pons-simulator', javascript)
+        self.assertEqual(self.request(base, '/dashboard/app.js')[0], 401)
+        self.assertEqual(self.request(base, '/api/pons-simulator/state')[0], 401)
+        status, _, original = self.request(base, '/api/dashboard/portfolio',
+                                           authorization=OWNER_AUTH)
+        self.assertEqual(status, 200)
+        self.assertIn(b'"mode"', original)
+
     def original_store(self):
         return SnapshotStore(self.root/'original-latest.json',
             epoch='synthetic-original-dashboard', candidate='1'*40, clock=lambda: self.now)

@@ -91,3 +91,27 @@ footer{min-height:48px;padding:11px 28px;align-items:center;background:#061019;b
   .lane-card .mini-stats{grid-template-columns:1fr 1fr}.lane-card .mini-stats .stat strong{font-size:11px}
   .donut-layout{grid-template-columns:1.1fr .9fr}
 }
+
+
+/* Live Pons shadow reporting inside the original dashboard; portfolio data stays separate. */
+.pons-observer-panel{border-left:2px solid var(--pons);overflow:hidden}
+.pons-observer-panel .panelhead{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.pons-observer-panel .panelhead h2{font-size:13px;letter-spacing:.025em}
+.pons-observer-panel .panelhead .eyebrow{font-size:9px;color:#af99d4}
+.pons-observer-panel .panelbody{padding:0 16px 16px}
+.pons-observer-panel .status-notice{margin:10px 0 14px}
+.pons-observer-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid #253747;border-radius:6px;overflow:hidden;margin:12px 0}
+.pons-observer-kpis>div{padding:12px 13px;border-right:1px solid #253747;min-width:0}
+.pons-observer-kpis>div:last-child{border-right:0}
+.pons-observer-kpis span{display:block;font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.pons-observer-kpis strong{font-size:13px;font-weight:650;overflow-wrap:anywhere}
+.pons-observer-panel th,.pons-observer-panel td{padding:10px 12px}
+.pons-observer-panel .table-wrap{margin:10px 0}
+.pons-observer-panel .link{display:inline-block;margin-bottom:8px}
+@media(max-width:780px){
+  .pons-observer-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pons-observer-kpis>div:nth-child(2){border-right:0}
+  .pons-observer-kpis>div:nth-child(-n+2){border-bottom:1px solid #253747}
+  .pons-observer-panel .panelhead h2{font-size:12px}
+  .pons-observer-panel .panelhead .badge{font-size:9px}
+}
