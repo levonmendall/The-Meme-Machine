@@ -165,6 +165,7 @@
     if (state === 'STALE') message = 'Last reported values are stale. Current operation and protection are unverified.';
     if (requestFailed) message = `${snapshot ? 'Last reported values are stale. ' : ''}${failureReason} Current operation is unverified.`;
     byId('sim-feed-detail').textContent = message;
+    updateObserverFreshness();
     for (const item of metricNodes) {
       const metric = item.metric;
       const quality = metricValid(metric) ? metric.quality : UNAVAILABLE;
@@ -242,6 +243,54 @@
     return {tableNode, body};
   }
 
+  function updateObserverFreshness() {
+    const observer = snapshot?.observer;
+    const heartbeatAge = age(observer?.heartbeat_at);
+    const marketAge = age(observer?.market_as_of);
+    const fresh = feedState() === 'CURRENT' && heartbeatAge !== null && heartbeatAge >= 0 &&
+      heartbeatAge <= CURRENT_SECONDS && marketAge !== null && marketAge >= 0 && marketAge <= CURRENT_SECONDS;
+    byId('sim-observer-status').textContent = !observer ? UNAVAILABLE :
+      !fresh ? 'STALE / MARKET UNAVAILABLE' : `${boundedText(observer.status, 20)} — READ ONLY`;
+    byId('sim-observer-detail').textContent = !observer ? 'No resident observer evidence received.' :
+      `Heartbeat ${timestamp(observer.heartbeat_at)} · market evidence ${timestamp(observer.market_as_of)} · ` +
+      `reported process restarts ${Number.isSafeInteger(observer.restart_count) ? observer.restart_count : UNAVAILABLE} · ` +
+      `history coverage ${boundedText(observer.history_coverage, 20)}. Source ${boundedText(observer.source_commit, 40)}.`;
+  }
+
+  function renderObserver() {
+    const observer = snapshot?.observer;
+    if (!observer) {
+      byId('sim-observer-counts').replaceChildren(element('p', 'sim-empty', 'Current and Survivor evaluation counts unavailable.'));
+      byId('sim-observer-decisions').replaceChildren(element('p', 'sim-empty', 'No verified shadow decisions received.'));
+      return;
+    }
+    const counts = table(['Strategy', 'Completed native evaluations', 'Eligible', 'WAIT', 'REJECT', 'Incomplete'], 'Read-only strategy evaluations; unknown counts remain unavailable');
+    for (const [key, name] of [['current', 'Pons Current'], ['survivor', 'Pons Survivor']]) {
+      const row = element('tr');
+      row.append(element('th', '', name));
+      for (const field of ['completed', 'eligible', 'wait', 'rejected', 'incomplete']) {
+        const count = observer[key]?.[field];
+        row.append(element('td', '', Number.isSafeInteger(count) && count >= 0 ? count.toLocaleString() : UNAVAILABLE));
+      }
+      counts.body.append(row);
+    }
+    byId('sim-observer-counts').replaceChildren(counts.tableNode);
+    if (!Array.isArray(observer.decisions) || !observer.decisions.length) {
+      byId('sim-observer-decisions').replaceChildren(element('p', 'sim-empty', 'No shadow decision records reported. No trades are inferred.'));
+      return;
+    }
+    const decisions = table(['Time (UTC)', 'Strategy', 'Shadow action', 'Qualification', 'Reason / evidence'], 'Latest read-only shadow decisions; never PAPER fills');
+    for (const decision of observer.decisions.slice(-64).reverse()) {
+      const row = element('tr');
+      const reason = element('td', '', boundedText(decision.reason, 128));
+      reason.append(element('span', 'sim-cell-detail', `Evidence ${boundedText(decision.evidence_sha256, 64)}`));
+      row.append(element('td', '', timestamp(decision.at)), element('td', '', boundedText(decision.strategy, 20)),
+        element('td', '', boundedText(decision.action, 20)), element('td', '', boundedText(decision.qualification, 20)), reason);
+      decisions.body.append(row);
+    }
+    byId('sim-observer-decisions').replaceChildren(decisions.tableNode);
+  }
+
   function renderHistory() {
     const events = snapshot?.state === UNAVAILABLE ? null : snapshot?.history?.events;
     const equity = snapshot?.state === UNAVAILABLE ? null : snapshot?.history?.equity;
@@ -301,6 +350,7 @@
     renderMetrics();
     renderLifecycles();
     renderHistory();
+    renderObserver();
     updateFreshness();
   }
 
