@@ -16,6 +16,8 @@ from urllib.parse import urlsplit
 from .api import Dashboard
 from .model import Reader
 from .snapshots import MAX_BYTES, SnapshotReader, SnapshotStore
+from .simulator import (MAX_BYTES as SIMULATOR_MAX_BYTES, SimulatorChannel,
+                        configured_channel, decode_snapshot)
 
 
 DEFAULT_MAX_CONCURRENCY = 16
@@ -82,6 +84,7 @@ def make_server(
     rate_limit_per_minute=DEFAULT_RATE_LIMIT_PER_MINUTE,
     clock=time.monotonic,
     owner=None, ingest_token=None, snapshot_store=None, public_reads=None,
+    simulator_channel=None, simulator_ingest_token=None,
 ):
     limiter = FixedWindowRateLimiter(rate_limit_per_minute, clock=clock)
     # Public viewing must be explicitly enabled; authenticated ingestion never changes.
@@ -90,6 +93,13 @@ def make_server(
     owner = owner or (os.environ.get('MM_DASHBOARD_OWNER_USER'),
                       os.environ.get('MM_DASHBOARD_OWNER_PASSWORD'))
     ingest_token = ingest_token or os.environ.get('MM_DASHBOARD_INGEST_TOKEN')
+    simulator_channel = simulator_channel or SimulatorChannel()
+    if simulator_ingest_token is None:
+        simulator_ingest_token = os.environ.get('MM_PONS_SIMULATOR_INGEST_TOKEN')
+    # A simulator publisher must never gain the original feed's write authority.
+    if (ingest_token and simulator_ingest_token
+            and hmac.compare_digest(ingest_token.encode(), simulator_ingest_token.encode())):
+        simulator_ingest_token = None
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "MemeMachineDashboard/1"
@@ -127,6 +137,38 @@ def make_server(
             client = self.client_address[0] if self.client_address else "unknown"
             if not limiter.allow(client):
                 self._json(429, {"error": "rate_limited"}, headers={"Retry-After": "60"})
+                return
+            if path == '/api/pons-simulator/snapshot':
+                if not simulator_ingest_token or simulator_channel.store is None:
+                    self._json(503, {'error': 'simulator_ingestion_unavailable'})
+                    return
+                expected = ('Bearer ' + simulator_ingest_token).encode()
+                if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), expected):
+                    self._json(401, {'error': 'unauthorized'})
+                    return
+                if self.command != 'POST':
+                    self._json(405, {'error': 'ingestion_post_only'}, headers={'Allow': 'POST'})
+                    return
+                try:
+                    if (urlsplit(self.path).query or self.headers.get('Transfer-Encoding')
+                            or self.headers.get('Content-Encoding', 'identity') != 'identity'
+                            or self.headers.get('Content-Type', '').split(';')[0] != 'application/json'):
+                        raise ValueError('simulator_content_type')
+                    size = int(self.headers.get('Content-Length', '0'))
+                    if not 0 < size <= SIMULATOR_MAX_BYTES:
+                        self._json(413, {'error': 'simulator_capacity'})
+                        return
+                    body = self.rfile.read(size)
+                    if len(body) != size:
+                        raise ValueError('simulator_incomplete')
+                    result = simulator_channel.store.accept(decode_snapshot(body))
+                except (ValueError, TypeError, KeyError, RuntimeError, OverflowError, RecursionError):
+                    self._json(400, {'error': 'invalid_simulator_snapshot'})
+                    return
+                except OSError:
+                    self._json(503, {'error': 'simulator_unavailable'})
+                    return
+                self._json(202, dict(status='accepted', **result))
                 return
             if path == '/api/dashboard/snapshot':
                 if not ingest_token or snapshot_store is None:
@@ -184,6 +226,8 @@ def make_server(
                 self.send_header('Cache-Control', 'no-store')
                 self.send_header('Content-Length', '0')
                 self.end_headers()
+                return
+            if simulator_channel.serve(self):
                 return
             if path != "/dashboard" and not path.startswith(
                 ("/dashboard/", "/api/dashboard/")
@@ -281,6 +325,7 @@ def main():
             max_concurrency=args.max_concurrency,
             rate_limit_per_minute=args.rate_limit_per_minute,
             snapshot_store=store,
+            simulator_channel=configured_channel(os.environ),
         )
     except ValueError as error:
         parser.error(str(error))
