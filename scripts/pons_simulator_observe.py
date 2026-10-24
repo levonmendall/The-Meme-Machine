@@ -200,9 +200,17 @@ def main():
         signal.signal(sig, interruption)
     started = time.monotonic()
     try:
+        # Preserve only the existing execution environment's outbound proxy
+        # routing. Provider credentials and unrelated runtime configuration
+        # remain excluded. This does not change the fixed RPC destination.
+        child_env = dict(PATH='/usr/bin:/bin', LANG='C', HOME='/nonexistent')
+        for key in ('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY',
+                    'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy'):
+            if os.environ.get(key):
+                child_env[key] = os.environ[key]
         child = subprocess.Popen([sys.executable, '-I', '-B', str(Path(__file__).resolve()), '--child', str(root)],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            env=dict(PATH='/usr/bin:/bin', LANG='C', HOME='/nonexistent'), start_new_session=True)
+            env=child_env, start_new_session=True)
         deadline = started + PROCESS_SECONDS
         while child.poll() is None and not interrupted:
             remaining = deadline - time.monotonic()
