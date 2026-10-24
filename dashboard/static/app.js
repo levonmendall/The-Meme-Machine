@@ -181,9 +181,9 @@ function ponsObserverPanel(feed, expanded=false) {
         <div><span>Recorded restarts</span><strong>${ponsObservationCount(observer?.restart_count)}</strong></div>
       </div>
       ${ponsAccountPanel(feed,sameSource)}
-      <div class="table-wrap"><table><thead><tr><th>Strategy</th><th>Native complete</th><th>Eligible</th><th>WAIT</th><th>Incomplete</th><th>REJECT</th></tr></thead><tbody>${lanes.map(row).join('')}</tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Strategy</th><th>Reference complete</th><th>Reference eligible</th><th>WAIT</th><th>Incomplete</th><th>REJECT</th></tr></thead><tbody>${lanes.map(row).join('')}</tbody></table></div>
       ${lastDecisions}
-      <p class="status-notice">History coverage: ${esc(observer?.history_coverage || 'UNAVAILABLE')} · Feed: ${esc(feed?.state || 'UNAVAILABLE')}. Counts are from the last verified observer snapshot; stale values are not current operations. No PAPER entries are authorized by this view.</p>
+      <p class="status-notice">History coverage: ${esc(observer?.history_coverage || 'UNAVAILABLE')} · Feed: ${esc(feed?.state || 'UNAVAILABLE')}. These are retained unfunded reference counts, not financial Current qualifications or PAPER fills. Stale values are not current operations. No PAPER entries are authorized by this view.</p>
       ${expanded ? '' : '<a class="link" href="#lanes">View Current and Survivor evidence →</a>'}
     </div>
   </section>`;

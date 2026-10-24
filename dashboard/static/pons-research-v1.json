@@ -1,21 +1,21 @@
 {
   "schema": "pons-historical-research-v1",
   "status": "HISTORICAL",
-  "actual_market_asof": "2026-10-24T20:38:44Z",
-  "captured_at": "2026-10-24T20:43:40.254369Z",
+  "actual_market_asof": "2026-10-24T21:48:19Z",
+  "captured_at": "2026-10-24T21:48:20.731098Z",
   "source_app_commit": "ba6ef30d27c379ef03324cf72356bdcc8b1d73e2",
-  "report_sha256": "662987021205e64243ff5c90e088456954d70c2189b89785110c3382683f3cd6",
-  "run_id": "40131074137",
-  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40131074137",
-  "confidence": "Receipt-verified signature tape; 269 events covered by retained native identities. No factory census or executable quote replay.",
-  "coverage": "512 contiguous ranges, blocks 97024878–97045357; market interval 20:02:53–20:38:44 UTC. The bounded sample contains 1,332 events across 209 contracts; only the 32 most active are detailed. V1/V3 and post-graduation V4 are outside this study. Raw-record arrival is not necessarily first awareness of an asset.",
+  "report_sha256": "15dcd402f80178789da79357bd17f5a889e1f768cac7e5ca7dc16ca49d9214a5",
+  "run_id": "40135818667",
+  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40135818667",
+  "confidence": "Retained receipt-signature tape; 653 events covered by retained native identities. Partial identity coverage; no factory census or executable quotes.",
+  "coverage": "854 receipt-authenticated signature events across 109 curves; only the 32 most active curves are detailed, with 77 omitted. This activity-biased V2 sample cannot describe all curves. Retained native identities cover 653 of these 854 events; signature matching alone does not prove Pons factory origin. V1/V3 and post-graduation V4 are outside the study. Horizon price changes use the next recorded trade at or after the requested interval, not fixed-time quotes. Recorded observation lag does not establish an asset's first availability.",
   "observations": [
-    "1,332 receipt-authenticated signature events were retained across 209 contracts. Retained native identities cover 269 of these events; signature matching alone does not establish Pons factory origin.",
-    "The two most active contracts produced 432 of 1,332 events (32.4%). This is event concentration, not market-wide volume, independent-human participation or profitability.",
-    "Raw-record delays reached 962 seconds (16m 2s). Several initial 60/300-second price changes preceded those recorded arrivals. No executable missed profit or simulated fill is established; currency, future depth and exit quotes remain unavailable."
+    "Among 24 of the activity-selected 32 curves with repeated prints on each side, median first-to-last observed buy-side print-price change was +1.65%; sell-side change was -4.57%, measured separately. These are side-specific print paths, not a spread, P&L or attainable return; quote currency, trade size and fees are unavailable.",
+    "Of the 32 detailed curves, 14 had recorded first-observation lag of at most 5s and 18 over 60s. The cohort includes the 2026-10-24 21:19:35–21:37:06 UTC capture pause; its 1,077s maximum is not steady-state latency. None was first observed after 21:40 UTC that day; this does not describe the 77 omitted curves.",
+    "One detailed curve with 180 trades had sell-side print-price changes of +18.26% at the next print at or after 300s (315s) and -23.82% at the final print, both relative to its first sell print in the retained tape. The final change is first-to-last, not a drawdown from the +18.26% point. These tape paths establish neither attainable fills nor prediction; event times do not establish machine availability."
   ],
   "shadow_hypotheses": [
-    "UNVALIDATED: Test whether separate early/late age and curve-progress cohorts retain demand after actual availability, with unchanged capital, cost and protection limits.",
-    "UNVALIDATED: Compare acceleration and buyer-persistence strata chronologically against the frozen baseline. No allocation or promotion without quote-aware out-of-sample evidence."
+    "UNVALIDATED: Compare early/late observed-age and curve-progress cohorts chronologically against the frozen baseline, using prints available after recorded awareness and accounting for costs, with unchanged capital and protection limits.",
+    "UNVALIDATED: Test whether buyer persistence and sell-side continuation survive quote-aware execution costs and pause-separated cohorts. No allocation or promotion without chronological out-of-sample evidence against the frozen baseline."
   ]
 }
