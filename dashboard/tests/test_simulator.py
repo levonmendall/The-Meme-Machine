@@ -27,6 +27,10 @@ OWNER = ('owner', 'synthetic-simulator-owner-password')
 OWNER_AUTH = 'Basic '+base64.b64encode(':'.join(OWNER).encode()).decode()
 ORIGINAL_TOKEN = 'synthetic-original-ingest-token'
 SIMULATOR_TOKEN = 'synthetic-independent-simulator-ingest-token'
+BASELINE_STRATEGY = dict(version='baseline-909738760e6f722b',
+    policy_revision='paper-postgrad-rally-v1',
+    policy_sha256='909738760e6f722b8668a99493f698c3a415867f77f08199a61b0fb047381be7',
+    adaptation_state='BASELINE_UNCHANGED')
 
 
 def utc(value):
@@ -354,6 +358,119 @@ class SimulatorStoreTests(SimulatorFixture):
                 simulator.SimulatorStore(self.path, experiment_id=EXPERIMENT,
                     epoch_id=EPOCH, source_commit=SOURCE, inception_sha256=INCEPTION,
                     clock=lambda: self.now)
+
+
+class SimulatorStrategyVersionTests(SimulatorFixture):
+    def test_omitted_metadata_remains_unknown_and_explicit_null_cannot_replace_it(self):
+        value = snapshot()
+        self.store.accept(value)
+        before = self.path.read_bytes()
+        self.assertIsNone(simulator.SimulatorReader(self.store).view()['strategy_version'])
+        self.assertNotIn('strategy_version', self.store.get())
+        self.assertEqual(value, snapshot())
+        bad = snapshot(sequence=2)
+        bad['strategy_version'] = None
+        with self.assertRaises(ValueError):
+            self.store.accept(sealed(bad))
+        self.assertEqual(self.path.read_bytes(), before)
+        self.assertIsNone(simulator.SimulatorReader(self.store).view()['strategy_version'])
+
+    def test_baseline_experimental_and_reverted_metadata_echo_without_changing_original_feed(self):
+        original = SnapshotStore(self.root/'original-latest.json',
+            epoch='synthetic-original-dashboard', candidate='1'*40, clock=lambda: self.now)
+        original.accept(original_snapshot(NOW))
+        original_bytes = original.path.read_bytes()
+        versions = (BASELINE_STRATEGY,
+            dict(version='experiment-2.1', policy_revision='paper-experiment_r2',
+                policy_sha256='f'*64, adaptation_state='EXPERIMENTAL'),
+            dict(version='a'*64, policy_revision='r'*96,
+                policy_sha256='f'*64, adaptation_state='EXPERIMENTAL'),
+            dict(BASELINE_STRATEGY, adaptation_state='REVERTED'))
+        for sequence, metadata in enumerate(versions, 1):
+            value = snapshot(sequence=sequence)
+            value['strategy_version'] = deepcopy(metadata)
+            value = sealed(value)
+            submitted = deepcopy(value)
+            self.store.accept(value)
+            view = simulator.SimulatorReader(self.store).view()
+            self.assertEqual(view['strategy_version'], metadata)
+            self.assertEqual(value, submitted)
+            view['strategy_version']['version'] = 'unrelated'
+            self.assertEqual(self.store.get()['strategy_version'], metadata)
+            self.assertEqual(original.path.read_bytes(), original_bytes)
+        reopened = simulator.SimulatorStore(self.path, experiment_id=EXPERIMENT,
+            epoch_id=EPOCH, source_commit=SOURCE, inception_sha256=INCEPTION,
+            clock=lambda: self.now)
+        self.assertEqual(simulator.SimulatorReader(reopened).view()['strategy_version'], versions[-1])
+
+    def test_metadata_refuses_private_text_unknown_keys_malformed_types_and_false_baselines(self):
+        self.store.accept(snapshot())
+        before = self.path.read_bytes()
+        mutations = (
+            lambda metadata: metadata.update(provider_url='https://private.invalid/SECRET'),
+            lambda metadata: metadata.update(version='https://private.invalid/SECRET'),
+            lambda metadata: metadata.update(version='/srv/private/SECRET'),
+            lambda metadata: metadata.update(version='<script>SECRET</script>'),
+            lambda metadata: metadata.update(version='Uppercase'),
+            lambda metadata: metadata.update(version='-leading-separator'),
+            lambda metadata: metadata.update(version=''),
+            lambda metadata: metadata.update(version=True),
+            lambda metadata: metadata.update(version='a'*65),
+            lambda metadata: metadata.update(policy_revision='https://private.invalid/SECRET'),
+            lambda metadata: metadata.update(policy_revision='/srv/private/SECRET'),
+            lambda metadata: metadata.update(policy_revision='<script>SECRET</script>'),
+            lambda metadata: metadata.update(policy_revision=1),
+            lambda metadata: metadata.update(policy_revision='a'*97),
+            lambda metadata: metadata.update(policy_sha256='F'*64),
+            lambda metadata: metadata.update(policy_sha256='f'*63),
+            lambda metadata: metadata.update(policy_sha256=None),
+            lambda metadata: metadata.update(adaptation_state='ADAPTED'),
+            lambda metadata: metadata.update(adaptation_state=False),
+            lambda metadata: metadata.update(adaptation_state='BASELINE_UNCHANGED',
+                version='another-baseline'),
+            lambda metadata: metadata.update(adaptation_state='BASELINE_UNCHANGED',
+                policy_revision='another-policy'),
+            lambda metadata: metadata.update(adaptation_state='BASELINE_UNCHANGED',
+                policy_sha256='f'*64),
+            lambda metadata: metadata.pop('policy_revision'),
+        )
+        base = self.server()
+        for index, mutation in enumerate(mutations):
+            metadata = dict(BASELINE_STRATEGY, adaptation_state='EXPERIMENTAL')
+            mutation(metadata)
+            value = snapshot(sequence=2)
+            value['strategy_version'] = metadata
+            value = sealed(value)
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                self.store.accept(value)
+            code, _, raw = self.request(base, '/api/pons-simulator/snapshot', method='POST',
+                authorization='Bearer '+SIMULATOR_TOKEN, value=value)
+            self.assertEqual(code, 400)
+            self.assertEqual(json.loads(raw), dict(error='invalid_simulator_snapshot'))
+            for private in (b'SECRET', b'private.invalid', b'/srv/private', b'<script>'):
+                self.assertNotIn(private, raw)
+            self.assertEqual(self.path.read_bytes(), before)
+            self.assertNotIn('strategy_version', self.store.get())
+
+    def test_manager_counters_are_independent_typed_measurements_and_preserve_observed_zero(self):
+        value = snapshot()
+        value['metrics']['strategy'] = dict(
+            manager_decisions=metric('0', 'COUNT'), manager_rejections=metric('3', 'COUNT'))
+        self.store.accept(sealed(value))
+        strategy = simulator.SimulatorReader(self.store).view()['metrics']['strategy']
+        self.assertEqual(strategy['manager_decisions'], dict(metric('0', 'COUNT'), state='CURRENT'))
+        self.assertEqual(strategy['manager_rejections'], dict(metric('3', 'COUNT'), state='CURRENT'))
+        self.assertEqual(strategy['evaluated'],
+            dict(metric(None, 'COUNT', quality='UNAVAILABLE'), state='UNAVAILABLE'))
+        before = self.path.read_bytes()
+        for field in ('manager_decisions', 'manager_rejections'):
+            for amount in (True, '-1', '1.5'):
+                bad = deepcopy(value)
+                bad['sequence'] = 2
+                bad['metrics']['strategy'][field]['value'] = amount
+                with self.subTest(field=field, amount=amount), self.assertRaises(ValueError):
+                    self.store.accept(sealed(bad))
+                self.assertEqual(self.path.read_bytes(), before)
 
 
 class SimulatorChannelTests(SimulatorFixture):
