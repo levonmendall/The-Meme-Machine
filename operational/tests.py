@@ -175,6 +175,7 @@ FAST=[
 ]
 OPERATIONAL=FAST+[
  'tests.test_pons_simulator',
+ 'tests.test_pons_simulator_publish',
  'tests.lanes.pons.test_sequencer_proxy',
  'dashboard.tests.test_simulator',
  'tests.test_original_pump_window_replay',
