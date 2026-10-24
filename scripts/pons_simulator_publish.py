@@ -190,7 +190,7 @@ def build(current, source_commit):
     equity_rows = [dict(at=row['at'], equity=metric(row['value'], 'USD', row['at']))
         for row in portfolio.get('history', []) if row.get('series') == 'portfolio']
     history = dict(equity=dict(rows=equity_rows[-contract.MAX_EQUITY:], total=None, complete=False),
-        events=dict(rows=[], total=0 if empty else None, complete=empty))
+        events=dict(rows=[], total=None, complete=False))
     lifecycles = []
     for position in positions[-contract.MAX_LIFECYCLES:]:
         life = position['id']
