@@ -173,7 +173,7 @@ def build(current, source_commit):
         projection = capture.get('native_projection') or {}
         if ranges:
             range_at = utc(ranges[-1]['completion_epoch_seconds'])
-            put('operational', 'processing_latency_ms', ranges[-1]['native_consume_seconds'] * 1000, range_at)
+            put('operational', 'range_processing_ms', ranges[-1]['native_consume_seconds'] * 1000, range_at)
         if progress:
             sampled_at = utc(progress[-1]['wall_epoch_seconds'])
             if 'sampled_block_debt' in contract.METRICS['activity']:
@@ -182,6 +182,7 @@ def build(current, source_commit):
         put('activity', 'events_processed', projection.get('durable_economic_events'), observed_at)
         seen = projection.get('scout', {}).get('events', {}).get('curve')
         put('activity', 'events_seen', seen, observed_at)
+        put('activity', 'launch_events', projection.get('scout', {}).get('events', {}).get('launch'), observed_at)
         if not provider_failure and sum(row['completed_requests'] for row in capture.get('rpc_latency', [])):
             put('operational', 'connected', 1, observed_at)
     if execution in ('STOPPED', 'FAILED'):
