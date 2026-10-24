@@ -213,12 +213,13 @@ def runtime(command):
 
 
 def main(argv=None):
+    from meme_machine.shared_capital.model import CapitalError
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=('prepare', 'status', 'shadow', 'run'))
     args = parser.parse_args(argv)
     try:
         result = prepare() if args.command == 'prepare' else status() if args.command == 'status' else runtime(args.command)
-    except (SimulatorFailure, OSError, ValueError, sqlite3.Error) as error:
+    except (SimulatorFailure, CapitalError, OSError, ValueError, sqlite3.Error) as error:
         reason = str(error) if type(error) is SimulatorFailure else 'SIMULATOR_STATE_UNAVAILABLE'
         result = dict(state='REFUSED', reason=reason, paper_only=True, real_money_authority=False)
     print(json.dumps(result, sort_keys=True, allow_nan=False))
