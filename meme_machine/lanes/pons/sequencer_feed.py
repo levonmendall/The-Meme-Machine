@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 from collections import OrderedDict
 import hashlib
+import http.client
 import json
 import os
 import socket
@@ -16,7 +17,8 @@ import ssl
 import struct
 import time
 import zlib
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
+from urllib.request import getproxies_environment, proxy_bypass_environment
 
 from . import BoundaryError
 from .provider_topology import SEQUENCER_FEED_URL
@@ -33,6 +35,64 @@ class SequencerTransportError(RuntimeError):
     This is deliberately distinct from BoundaryError. Protocol/continuity failures
     remain fail-closed; only socket/TLS/clean-close transport loss is reconnectable.
     """
+
+
+def _proxy_endpoint(host, port):
+    """Use inherited standard proxy/NO_PROXY rules; never silently evade one."""
+    proxies = getproxies_environment()
+    authority = f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
+    if proxy_bypass_environment(authority, proxies):
+        return None
+    value = proxies.get("https") or proxies.get("http") or proxies.get("all")
+    if not value:
+        return None
+    try:
+        if not isinstance(value, str) or len(value) > 8192 or any(ord(c) < 32 for c in value):
+            raise ValueError()
+        parsed = urlsplit(value if "://" in value else "http://" + value)
+        proxy_port = 80 if parsed.port is None else parsed.port
+        # HTTPS_PROXY commonly names an HTTP CONNECT proxy. TLS-to-proxy and
+        # SOCKS need a different transport and are refused instead of bypassed.
+        if (parsed.scheme != "http" or not parsed.hostname or parsed.path not in ("", "/")
+                or parsed.query or parsed.fragment or not 0 < proxy_port <= 65535):
+            raise ValueError()
+        headers = {}
+        if parsed.username is not None:
+            user = unquote(parsed.username)
+            password = unquote(parsed.password or "")
+            if ":" in user or any(ord(c) < 32 for c in user + password):
+                raise ValueError()
+            credentials = base64.b64encode((user + ":" + password).encode("utf-8")).decode("ascii")
+            headers["Proxy-Authorization"] = "Basic " + credentials
+        return parsed.hostname, proxy_port, headers
+    except (ValueError, UnicodeError):
+        raise BoundaryError("sequencer_feed_proxy_configuration") from None
+
+
+def _open_tls_socket(host, port, timeout):
+    proxy = _proxy_endpoint(host, port)
+    if proxy is None:
+        raw = socket.create_connection((host, port), timeout=timeout)
+        context = ssl.create_default_context()
+        return context.wrap_socket(raw, server_hostname=host)
+    proxy_host, proxy_port, headers = proxy
+    connection = None
+    try:
+        connection = http.client.HTTPConnection(proxy_host, proxy_port, timeout=timeout)
+        connection.set_tunnel(host, port=port, headers=headers)
+        connection.connect()
+        # create_default_context retains hostname/certificate verification and
+        # the ordinary SSL_CERT_FILE/SSL_CERT_DIR cloud trust configuration.
+        context = ssl.create_default_context()
+        wrapped = context.wrap_socket(connection.sock, server_hostname=host)
+        connection.sock = None  # The returned TLS socket now owns the tunnel.
+        return wrapped
+    except (http.client.HTTPException, OSError, ValueError):
+        if connection is not None:
+            connection.close()
+        # Proxy errors may contain the proxy's reason phrase or authentication
+        # configuration. Preserve a recoverable transport class, fixed text only.
+        raise OSError("sequencer_feed_proxy_connect_failed") from None
 
 
 def feed_url(environ=None):
@@ -236,12 +296,7 @@ class _WebSocket:
         if parsed.scheme != "wss" or not parsed.hostname:
             raise BoundaryError("robinhood_sequencer_feed_requires_wss")
         port = parsed.port or 443
-        raw = socket.create_connection(
-            (parsed.hostname, port),
-            timeout=self.timeout,
-        )
-        context = ssl.create_default_context()
-        sock = context.wrap_socket(raw, server_hostname=parsed.hostname)
+        sock = _open_tls_socket(parsed.hostname, port, self.timeout)
         sock.settimeout(self.timeout)
         path = parsed.path or "/"
         if parsed.query:
