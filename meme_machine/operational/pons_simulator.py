@@ -1,8 +1,8 @@
 """One separate experimental PAPER epoch using the ordinary Pons economics.
 
-Preparation and reporting are usable without a market connection. Live commands
-fail closed until the standalone resource/storage integration is available; they
-never borrow the original service or protected pilot's identity or acceptance.
+Preparation and reporting work without a market connection. The live adapter
+uses the ordinary Supervisor and native Pons child with a separate, explicitly
+experimental process-limit/storage contract, never another service's identity.
 """
 import argparse
 from contextlib import closing
@@ -11,8 +11,12 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import resource
 import sqlite3
 import stat
+import subprocess
+import sys
+import threading
 import time
 
 
@@ -23,6 +27,12 @@ SOURCE = Path(__file__).resolve().parents[2]
 RISK_FILE = SOURCE / 'operational/shared-capital-activation/risk-policy.shared-1000.proposed.json'
 RISK_FILE_SHA256 = 'f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034'
 RISK_SHA256 = 'b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c'
+PROFILE_SOURCE = SOURCE / 'operational/pump-first-release/deployment/paper-continuous.four-regime.json'
+PROFILE_SOURCE_SHA256 = '7d07d80ca00218e4a65b05c873cb10ae2686ebe9109cd7fd4d61d5b39e0e048f'
+PARENT_AS = 1024**3
+NATIVE_AS = 6 * 1024**3
+NOFILE = 32768
+RESOURCE_CONTRACT = 'experimental_process_limits_v1'
 OBLIGATIONS = ('reservations', 'commitments', 'obligations', 'pending_deliveries',
                'pending_backing', 'runtime_pending', 'runtime_inbox')
 
@@ -38,6 +48,234 @@ def require(value, code):
 
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+
+
+def write_once(path, value):
+    raw = canonical(value)
+    physical(path)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(fd, 'wb', closefd=False) as out:
+            out.write(raw); out.flush(); os.fsync(out.fileno())
+    finally:
+        os.close(fd)
+    directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+    require(path.read_bytes() == raw, 'SIMULATOR_STORAGE_READBACK_FAILED')
+
+
+def read_json(path):
+    physical(path)
+    before = path.lstat()
+    require(stat.S_ISREG(before.st_mode) and before.st_uid == os.geteuid()
+            and before.st_nlink == 1 and not before.st_mode & 0o077 and before.st_size <= 65536,
+            'SIMULATOR_PRIVATE_FILE_REQUIRED')
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        raw = os.read(fd, 65537)
+        after = os.fstat(fd)
+        require((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+                == (after.st_dev, after.st_ino, len(raw), after.st_mtime_ns, after.st_ctime_ns),
+                'SIMULATOR_FILE_CHANGED')
+    finally:
+        os.close(fd)
+    return json.loads(raw)
+
+
+def storage_space():
+    physical(STATE)
+    fs = os.statvfs(STATE)
+    available = fs.f_bavail * fs.f_frsize
+    used = (fs.f_blocks - fs.f_bfree) * fs.f_frsize
+    require(available >= 5 * 1024**3 and used / (used + available) < .85,
+            'SIMULATOR_STORAGE_HEADROOM_REQUIRED')
+    return dict(device=STATE.stat().st_dev, available_bytes=available)
+
+
+def verify_experimental_storage():
+    financial = export_state()
+    observed = storage_space()
+    path = STATE / 'simulator-storage.json'
+    binding = dict(schema='pons-simulator-storage-v1', epoch_id=EPOCH,
+        inception_sha256=financial['inception_sha256'], device=observed['device'],
+        storage_contract='experimental_current_filesystem_v1', power_loss_recovery_verified=False)
+    if path.exists() or path.is_symlink():
+        require(read_json(path) == binding, 'SIMULATOR_STORAGE_BINDING_CHANGED')
+    else:
+        write_once(path, binding)
+    return binding
+
+
+def continuous_profile():
+    physical(PROFILE_SOURCE)
+    raw = PROFILE_SOURCE.read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == PROFILE_SOURCE_SHA256,
+            'SIMULATOR_CONTINUOUS_SOURCE_CHANGED')
+    profile = json.loads(raw)
+    profile.update(funding_regimes=['pons_current'], maximum_cpu_cores='1')
+    from .position_continuation import validate_continuous
+    validate_continuous(profile)
+    path = STATE / 'continuous-profile.json'
+    if path.exists() or path.is_symlink():
+        require(read_json(path) == profile, 'SIMULATOR_CONTINUOUS_PROFILE_CHANGED')
+    else:
+        write_once(path, profile)
+    return profile
+
+
+def ensure_provider_usage():
+    """One durable fresh-experiment ledger, then ordinary reopen; never reset."""
+    from .bounded_provider import Budget
+    profile = continuous_profile()
+    path = STATE / 'shared/provider-usage.continuous.sqlite'
+    physical(path)
+    budget = Budget(path) if path.exists() else Budget.create(path, continuous=profile)
+    require(budget.continuous and budget.envelope == profile,
+            'SIMULATOR_EXISTING_PROVIDER_PROFILE_MISMATCH')
+    budget.preflight_file()
+    return budget
+
+
+def process_facts(pid):
+    root = Path('/proc') / str(pid)
+    def stamp():
+        raw = (root / 'stat').read_text()
+        require(len(raw) <= 4096, 'SIMULATOR_PROCESS_IDENTITY_UNAVAILABLE')
+        fields = raw.rsplit(')', 1)[1].split()
+        return int(fields[19]), int(fields[1])
+    start, parent = stamp()
+    text = (root / 'status').read_text()
+    require(len(text) <= 65536, 'SIMULATOR_PROCESS_IDENTITY_UNAVAILABLE')
+    status = dict(line.split(':', 1) for line in text.splitlines() if ':' in line)
+    require(int(status['Uid'].split()[0]) == os.geteuid(), 'SIMULATOR_PROCESS_OWNER_CHANGED')
+    limits = {}
+    for line in (root / 'limits').read_text().splitlines():
+        for key in ('Max address space', 'Max open files', 'Max core file size'):
+            if line.startswith(key):
+                limits[key] = tuple(int(value) for value in line[len(key):].split()[:2])
+    tasks = list((root / 'task').iterdir())
+    require(0 < len(tasks) <= 128, 'SIMULATOR_PROCESS_TOPOLOGY_CHANGED')
+    affinities = [set(os.sched_getaffinity(int(task.name))) for task in tasks]
+    children = {int(value) for task in tasks for value in (task / 'children').read_text().split()}
+    require(stamp() == (start, parent), 'SIMULATOR_PROCESS_IDENTITY_CHANGED')
+    return dict(pid=pid, start=start, parent=parent, rss=int(status['VmRSS'].split()[0]) * 1024,
+                limits=limits, affinities=affinities, children=children)
+
+
+def own_cgroup_memory():
+    raw = Path('/proc/self/cgroup').read_text().strip()
+    require(len(raw) <= 4096 and raw.startswith('0::/') and '\n' not in raw,
+            'SIMULATOR_CGROUP_UNAVAILABLE')
+    relative = raw[3:]
+    require(all(part not in ('.', '..') for part in Path(relative).parts)
+            and relative not in ('/system.slice/meme-machine-paper.service',
+                                 '/system.slice/meme-machine-pons-pilot.service'),
+            'SIMULATOR_FOREIGN_RESOURCE_IDENTITY')
+    group = Path('/sys/fs/cgroup') / relative.lstrip('/')
+    maximum = (group / 'memory.max').read_text().strip()
+    require(maximum.isdecimal() and int(maximum) > 0, 'SIMULATOR_INHERITED_MEMORY_LIMIT_REQUIRED')
+    return int((group / 'memory.current').read_text()), int(maximum)
+
+
+def install_process_limits(*, native=False):
+    # This runs only in a dedicated CLI process or the single-thread exec
+    # launcher, never preexec_fn inside the threaded Supervisor.
+    require(len(list(Path('/proc/self/task').iterdir())) == 1,
+            'SIMULATOR_SINGLE_THREAD_LAUNCH_REQUIRED')
+    affinity = sorted(os.sched_getaffinity(0))
+    require(bool(affinity), 'SIMULATOR_CPU_AFFINITY_UNAVAILABLE')
+    os.sched_setaffinity(0, {affinity[0]})
+    for key, soft, hard in ((resource.RLIMIT_AS, NATIVE_AS if native else PARENT_AS, NATIVE_AS),
+            (resource.RLIMIT_NOFILE, NOFILE, NOFILE), (resource.RLIMIT_CORE, 0, 0)):
+        current_hard = resource.getrlimit(key)[1]
+        require(current_hard == resource.RLIM_INFINITY or current_hard >= hard,
+                'SIMULATOR_INHERITED_LIMIT_TOO_SMALL')
+        resource.setrlimit(key, (soft, hard))
+        require(resource.getrlimit(key) == (soft, hard), 'SIMULATOR_LIMIT_NOT_ENFORCED')
+    return set(os.sched_getaffinity(0))
+
+
+def native_child():
+    require(os.environ.get('MM_MODE') == 'PAPER' and os.environ.get('MM_STATE_ROOT') == str(STATE)
+            and os.environ.get('MM_PAPER_EPOCH') == EPOCH
+            and os.environ.get('MM_RUNTIME_LANE') == 'pons', 'SIMULATOR_NATIVE_SCOPE_REQUIRED')
+    install_process_limits(native=True)
+    os.execv(sys.executable, [sys.executable, '-m', 'meme_machine.operational.lane',
+        '--lane', 'pons', '--state-root', str(STATE)])
+
+
+def supervisor_type():
+    from .supervisor import Supervisor
+    class SimulatorSupervisor(Supervisor):
+        def __init__(self, *, admission):
+            super().__init__(STATE, admission=admission)
+            self.expected_affinity = set(os.sched_getaffinity(0))
+            self.parent_start = process_facts(os.getpid())['start']
+            self.native_start = None
+
+        def verify_storage(self):
+            require(self.root == STATE, 'SIMULATOR_STATE_SCOPE_CHANGED')
+            return verify_experimental_storage()
+
+        def launch_lane(self, lane, args, folder, env):
+            require(lane == 'pons' and self.runtime_lanes() == ('pons',), 'SIMULATOR_PONS_ONLY_REQUIRED')
+            child = subprocess.Popen([sys.executable, '-m', 'meme_machine.operational.pons_simulator', 'native-child'],
+                cwd=folder, env=env, start_new_session=True)
+            try:
+                self.native_start = (child.pid, process_facts(child.pid)['start'])
+            except BaseException:
+                child.kill(); child.wait(timeout=5)
+                raise
+            return child
+
+        def resource_health(self, now, reason):
+            try:
+                require(set(self.processes) == {'pons'} and self.native_start is not None,
+                        'SIMULATOR_PROCESS_TOPOLOGY_CHANGED')
+                parent = process_facts(os.getpid())
+                child = process_facts(self.processes['pons'].pid)
+                require(parent['start'] == self.parent_start
+                        and (child['pid'], child['start']) == self.native_start
+                        and child['parent'] == parent['pid']
+                        and parent['children'] == {child['pid']} and not child['children'],
+                        'SIMULATOR_PROCESS_TOPOLOGY_CHANGED')
+                require(len(self.expected_affinity) == 1 and all(affinity == self.expected_affinity
+                    for row in (parent, child) for affinity in row['affinities']),
+                    'SIMULATOR_CPU_AFFINITY_CHANGED')
+                for row, address_space in ((parent, PARENT_AS), (child, NATIVE_AS)):
+                    require(row['limits'].get('Max address space') == (address_space, NATIVE_AS)
+                            and row['limits'].get('Max open files') == (NOFILE, NOFILE)
+                            and row['limits'].get('Max core file size') == (0, 0),
+                            'SIMULATOR_LIMIT_NOT_CURRENT')
+                memory, inherited_maximum = own_cgroup_memory()
+                rss = parent['rss'] + child['rss']
+                ceiling = self.provider_budget.envelope['maximum_rss_bytes']
+                require(rss < ceiling and memory < ceiling, 'SIMULATOR_MEMORY_PRESSURE')
+                storage_space()
+                self.resource_measurement = dict(limits_verified=True, resource_contract=RESOURCE_CONTRACT,
+                    cgroup_scope='INHERITED_SHARED', cgroup_memory_bytes=memory,
+                    inherited_cgroup_memory_max=inherited_maximum, aggregate_rss_bytes=rss,
+                    parent_as_bytes=PARENT_AS, native_as_bytes=NATIVE_AS,
+                    aggregate_address_space_ceiling=PARENT_AS + NATIVE_AS,
+                    configured_cpu_cores='1', cpu_affinity=sorted(self.expected_affinity),
+                    maximum_queue_depth=64, maximum_queue_wait_seconds=5,
+                    original_cgroup_contract_verified=False)
+            except (OSError, ValueError, KeyError, ArithmeticError):
+                self.resource_measurement = dict(limits_verified=False, resource_contract=RESOURCE_CONTRACT,
+                    state='UNAVAILABLE', original_cgroup_contract_verified=False)
+                reason = reason or 'simulator_resource_evidence_unavailable'
+            return reason
+
+        def publish(self, *, provider_sample=None):
+            # Ordinary OBSERVATION does not run continuation_health. Measure on
+            # its existing main-loop publication cadence as well as NORMAL.
+            if self.admission == 'OBSERVATION' and getattr(self, 'provider_budget', None):
+                self.resource_health(time.time(), None)
+            return super().publish(provider_sample=provider_sample)
+    return SimulatorSupervisor
 
 
 def physical(path):
@@ -185,11 +423,6 @@ def runtime_blockers(environ=None):
         endpoint(environ=env)
     except ValueError:
         blockers.append('CANONICAL_ALCHEMY_PROVIDER_NOT_CONFIGURED')
-    # ba6 Supervisor authenticates only the original/protected-pilot cgroups and
-    # ext4 storage identities. Neither proof applies to this workspace process.
-    # No caller flag, borrowed service name or invented resource proof opens it.
-    blockers.extend(('STANDALONE_RESOURCE_BINDING_UNAVAILABLE',
-                     'STANDALONE_STORAGE_BINDING_UNAVAILABLE'))
     return blockers
 
 
@@ -201,25 +434,159 @@ def status():
     return result
 
 
+def configure_runtime():
+    from .supervisor import validate_environment
+    from meme_machine.runtime.robinhood.provider_authority import endpoint
+    endpoint()  # Configuration identity only. No secret is returned or serialized.
+    validate_environment(required_lanes=('pons',))
+    profile = continuous_profile()
+    verify_experimental_storage()
+    ensure_provider_usage()
+    os.environ.update(MM_MODE='PAPER', MM_STATE_ROOT=str(STATE), MM_PAPER_EPOCH=EPOCH,
+        MM_PROVIDER_OPERATION_MODE='CONTINUOUS',
+        MM_PROVIDER_USAGE_DB=str(STATE / 'shared/provider-usage.continuous.sqlite'),
+        MM_CONTINUOUS_PROVIDER_ENVELOPE=str(STATE / 'continuous-profile.json'),
+        MM_PROVIDER_DB=str(STATE / 'shared/robinhood-provider.sqlite'),
+        MM_RPC_CACHE_DB=str(STATE / 'shared/robinhood-evidence.sqlite'),
+        MM_ROBINHOOD_STATE_DIR=str(STATE / 'shared'),
+        MM_VOLUME_QUALITY_ENABLED='1', MM_PONS_OBSERVATION_ROUTE='canonical_primary',
+        MM_PONS_USD_BRIDGE_ROUTES='verified_two_hop_v1', MM_PONS_USD_ACQUISITION_OVERLAP='1')
+    # Budget creation/reopen remains the ordinary Supervisor operation. Nothing
+    # here removes, replaces or replenishes an existing usage database/counter.
+    return profile
+
+
+def native_drain():
+    """Check actual stopped native checkpoint/ownership, separately from money."""
+    cohort = STATE / 'pons/pons-selective-continuation-v1-cohort'
+    progress_path = cohort / 'cohort-progress.json'
+    physical(progress_path)
+    progress = json.loads(progress_path.read_text())
+    physical(STATE / 'pons/health.json')
+    health = json.loads((STATE / 'pons/health.json').read_text())
+    with closing(readonly(STATE / 'shared/robinhood-evidence.candidates.sqlite')) as db:
+        rows = dict(db.execute("SELECT key,body FROM runtime WHERE key IN ('pons_current_startup','pons_cohort')"))
+        require(set(rows) == {'pons_current_startup', 'pons_cohort'}, 'SIMULATOR_NATIVE_CHECKPOINT_REQUIRED')
+        startup, checkpoint = (json.loads(rows[key]) for key in ('pons_current_startup', 'pons_cohort'))
+        require(startup.get('complete') is True and startup == progress.get('current_startup_coverage')
+                and checkpoint.get('cursor') == progress.get('canonical_discovery_cursor')
+                and checkpoint.get('phase') == progress.get('phase') == 'finalizing',
+                'SIMULATOR_NATIVE_DRAIN_INCOMPLETE')
+        require(db.execute('SELECT count(*) FROM candidates WHERE claim IS NOT NULL').fetchone()[0] == 0
+                and db.execute('SELECT count(*) FROM receipt_obligations').fetchone()[0] == 0,
+                'SIMULATOR_NATIVE_OBLIGATIONS_REMAIN')
+    proof = health.get('native_continuation', {})
+    require(health.get('phase') == 'STOPPED' and health.get('reconciled') is True
+            and all(proof.get(key) is True for key in ('current_restored', 'survivor_replay_verified',
+                'survivor_handoff_ready', 'exit_path_bound')), 'SIMULATOR_NATIVE_RECOVERY_REQUIRED')
+    return dict(cursor=checkpoint['cursor'], startup_complete=True,
+                current_survivor_recovery=True, held_protection_demonstrated=False)
+
+
+def shadow(service):
+    """The ordinary owner runs; one read-only observer measures the usable window."""
+    from .acceptance import observe
+    from .position_continuation import readiness
+    stopped = threading.Event()
+    began = time.monotonic()
+    measured = dict(ready=None, first_cursor=None, last_cursor=None, last_sample=None, samples=0, failure=None)
+    def sample():
+        while not stopped.wait(2):
+            now = time.monotonic()
+            usable = False
+            try:
+                health, portfolio, rss = observe(STATE, funding_lanes=('pons',))
+                require(health['admission_mode'] == 'OBSERVATION', 'SIMULATOR_SHADOW_FUNDING_MODE')
+                readiness(health, portfolio, rss, service.provider_budget.envelope)
+                cursor = health['active_evidence']['pons_canonical_cursor']
+                usable = True
+            except (OSError, ValueError, KeyError, RuntimeError, AttributeError):
+                pass
+            if measured['ready'] is None:
+                if now - began > 300:
+                    measured['failure'] = 'SIMULATOR_SHADOW_READINESS_DEADLINE'
+                elif usable:
+                    measured.update(ready=now, first_cursor=cursor, last_cursor=cursor,
+                                    last_sample=now, samples=1)
+            elif not usable or now - measured['last_sample'] > 5 or cursor < measured['last_cursor']:
+                measured['failure'] = 'SIMULATOR_SHADOW_REQUIRED_EVIDENCE_LOST'
+            else:
+                measured.update(last_sample=now, last_cursor=cursor, samples=measured['samples'] + 1)
+                if now - measured['ready'] >= 120 and cursor > measured['first_cursor']:
+                    service.stop_requested = True
+                    return
+            if measured['failure']:
+                service.stop_requested = True
+                return
+    thread = threading.Thread(target=sample, name='simulator-readonly-shadow', daemon=True)
+    thread.start()
+    try:
+        service.run(seconds=420)
+    finally:
+        stopped.set(); thread.join(6)
+    require(not thread.is_alive(), 'SIMULATOR_SHADOW_OBSERVER_DID_NOT_JOIN')
+    require(measured['failure'] is None, measured['failure'] or 'SIMULATOR_SHADOW_FAILED')
+    require(measured['ready'] is not None and measured['last_sample'] - measured['ready'] >= 120
+            and measured['last_cursor'] > measured['first_cursor'], 'SIMULATOR_SHADOW_WINDOW_INCOMPLETE')
+    financial = export_state()
+    require(all(value == 0 for value in financial['obligations'].values()),
+            'SIMULATOR_SHADOW_FINANCIAL_OBLIGATIONS_REMAIN')
+    drain = native_drain()
+    result = dict(schema='pons-simulator-shadow-v1', epoch_id=EPOCH,
+        inception_sha256=financial['inception_sha256'], sequence=financial['sequence'],
+        journal_hash=financial['journal_hash'], ended_at=time.time(),
+        usable_seconds=measured['last_sample'] - measured['ready'],
+        startup_seconds=measured['ready'] - began, samples=measured['samples'],
+        first_cursor=measured['first_cursor'], last_cursor=measured['last_cursor'],
+        funding_mode='OBSERVATION', native=drain, resource_contract=RESOURCE_CONTRACT,
+        held_protection_demonstrated=False, autonomous_acceptance=False)
+    # Successful history is append-only; later failures never replace it with PASS.
+    path = STATE / ('simulator-shadow-' + str(time.time_ns()) + '.json')
+    write_once(path, result)
+    return dict(state='SHADOW_DRAIN_VERIFIED', shadow=result, financial=financial,
+                shadow_receipt=path.name, paper_only=True, real_money_authority=False)
+
+
 def runtime(command):
     require(command in ('shadow', 'run'), 'SIMULATOR_COMMAND_INVALID')
-    result = status()
-    # This adapter deliberately has no alternate strategy/quote/financial loop.
-    # The ordinary Supervisor/lane must be used once its actual standalone
-    # resource, storage and provider contracts have been implemented/validated.
-    result.update(state='BLOCKED', requested_command=command, native_runtime_started=False,
-                  shadow_accepted=False, held_protection_demonstrated=False)
-    return result
+    blockers = runtime_blockers()
+    if blockers:
+        return dict(state='BLOCKED', epoch_id=EPOCH, requested_command=command, blockers=blockers,
+            native_runtime_started=False, shadow_accepted=False, real_money_authority=False)
+    configure_runtime()
+    if command == 'run':
+        # First NORMAL is deliberately separate from a successful live shadow.
+        # Existing native recovery and fresh60s readiness still gate every fill.
+        receipts = sorted(STATE.glob('simulator-shadow-*.json'))
+        require(bool(receipts), 'SIMULATOR_DRAINED_SHADOW_REQUIRED')
+        prior = read_json(receipts[-1])
+        current = export_state()
+        require(prior.get('schema') == 'pons-simulator-shadow-v1' and prior.get('epoch_id') == EPOCH
+                and prior.get('inception_sha256') == current['inception_sha256']
+                and prior.get('usable_seconds', 0) >= 120
+                and 0 <= time.time() - prior.get('ended_at', 0) <= 900,
+                'SIMULATOR_DRAINED_SHADOW_REQUIRED')
+        native_drain()
+    install_process_limits()
+    service = supervisor_type()(admission='OBSERVATION' if command == 'shadow' else 'NORMAL')
+    if command == 'shadow':
+        return shadow(service)
+    service.run()
+    return dict(state='STOPPED', financial=export_state(), paper_only=True, real_money_authority=False)
 
 
 def main(argv=None):
     from meme_machine.shared_capital.model import CapitalError
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('prepare', 'status', 'shadow', 'run'))
+    parser.add_argument('command', choices=('prepare', 'status', 'shadow', 'run', 'native-child'))
     args = parser.parse_args(argv)
+    if args.command == 'native-child':
+        native_child()
+        return 2
     try:
         result = prepare() if args.command == 'prepare' else status() if args.command == 'status' else runtime(args.command)
-    except (SimulatorFailure, CapitalError, OSError, ValueError, sqlite3.Error) as error:
+    except (SimulatorFailure, CapitalError, OSError, ValueError, RuntimeError,
+            sqlite3.Error, subprocess.SubprocessError) as error:
         reason = str(error) if type(error) is SimulatorFailure else 'SIMULATOR_STATE_UNAVAILABLE'
         result = dict(state='REFUSED', reason=reason, paper_only=True, real_money_authority=False)
     print(json.dumps(result, sort_keys=True, allow_nan=False))
