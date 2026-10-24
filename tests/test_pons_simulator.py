@@ -265,6 +265,37 @@ class PonsSimulatorTests(unittest.TestCase):
                 simulator.ensure_provider_usage()
             create.assert_not_called()
 
+    def test_final_joined_observation_publication_preserves_prior_fault_without_dead_pid_probe(self):
+        from meme_machine.operational.supervisor import Supervisor
+        kind = simulator.supervisor_type()
+        for failure in (None, 'SIMULATOR_RESOURCE_EVIDENCE_UNAVAILABLE'):
+            service = kind.__new__(kind)
+            service.admission = 'OBSERVATION'
+            service.provider_budget = object()
+            service.stop_requested = True
+            service.processes = {'pons': SimpleNamespace(poll=lambda: 0)}
+            service.resource_failure = failure
+            with self.subTest(failure=failure), patch.object(kind, 'resource_health') as sample, \
+                    patch.object(Supervisor, 'publish', return_value='published'):
+                self.assertEqual(service.publish(), 'published')
+                sample.assert_not_called()
+            self.assertEqual(service.resource_failure, failure)
+            self.assertEqual(service.resource_measurement['state'], 'STOPPED')
+            self.assertFalse(service.resource_measurement['limits_verified'])
+
+    def test_native_launcher_refuses_parent_source_mismatch_before_limits_or_exec(self):
+        env = dict(MM_MODE='PAPER', MM_STATE_ROOT=str(self.state), MM_PAPER_EPOCH=simulator.EPOCH,
+                   MM_RUNTIME_LANE='pons', MM_PONS_SIMULATOR_SOURCE_COMMIT='a' * 40,
+                   MM_PONS_SIMULATOR_SOURCE_TREE='b' * 40)
+        with patch.dict(os.environ, env, clear=True), \
+                patch.object(simulator, 'source_binding', return_value={'commit': 'c' * 40, 'tree': 'b' * 40}), \
+                patch.object(simulator, 'install_process_limits') as limits, \
+                patch.object(simulator.os, 'execv') as execute:
+            with self.assertRaisesRegex(simulator.SimulatorFailure, 'SIMULATOR_NATIVE_SOURCE_CHANGED'):
+                simulator.native_child()
+            limits.assert_not_called()
+            execute.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

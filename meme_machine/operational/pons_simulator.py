@@ -235,7 +235,9 @@ def native_child():
     require(os.environ.get('MM_MODE') == 'PAPER' and os.environ.get('MM_STATE_ROOT') == str(STATE)
             and os.environ.get('MM_PAPER_EPOCH') == EPOCH
             and os.environ.get('MM_RUNTIME_LANE') == 'pons', 'SIMULATOR_NATIVE_SCOPE_REQUIRED')
-    source_binding()
+    expected = dict(commit=os.environ.pop('MM_PONS_SIMULATOR_SOURCE_COMMIT', ''),
+                    tree=os.environ.pop('MM_PONS_SIMULATOR_SOURCE_TREE', ''))
+    require(source_binding() == expected, 'SIMULATOR_NATIVE_SOURCE_CHANGED')
     install_process_limits(native=True)
     os.execv(sys.executable, [sys.executable, '-m', 'meme_machine.operational.lane',
         '--lane', 'pons', '--state-root', str(STATE)])
@@ -244,8 +246,9 @@ def native_child():
 def supervisor_type():
     from .supervisor import Supervisor
     class SimulatorSupervisor(Supervisor):
-        def __init__(self, *, admission):
+        def __init__(self, *, admission, binding):
             super().__init__(STATE, admission=admission)
+            self.frozen_source = binding
             self.expected_affinity = set(os.sched_getaffinity(0))
             self.parent_start = process_facts(os.getpid())['start']
             self.native_start = None
@@ -260,8 +263,10 @@ def supervisor_type():
 
         def launch_lane(self, lane, args, folder, env):
             require(lane == 'pons' and self.runtime_lanes() == ('pons',), 'SIMULATOR_PONS_ONLY_REQUIRED')
+            scoped = dict(env, MM_PONS_SIMULATOR_SOURCE_COMMIT=self.frozen_source['commit'],
+                          MM_PONS_SIMULATOR_SOURCE_TREE=self.frozen_source['tree'])
             child = subprocess.Popen([sys.executable, '-m', 'meme_machine.operational.pons_simulator', 'native-child'],
-                cwd=folder, env=env, start_new_session=True)
+                cwd=folder, env=scoped, start_new_session=True)
             try:
                 self.native_start = (child.pid, process_facts(child.pid)['start'])
                 deadline = time.monotonic() + 10
@@ -331,7 +336,15 @@ def supervisor_type():
             # Ordinary OBSERVATION does not run continuation_health. Measure on
             # its existing main-loop publication cadence as well as NORMAL.
             if self.admission == 'OBSERVATION' and getattr(self, 'provider_budget', None):
-                self.resource_health(time.time(), None)
+                if self.stop_requested and self.processes and all(
+                        proc.poll() is not None for proc in self.processes.values()):
+                    # Supervisor's final publication follows joined ownership.
+                    # Do not turn that expected dead PID into a new live fault,
+                    # or erase an actual fault retained before the shutdown.
+                    self.resource_measurement = dict(state='STOPPED', limits_verified=False,
+                        resource_contract=RESOURCE_CONTRACT, original_cgroup_contract_verified=False)
+                else:
+                    self.resource_health(time.time(), None)
             return super().publish(provider_sample=provider_sample)
     return SimulatorSupervisor
 
@@ -598,6 +611,7 @@ def shadow(service, binding):
     require(all(value == 0 for value in financial['obligations'].values()),
             'SIMULATOR_SHADOW_FINANCIAL_OBLIGATIONS_REMAIN')
     drain = native_drain()
+    require(source_binding() == binding, 'SIMULATOR_SHADOW_SOURCE_CHANGED')
     result = dict(schema='pons-simulator-shadow-v1', epoch_id=EPOCH,
         inception_sha256=financial['inception_sha256'], sequence=financial['sequence'],
         journal_hash=financial['journal_hash'], ended_at=time.time(),
@@ -649,7 +663,7 @@ def runtime(command):
         # Ordinary native startup restores those owners before discovery; fresh
         # current-process readiness still closes all new allocations meanwhile.
     install_process_limits()
-    service = supervisor_type()(admission='OBSERVATION' if command == 'shadow' else 'NORMAL')
+    service = supervisor_type()(admission='OBSERVATION' if command == 'shadow' else 'NORMAL', binding=binding)
     if command == 'shadow':
         return shadow(service, binding)
     service.run()
