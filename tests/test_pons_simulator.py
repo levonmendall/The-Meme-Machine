@@ -343,6 +343,10 @@ class PonsSimulatorTests(unittest.TestCase):
 
     def test_retired_workspace_refuses_every_entry_to_writes_and_exports_old_authority_time(self):
         financial = simulator.prepare()['financial']
+        simulator.verify_experimental_storage()
+        kind = simulator.supervisor_type()
+        service = kind.__new__(kind)
+        service.root = self.state
         with closing(simulator.readonly(self.state / 'shared-capital.sqlite')) as db:
             ledger_at = json.loads(db.execute('SELECT body FROM shared_capital_projection').fetchone()[0])['at']
         marker = dict(schema='pons-simulator-authority-retired-v1', epoch_id=simulator.EPOCH,
@@ -353,15 +357,17 @@ class PonsSimulatorTests(unittest.TestCase):
         before = self.rows()
         with patch.object(simulator, 'require_provider_clock'), \
                 patch.object(simulator, 'source_binding') as source, \
+                patch.object(simulator, 'verify_experimental_storage') as storage, \
                 patch('meme_machine.operational.bounded_provider.Budget.create') as create:
             result = simulator.runtime('shadow')
             self.assertIn('SIMULATOR_AUTHORITY_RETIRED', result['blockers'])
             self.assertFalse(result['native_runtime_started'])
             for operation in (simulator.configure_runtime, simulator.ensure_provider_usage,
-                              simulator.native_child, lambda: simulator.write_once(self.state / 'new.json', {})):
+                              simulator.native_child, service.verify_storage,
+                              lambda: simulator.write_once(self.state / 'new.json', {})):
                 with self.assertRaisesRegex(simulator.SimulatorFailure, 'SIMULATOR_AUTHORITY_RETIRED'):
                     operation()
-            source.assert_not_called(); create.assert_not_called()
+            source.assert_not_called(); create.assert_not_called(); storage.assert_not_called()
         with patch.object(simulator.time, 'time', return_value=ledger_at + 86400):
             retained = simulator.export_state()
             self.assertEqual(simulator.status()['state'], 'RETIRED_MIRROR')

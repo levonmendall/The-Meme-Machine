@@ -282,6 +282,7 @@ def supervisor_type():
             self.resource_failure = None
 
         def verify_storage(self):
+            writable_authority()
             require(self.root == STATE, 'SIMULATOR_STATE_SCOPE_CHANGED')
             binding = verify_experimental_storage()
             self.storage_device = binding['device']
