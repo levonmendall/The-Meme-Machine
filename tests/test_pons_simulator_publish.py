@@ -15,6 +15,13 @@ NOW = 1792803600
 
 
 class AuxiliaryObservationTests(unittest.TestCase):
+    def test_retired_financial_mirror_cannot_publish_as_current_authority(self):
+        with patch.object(publisher.simulator, 'export_state', return_value={'authority_retired': True}), \
+                patch.object(publisher, 'observation') as capture:
+            with self.assertRaises(ValueError):
+                publisher.build(1, 'c' * 40)
+            capture.assert_not_called()
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

@@ -206,6 +206,7 @@ def manager_journal(book):
 
 def build(current, source_commit):
     book = simulator.export_state()
+    need(book.get('authority_retired') is not True)
     portfolio = book['portfolio']
     at = portfolio['as_of']
     balances = portfolio['balances']
