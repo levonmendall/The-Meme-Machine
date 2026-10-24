@@ -1,14 +1,21 @@
 {
   "schema": "pons-historical-research-v1",
-  "status": "UNAVAILABLE",
-  "actual_market_asof": null,
-  "captured_at": null,
-  "source_app_commit": null,
-  "run_id": null,
-  "report_sha256": null,
-  "report_url": null,
-  "confidence": "UNAVAILABLE",
-  "coverage": "No verified historical research snapshot is installed.",
-  "observations": [],
-  "shadow_hypotheses": []
+  "status": "HISTORICAL",
+  "actual_market_asof": "2026-10-24T20:38:44Z",
+  "captured_at": "2026-10-24T20:43:40.254369Z",
+  "source_app_commit": "ba6ef30d27c379ef03324cf72356bdcc8b1d73e2",
+  "report_sha256": "662987021205e64243ff5c90e088456954d70c2189b89785110c3382683f3cd6",
+  "run_id": "40131074137",
+  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40131074137",
+  "confidence": "Receipt-verified signature tape; 269 events covered by retained native identities. No factory census or executable quote replay.",
+  "coverage": "512 contiguous ranges, blocks 97024878–97045357; market interval 20:02:53–20:38:44 UTC. The bounded sample contains 1,332 events across 209 contracts; only the 32 most active are detailed. V1/V3 and post-graduation V4 are outside this study. Raw-record arrival is not necessarily first awareness of an asset.",
+  "observations": [
+    "1,332 receipt-authenticated signature events were retained across 209 contracts. Retained native identities cover 269 of these events; signature matching alone does not establish Pons factory origin.",
+    "The two most active contracts produced 432 of 1,332 events (32.4%). This is event concentration, not market-wide volume, independent-human participation or profitability.",
+    "Raw-record delays reached 962 seconds (16m 2s). Several initial 60/300-second price changes preceded those recorded arrivals. No executable missed profit or simulated fill is established; currency, future depth and exit quotes remain unavailable."
+  ],
+  "shadow_hypotheses": [
+    "UNVALIDATED: Test whether separate early/late age and curve-progress cohorts retain demand after actual availability, with unchanged capital, cost and protection limits.",
+    "UNVALIDATED: Compare acceleration and buyer-persistence strata chronologically against the frozen baseline. No allocation or promotion without quote-aware out-of-sample evidence."
+  ]
 }

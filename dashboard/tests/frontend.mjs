@@ -66,6 +66,13 @@ try {
     observations:['<img src=x onerror=alert(1)>'], shadow_hypotheses:['<script>unvalidated</script>']
   };
   const researchPanel = vm.runInContext('ponsResearchPanel',context);
+  const publishedResearch=JSON.parse(await readFile('dashboard/static/pons-research-v1.json','utf8'));
+  if(publishedResearch.status==='HISTORICAL') {
+    const publishedPanel=researchPanel(publishedResearch);
+    assert.ok(publishedPanel.includes(publishedResearch.report_sha256));
+    assert.ok(publishedPanel.includes(publishedResearch.actual_market_asof));
+    assert.ok(!publishedPanel.includes('RESEARCH UNAVAILABLE'));
+  }
   const historical = researchPanel(research);
   for(const expected of ['HISTORICAL RESEARCH',research.actual_market_asof,research.captured_at,research.report_sha256,
     research.source_app_commit,research.report_url,'Unvalidated shadow hypotheses','No fills, P&amp;L, live quotes or strategy promotion'])
@@ -105,8 +112,8 @@ try {
   assert.equal(response.status,200);
   assert.ok(response.headers.get('content-security-policy').includes("connect-src 'self'"));
   const css=await readFile('dashboard/static/style.css','utf8');
-  // Actual last working Render frontend: 1deb19415ab1683f1fb6071ed6a1d6fdd5785817.
-  assert.equal(createHash('sha256').update(css).digest('hex'),'cc897350900fb0aeb6b4ba8c0f9e8b83bf8f1cce4bb0d32b1c733fe66d28fbb6');
+  // Exact deployed baseline16594add; CSS hash independently matched live Render before this change.
+  assert.equal(createHash('sha256').update(css).digest('hex'),'59a6464d096bc62d7fd3fe5fbe283d7b66e77ab215ac25d41399ce2b06e33a79');
   assert.equal(createHash('sha256').update(await readFile('dashboard/static/index.html')).digest('hex'),'a08aedcacc16a0a72396175ccd184930ad4a0690bc52d79a4c9c9144414e8454');
   assert.equal((snapshots.overview.match(/class="panel lane-card /g)||[]).length,2);
   assert.equal((snapshots.overview.match(/class="stat /g)||[]).length,14); // six portfolio, four per family
