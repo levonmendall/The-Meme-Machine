@@ -48,6 +48,14 @@
       <p class="sim-disclosure">CURRENT describes snapshot freshness. It does not verify strategy acceptance, recovery, or position protection. Metric timestamps can be older than the snapshot.</p>
     </section>
 
+    <section class="sim-section" aria-labelledby="sim-observer-heading">
+      <div class="sim-section-heading"><h2 id="sim-observer-heading">Pons Current and Survivor — read-only shadow observer</h2><span id="sim-observer-status">UNAVAILABLE</span></div>
+      <p class="sim-disclosure">Shadow ENTER, WAIT, REJECT, HOLD and EXIT are observations and strategy decisions. They do not execute PAPER trades, allocate capital, or establish position protection.</p>
+      <p id="sim-observer-detail" class="sim-status-note">No resident observer evidence received.</p>
+      <div id="sim-observer-counts" class="sim-table-wrap"></div>
+      <div id="sim-observer-decisions" class="sim-table-wrap"></div>
+    </section>
+
     <section class="sim-section" aria-labelledby="sim-financial-heading">
       <div class="sim-section-heading"><h2 id="sim-financial-heading">Simulated financial statement</h2><span>USD unless labeled otherwise</span></div>
       <div id="sim-financial" class="sim-metric-grid"></div>

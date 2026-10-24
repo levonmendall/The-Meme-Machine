@@ -143,6 +143,63 @@ class SimulatorFixture(unittest.TestCase):
             return response.status, dict(response.headers), response.read()
 
 
+class ReadOnlyObserverTests(SimulatorFixture):
+    def observed(self):
+        value = snapshot()
+        value['observer'] = dict(schema='pons-readonly-observer-v1', read_only=True,
+            source_commit=SOURCE, status='RUNNING', heartbeat_at=utc(NOW),
+            market_as_of=utc(NOW-2), restart_count=1,
+            current=dict(completed=2, eligible=1, wait=1, rejected=0, incomplete=1),
+            survivor=dict(completed=None, eligible=None, wait=1, rejected=0, incomplete=1),
+            decisions=[dict(id='f'*64, at=utc(NOW-1), strategy='CURRENT', action='ENTER',
+                reason='native_current_threshold_pass', evidence_sha256='1'*64,
+                qualification='COMPLETE')], history_coverage='INCOMPLETE')
+        return sealed(value)
+
+    def test_observer_preserves_independent_counts_shadow_evidence_and_financial_clock(self):
+        value = self.observed()
+        value['metrics']['financial']['cash'] = metric('1000', 'USD', at=NOW-120)
+        self.store.accept(sealed(value))
+        view = simulator.SimulatorReader(self.store).view()
+        self.assertEqual(view['observer'], value['observer'])
+        self.assertFalse(view['source_ledger_authoritative'])
+        self.assertIsNone(view['observer']['survivor']['completed'])
+        self.assertEqual(view['observer']['decisions'][0]['action'], 'ENTER')
+        self.assertEqual(view['metrics']['financial']['cash']['state'], 'STALE')
+        self.assertEqual(view['metrics']['activity']['entries']['value'], '1')
+        self.now += 61
+        self.assertEqual(simulator.SimulatorReader(self.store).view()['state'], 'STALE')
+
+    def test_observer_refuses_authority_missing_entry_evidence_and_false_completion(self):
+        for mutate in (
+                lambda o: o.update(read_only=False),
+                lambda o: o.update(source_commit='0'*40),
+                lambda o: o.update(heartbeat_at=utc(NOW+1)),
+                lambda o: o.update(market_as_of=utc(NOW+1)),
+                lambda o: o.update(provider_url='https://private.invalid/secret'),
+                lambda o: o['current'].update(completed=0, eligible=1),
+                lambda o: o['current'].update(completed=True),
+                lambda o: o['decisions'][0].update(qualification='INCOMPLETE'),
+                lambda o: o['decisions'][0].update(evidence_sha256=None),
+                lambda o: o['decisions'][0].update(reason='https://private.invalid/secret'),
+                lambda o: o['decisions'].append(deepcopy(o['decisions'][0]))):
+            value = self.observed()
+            mutate(value['observer'])
+            with self.assertRaises(ValueError):
+                self.store.accept(sealed(value))
+        self.assertIsNone(self.store.get())
+
+    def test_observer_schema_is_optional_for_existing_publisher(self):
+        value = snapshot()
+        self.store.accept(value)
+        self.assertIsNone(simulator.SimulatorReader(self.store).view()['observer'])
+        self.assertTrue(simulator.SimulatorReader(self.store).view()['source_ledger_authoritative'])
+        code, _, raw = simulator.SimulatorChannel(self.store).response('GET', '/dashboard/pons-simulator')
+        self.assertEqual(code, 200)
+        self.assertIn(b'Pons Current and Survivor', raw)
+        self.assertIn(b'read-only shadow observer', raw)
+
+
 class SimulatorStoreTests(SimulatorFixture):
     def test_content_hash_idempotence_strict_sequence_and_reopen(self):
         first = snapshot()

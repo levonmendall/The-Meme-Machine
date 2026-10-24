@@ -197,10 +197,55 @@ def _history_population(value, limit):
         _need(value['total'] == len(value['rows']))
 
 
+def _observer(value, identity, captured):
+    """Read-side decisions are neither fills nor financial execution authority."""
+    _keys(value, ('schema', 'read_only', 'source_commit', 'status', 'heartbeat_at',
+                  'market_as_of', 'restart_count', 'current', 'survivor',
+                  'decisions', 'history_coverage'))
+    _need(value['schema'] == 'pons-readonly-observer-v1' and value['read_only'] is True)
+    _need(value['source_commit'] == identity['source_commit'], 'simulator_observer_source')
+    _need(value['status'] in ('RUNNING', 'DEGRADED', 'STOPPED', 'FAILED'))
+    heartbeat = _stamp(value['heartbeat_at'])
+    _need(heartbeat <= captured, 'simulator_observer_clock')
+    if value['market_as_of'] is not None:
+        _need(_stamp(value['market_as_of']) <= heartbeat, 'simulator_observer_clock')
+    _integer(value['restart_count'])
+    for strategy in ('current', 'survivor'):
+        counts = value[strategy]
+        _keys(counts, ('completed', 'eligible', 'wait', 'rejected', 'incomplete'))
+        for count in counts.values():
+            if count is not None:
+                _integer(count)
+        if counts['eligible'] is not None and counts['completed'] is not None:
+            _need(counts['eligible'] <= counts['completed'], 'simulator_observer_counts')
+    _need(value['history_coverage'] in ('COMPLETE', 'INCOMPLETE', 'UNKNOWN'))
+    _need(type(value['decisions']) is list and len(value['decisions']) <= 64)
+    previous, identities = None, set()
+    for row in value['decisions']:
+        _keys(row, ('id', 'at', 'strategy', 'action', 'reason',
+                    'evidence_sha256', 'qualification'))
+        _hash(row['id'])
+        _need(row['id'] not in identities)
+        identities.add(row['id'])
+        at = _stamp(row['at'])
+        _need(at <= heartbeat and (previous is None or at >= previous), 'simulator_observer_clock')
+        previous = at
+        _need(row['strategy'] in ('CURRENT', 'SURVIVOR'))
+        _need(row['action'] in ('ENTER', 'WAIT', 'REJECT', 'HOLD', 'EXIT'))
+        _need(type(row['reason']) is str and
+              re.fullmatch(r'[a-z0-9_.:-]{1,128}', row['reason']) is not None)
+        if row['evidence_sha256'] is not None:
+            _hash(row['evidence_sha256'])
+        _need(row['qualification'] in ('COMPLETE', 'INCOMPLETE'))
+        if row['action'] == 'ENTER':
+            _need(row['qualification'] == 'COMPLETE' and row['evidence_sha256'] is not None,
+                  'simulator_observer_entry_evidence')
+
+
 def validate_snapshot(value, identity):
     _keys(value, ('schema', 'label', 'identity', 'sequence', 'snapshot_sha256',
                   'captured_at', 'execution_state', 'metrics', 'lifecycles',
-                  'history', 'reason_codes'), ('strategy_version',))
+                  'history', 'reason_codes'), ('strategy_version', 'observer'))
     _need(value['schema'] == SCHEMA and value['label'] == LABEL)
     _identity(value['identity'])
     _need(value['identity'] == identity, 'simulator_identity')
@@ -209,6 +254,8 @@ def validate_snapshot(value, identity):
     _integer(value['sequence'], minimum=1)
     _hash(value['snapshot_sha256'])
     captured = _stamp(value['captured_at'])
+    if 'observer' in value:
+        _observer(value['observer'], identity, captured)
     _need(value['execution_state'] in ('RUNNING', 'STOPPED', 'FAILED', 'UNKNOWN'))
     _keys(value['metrics'], (), METRICS)
     for name, group in value['metrics'].items():
@@ -389,9 +436,11 @@ class SimulatorReader:
         if state == 'STALE' and 'STALE_SNAPSHOT' not in reasons:
             reasons.append('STALE_SNAPSHOT')
         return dict(schema=VIEW_SCHEMA, label=LABEL, state=state,
-            persistence=PERSISTENCE, source_ledger_authoritative=True,
+            persistence=PERSISTENCE,
+            source_ledger_authoritative=not bool(value and value.get('observer', {}).get('read_only')),
             identity=deepcopy(self.store.identity) if self.store else None,
             strategy_version=deepcopy(value.get('strategy_version')) if value else None,
+            observer=deepcopy(value.get('observer')) if value else None,
             sequence=value['sequence'] if value else None,
             snapshot_sha256=value['snapshot_sha256'] if value else None,
             captured_at=value['captured_at'] if value else None,
