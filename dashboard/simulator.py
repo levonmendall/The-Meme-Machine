@@ -45,7 +45,8 @@ METRICS = {
             'average_hold_seconds': 'SECONDS',
             'trade_frequency_per_hour': 'PER_HOUR'},
     'strategy': dict.fromkeys((
-        'evaluated', 'eligible', 'rejected', 'volume_quality_passes'), 'COUNT'),
+        'evaluated', 'eligible', 'rejected', 'volume_quality_passes',
+        'manager_decisions', 'manager_rejections'), 'COUNT'),
     'operational': {
         'heartbeat_age_seconds': 'SECONDS', 'processing_latency_ms': 'MILLISECONDS',
         'range_processing_ms': 'MILLISECONDS',
@@ -73,6 +74,14 @@ _EXPERIMENT = re.compile(r'pons-simulator-[a-z0-9][a-z0-9-]{0,79}\Z')
 _EPOCH = re.compile(r'paper-pons-simulator-1000-[0-9]{8}\Z')
 _DECIMAL = re.compile(r'-?(?:0|[1-9][0-9]{0,29})(?:\.[0-9]{1,18})?\Z')
 _UTC = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?Z\Z')
+_VERSION = re.compile(r'[a-z0-9][a-z0-9._-]{0,63}\Z')
+_REVISION = re.compile(r'[a-z0-9][a-z0-9._-]{0,95}\Z')
+BASELINE_STRATEGY = {
+    'version': 'baseline-909738760e6f722b',
+    'policy_revision': 'paper-postgrad-rally-v1',
+    'policy_sha256': '909738760e6f722b8668a99493f698c3a415867f77f08199a61b0fb047381be7',
+    'adaptation_state': 'BASELINE_UNCHANGED',
+}
 
 
 def _need(condition, code='simulator_schema'):
@@ -128,6 +137,20 @@ def _reasons(value):
     _need(len(set(value)) == len(value))
 
 
+def _strategy_version(value):
+    _keys(value, ('version', 'policy_revision', 'policy_sha256', 'adaptation_state'))
+    _need(type(value['version']) is str and _VERSION.fullmatch(value['version']) is not None,
+          'simulator_strategy_version')
+    _need(type(value['policy_revision']) is str
+          and _REVISION.fullmatch(value['policy_revision']) is not None,
+          'simulator_strategy_version')
+    _hash(value['policy_sha256'])
+    _need(value['adaptation_state'] in ('BASELINE_UNCHANGED', 'EXPERIMENTAL', 'REVERTED'),
+          'simulator_strategy_version')
+    if value['adaptation_state'] == 'BASELINE_UNCHANGED':
+        _need(value == BASELINE_STRATEGY, 'simulator_strategy_baseline')
+
+
 def _metric(value, unit, captured):
     _keys(value, ('value', 'quality', 'unit', 'as_of'))
     _need(value['unit'] == unit)
@@ -175,10 +198,12 @@ def _history_population(value, limit):
 def validate_snapshot(value, identity):
     _keys(value, ('schema', 'label', 'identity', 'sequence', 'snapshot_sha256',
                   'captured_at', 'execution_state', 'metrics', 'lifecycles',
-                  'history', 'reason_codes'))
+                  'history', 'reason_codes'), ('strategy_version',))
     _need(value['schema'] == SCHEMA and value['label'] == LABEL)
     _identity(value['identity'])
     _need(value['identity'] == identity, 'simulator_identity')
+    if 'strategy_version' in value:
+        _strategy_version(value['strategy_version'])
     _integer(value['sequence'], minimum=1)
     _hash(value['snapshot_sha256'])
     captured = _stamp(value['captured_at'])
@@ -364,6 +389,7 @@ class SimulatorReader:
         return dict(schema=VIEW_SCHEMA, label=LABEL, state=state,
             persistence=PERSISTENCE, source_ledger_authoritative=True,
             identity=deepcopy(self.store.identity) if self.store else None,
+            strategy_version=deepcopy(value.get('strategy_version')) if value else None,
             sequence=value['sequence'] if value else None,
             snapshot_sha256=value['snapshot_sha256'] if value else None,
             captured_at=value['captured_at'] if value else None,
