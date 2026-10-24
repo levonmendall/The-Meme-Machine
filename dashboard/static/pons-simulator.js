@@ -5,6 +5,12 @@
   const CURRENT_SECONDS = 60;
   const POLL_MS = 30000;
   const UNAVAILABLE = 'UNAVAILABLE';
+  const baselineStrategy = {
+    version: 'baseline-909738760e6f722b',
+    policy_revision: 'paper-postgrad-rally-v1',
+    policy_sha256: '909738760e6f722b8668a99493f698c3a415867f77f08199a61b0fb047381be7',
+    adaptation_state: 'BASELINE_UNCHANGED'
+  };
   const qualityNames = {MEASURED: 'Measured', ESTIMATED: 'Estimated', UNAVAILABLE: 'Unavailable'};
   const units = new Set(['USD', 'COUNT', 'PERCENT', 'SECONDS', 'MILLISECONDS', 'BYTES', 'TOKENS', 'PER_HOUR']);
   const decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
@@ -37,7 +43,9 @@
       ['strategy', 'rejected', 'Rejected opportunities']
     ],
     strategy: [
-      ['strategy', 'evaluated', 'Strategy evaluations'],
+      ['strategy', 'manager_decisions', 'Codex candidate reviews'],
+      ['strategy', 'manager_rejections', 'Codex safety rejections'],
+      ['strategy', 'evaluated', 'Complete native strategy evaluations'],
       ['strategy', 'volume_quality_passes', 'Volume-quality passes'],
       ['financial', 'win_rate_pct', 'Realized win rate'],
       ['financial', 'average_profit', 'Average realized profit'],
@@ -277,6 +285,15 @@
     byId('sim-epoch').textContent = boundedText(snapshot?.identity?.epoch_id, 128);
     byId('sim-source').textContent = boundedText(snapshot?.identity?.source_commit, 40);
     byId('sim-inception').textContent = boundedText(snapshot?.identity?.inception_sha256, 64);
+    const strategy = snapshot?.strategy_version;
+    byId('sim-strategy-version').textContent = boundedText(strategy?.version, 64);
+    byId('sim-policy-revision').textContent = boundedText(strategy?.policy_revision, 96);
+    byId('sim-policy-hash').textContent = boundedText(strategy?.policy_sha256, 64);
+    byId('sim-adaptation-state').textContent = {
+      BASELINE_UNCHANGED: 'BASELINE UNCHANGED — no strategy changes reported',
+      EXPERIMENTAL: 'EXPERIMENTAL — strategy changes reported',
+      REVERTED: 'REVERTED — reported strategy version restored'
+    }[strategy?.adaptation_state] || UNAVAILABLE;
     byId('sim-persistence').textContent = boundedText(snapshot?.persistence, 50);
     byId('sim-persistence-detail').textContent = snapshot?.persistence === 'EPHEMERAL_UNVERIFIED'
       ? 'Dashboard storage is ephemeral or unverified. Do not rely on this service as the historical archive. The experimental source ledger, not this dashboard, owns financial records; durable recovery must be verified separately.'
@@ -291,6 +308,17 @@
     if (!payload || payload.schema !== 'pons-simulator-view-v1' || payload.label !== LABEL ||
         !['CURRENT', 'STALE', UNAVAILABLE].includes(payload.state) ||
         !['RUNNING', 'STOPPED', 'FAILED', 'UNKNOWN'].includes(payload.execution_state)) throw new Error('Invalid simulator response');
+    if (payload.strategy_version !== undefined && payload.strategy_version !== null) {
+      const strategy = payload.strategy_version;
+      if (typeof strategy !== 'object' || Array.isArray(strategy) || Object.keys(strategy).length !== 4 ||
+          !Object.keys(baselineStrategy).every(key => Object.hasOwn(strategy, key)) ||
+          typeof strategy.version !== 'string' || strategy.version.match(/^[a-z0-9][a-z0-9._-]{0,63}$/)?.[0] !== strategy.version ||
+          typeof strategy.policy_revision !== 'string' || strategy.policy_revision.match(/^[a-z0-9][a-z0-9._-]{0,95}$/)?.[0] !== strategy.policy_revision ||
+          typeof strategy.policy_sha256 !== 'string' || strategy.policy_sha256.match(/^[a-f0-9]{64}$/)?.[0] !== strategy.policy_sha256 ||
+          !['BASELINE_UNCHANGED', 'EXPERIMENTAL', 'REVERTED'].includes(strategy.adaptation_state) ||
+          (strategy.adaptation_state === 'BASELINE_UNCHANGED' &&
+            !Object.entries(baselineStrategy).every(([key, value]) => strategy[key] === value))) throw new Error('Invalid simulator strategy version');
+    }
     if (payload.state !== UNAVAILABLE && (!validTime(payload.captured_at) || !Number.isSafeInteger(payload.sequence) || payload.sequence < 1 ||
         typeof payload.identity?.experiment_id !== 'string' || !payload.identity.experiment_id || payload.identity.experiment_id.length > 128 ||
         !/^paper-pons-simulator-1000-[0-9]{8}$/.test(payload.identity.epoch_id || '') ||
