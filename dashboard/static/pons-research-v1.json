@@ -1,0 +1,14 @@
+{
+  "schema": "pons-historical-research-v1",
+  "status": "UNAVAILABLE",
+  "actual_market_asof": null,
+  "captured_at": null,
+  "source_app_commit": null,
+  "run_id": null,
+  "report_sha256": null,
+  "report_url": null,
+  "confidence": "UNAVAILABLE",
+  "coverage": "No verified historical research snapshot is installed.",
+  "observations": [],
+  "shadow_hypotheses": []
+}

@@ -66,7 +66,8 @@ class DashboardServerSecurityTests(unittest.TestCase):
             self.assertEqual(response.status, 200)
             self.assertEqual(response.read(), b'{"status":"ok"}')
 
-        for path in ('/', '/dashboard', '/dashboard/app.js', '/dashboard/style.css', '/api/dashboard/portfolio'):
+        for path in ('/', '/dashboard', '/dashboard/app.js', '/dashboard/style.css',
+                     '/dashboard/pons-research-v1.json', '/api/dashboard/portfolio'):
             with self.assertRaises(HTTPError) as error:
                 urlopen(base+path, timeout=2)
             self.assertEqual(error.exception.code, 401)
@@ -77,6 +78,21 @@ class DashboardServerSecurityTests(unittest.TestCase):
         with urlopen(Request(base + "/api/dashboard/portfolio", headers={'Authorization': AUTH}), timeout=2) as response:
             self.assertEqual(response.status, 200)
             self.assertIn(b'"state":"NOT_INITIALIZED"', response.read())
+
+        for method in ('GET', 'HEAD'):
+            with urlopen(Request(base+'/dashboard/pons-research-v1.json', method=method,
+                                 headers={'Authorization': AUTH}), timeout=2) as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.headers['Content-Type'], 'application/json')
+                body = response.read()
+                if method == 'HEAD':
+                    self.assertEqual(body, b'')
+                else:
+                    self.assertEqual(json.loads(body)['schema'], 'pons-historical-research-v1')
+        with self.assertRaises(HTTPError) as error:
+            urlopen(Request(base+'/dashboard/pons-research-v1.json', method='POST', data=b'{}',
+                            headers={'Authorization': AUTH}), timeout=2)
+        self.assertEqual(error.exception.code, 405)
 
     def test_root_redirects_to_dashboard(self):
         server = self.server()
@@ -136,6 +152,7 @@ class DashboardServerSecurityTests(unittest.TestCase):
             server = self.server(store, public_reads=True)
             base = f'http://127.0.0.1:{server.server_port}'
             for path in ('/dashboard', '/dashboard/app.js', '/dashboard/style.css',
+                         '/dashboard/pons-research-v1.json',
                          '/api/dashboard/portfolio', '/api/dashboard/system'):
                 with urlopen(base+path, timeout=2) as response:
                     self.assertEqual(response.status, 200)

@@ -53,6 +53,12 @@ class Dashboard:
         if method not in ('GET', 'HEAD'):
             headers['Allow'] = 'GET, HEAD'
             return 405, dict(headers, **{'Content-Type': 'application/json'}), b'{"error":"read_only"}'
+        if parsed.path == '/dashboard/pons-research-v1.json':
+            headers['Content-Type'] = 'application/json'
+            try:
+                return 200, headers, (STATIC/'pons-research-v1.json').read_bytes()
+            except OSError:
+                return 503, headers, b'{"status":"UNAVAILABLE"}'
         if parsed.path in ('/dashboard', '/dashboard/', '/dashboard/app.js', '/dashboard/style.css'):
             name = {'/dashboard/app.js': 'app.js', '/dashboard/style.css': 'style.css'}.get(parsed.path, 'index.html')
             mime = {'index.html': 'text/html; charset=utf-8', 'app.js': 'text/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name]

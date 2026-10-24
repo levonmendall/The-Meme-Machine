@@ -29,7 +29,7 @@ try {
   const context = vm.createContext({
     document:{hidden:true,activeElement:{tagName:'BODY'},querySelector:element,querySelectorAll:()=>[]},
     window:{addEventListener(){}},location:{hash:'#overview'},
-    fetch:(url,options)=>{assert.ok(url.startsWith('/api/dashboard/'));return fetch(base+url,{...options,headers:{Authorization:auth}});},
+    fetch:(url,options)=>{assert.ok(url.startsWith('/api/dashboard/')||url==='/dashboard/pons-research-v1.json');return fetch(base+url,{...options,headers:{Authorization:auth}});},
     AbortController,URLSearchParams,setTimeout,clearTimeout,setInterval(){},console,FormData,
   });
   const source = await readFile('dashboard/static/app.js','utf8');
@@ -57,6 +57,44 @@ try {
   assert.equal(vm.runInContext('fixed("0.015")',context),'0.02');
   assert.equal(vm.runInContext('fixed("123456789123456789.995")',context),'123,456,789,123,456,790.00');
   assert.equal(vm.runInContext('esc("<script>bad</script>")',context),'&lt;script&gt;bad&lt;/script&gt;');
+  const research = {
+    schema:'pons-historical-research-v1', status:'HISTORICAL',
+    actual_market_asof:'2026-09-01T00:00:00Z', captured_at:'2026-09-01T00:01:00Z',
+    source_app_commit:'a'.repeat(40), run_id:'123456789', report_sha256:'b'.repeat(64),
+    report_url:'https://github.com/levonmendall/meme-machine-admin/actions/runs/123456789',
+    confidence:'LIMITED — synthetic test fixture', coverage:'Two retained observations; incomplete historical coverage.',
+    observations:['<img src=x onerror=alert(1)>'], shadow_hypotheses:['<script>unvalidated</script>']
+  };
+  const researchPanel = vm.runInContext('ponsResearchPanel',context);
+  const historical = researchPanel(research);
+  for(const expected of ['HISTORICAL RESEARCH',research.actual_market_asof,research.captured_at,research.report_sha256,
+    research.source_app_commit,research.report_url,'Unvalidated shadow hypotheses','No fills, P&amp;L, live quotes or strategy promotion'])
+    assert.ok(historical.includes(expected),expected);
+  assert.ok(historical.includes('&lt;img')&&historical.includes('&lt;script&gt;'));
+  assert.ok(!historical.includes('<img')&&!historical.includes('<script>')&&!historical.includes('CURRENT'));
+  for(const bad of [null,{}, {...research,status:'UNAVAILABLE'}, {...research,schema:'other'},
+    {...research,actual_market_asof:null}, {...research,actual_market_asof:'2026-02-30T00:00:00Z'},
+    {...research,actual_market_asof:'2026-09-01T00:02:00Z'}, {...research,captured_at:'2999-01-01T00:00:00Z'},
+    {...research,source_app_commit:['a'.repeat(40)]}, {...research,report_sha256:'bad'},
+    {...research,run_id:'123456788'}, {...research,report_url:'javascript:alert(1)'},
+    {...research,report_url:research.report_url+'?secret=bad'}, {...research,confidence:'x'.repeat(161)},
+    {...research,coverage:'x'.repeat(1001)}, {...research,observations:[]},
+    {...research,observations:['a','b','c','d']}, {...research,observations:['x'.repeat(601)]},
+    {...research,shadow_hypotheses:['a','b','c']}])
+    assert.ok(researchPanel(bad).includes('RESEARCH UNAVAILABLE'));
+  const initialFetch=context.fetch;
+  for(const unavailable of [async()=>{throw Error('missing static snapshot');},
+    async()=>({ok:true,json:async()=>{throw SyntaxError('malformed static snapshot');}})]) {
+    context.fetch=(url,options)=>url==='/dashboard/pons-research-v1.json'?unavailable():initialFetch(url,options);
+    context.location.hash='#overview';
+    await vm.runInContext('render()',context);
+    assert.ok(element('#main').innerHTML.includes('RESEARCH UNAVAILABLE'));
+    assert.ok(element('#main').innerHTML.includes('$512.34')&&!element('#main').innerHTML.includes('Dashboard UNAVAILABLE'));
+  }
+  context.fetch=(url,options)=>url==='/dashboard/pons-research-v1.json'?Promise.resolve({ok:true,json:async()=>research}):initialFetch(url,options);
+  await vm.runInContext('render()',context);
+  assert.ok(element('#main').innerHTML.includes(research.report_sha256)&&element('#main').innerHTML.includes('$512.34'));
+  context.fetch=initialFetch;
   await vm.runInContext('showPosition("fixture-open-pons")',context);
   assert.ok(element('#detail-content').innerHTML.includes('partial realization'));
   assert.ok(element('#detail-content').innerHTML.includes('Remaining basis'));
