@@ -1,0 +1,81 @@
+.simulator-page{margin:0;background:#061019;color:#e8f2f7;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.5}
+.simulator-page *{box-sizing:border-box}
+.simulator-page a{color:#a7c5e3}
+.simulator-page a:focus-visible,.simulator-page summary:focus-visible{outline:2px solid #bd9aff;outline-offset:5px}
+.sim-skip{position:absolute;top:-80px;left:16px;z-index:50;padding:12px;background:#152836}
+.sim-skip:focus{top:8px}
+.sim-topbar{min-height:72px;border-bottom:1px solid #19313f;display:flex;align-items:center;gap:30px;flex-wrap:wrap;padding:18px max(24px,calc((100vw - 1432px)/2));background:#08141e}
+.sim-brand{font-size:13px;font-weight:800;letter-spacing:.1em;text-decoration:none;color:#edf6fa!important;white-space:nowrap}
+.sim-topbar nav{display:flex;gap:22px;position:static}
+.sim-topbar nav a{font-size:13px;text-decoration:none;color:#8ba5b7}
+.sim-topbar nav a[aria-current]{color:#c1a0ff}
+.sim-readonly{margin-left:auto;font-size:10px;letter-spacing:.12em;color:#7e98aa}
+.simulator-page main{max-width:1480px;margin:0 auto;padding:28px 24px 36px;min-height:65vh}
+.sim-warning{padding:13px 18px;border:1px solid #69522f;background:#231f16;color:#f0ca85;border-radius:6px;font-weight:700;font-size:12px;letter-spacing:.045em}
+.sim-heading{display:flex;gap:32px;justify-content:space-between;align-items:flex-start;padding:28px 0 22px}
+.sim-eyebrow{text-transform:uppercase;letter-spacing:.13em;font-size:10px;color:#ad8ee0;margin:0 0 7px}
+.simulator-page h1{margin:0 0 9px;font-size:29px;font-weight:650;letter-spacing:-.035em;line-height:1.2}
+.sim-intro{max-width:770px;color:#8ba4b6;font-size:13px;margin:0;line-height:1.65}
+.sim-state-block{min-width:235px;max-width:310px;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:7px;font-size:11px;color:#8ba4b6}
+.sim-state-label{font-size:9px;letter-spacing:.14em;color:#7b93a4}
+.sim-state{display:inline-block;padding:5px 10px;border:1px solid #526073;border-radius:4px;font-size:12px;letter-spacing:.08em;color:#a5b5c1;background:#12212e}
+.sim-state[data-state=CURRENT]{color:#60dbb0;border-color:#286950;background:#102920}
+.sim-state[data-state=STALE]{color:#f0bd72;border-color:#826135;background:#2b2317}
+.sim-status-panel{border:1px solid #1a3445;background:#0a1822;border-radius:7px;padding:17px 20px}
+.sim-status-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;margin:0}
+.simulator-page dt{font-size:10px;color:#8ba4b6;font-weight:500}
+.simulator-page dd{margin:5px 0 0;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.sim-status-note{font-size:12px;color:#c4a875;margin:16px 0 5px;overflow-wrap:anywhere}
+.sim-disclosure{font-size:11px;line-height:1.6;color:#819bac;margin:9px 0 14px}
+.sim-status-panel .sim-disclosure{margin-bottom:0}
+.sim-section{margin-top:25px;min-width:0}
+.sim-section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:11px}
+.simulator-page h2{margin:0;font-size:15px;letter-spacing:-.015em;font-weight:650;color:#dfeaf0}
+.sim-section-heading>span{font-size:10px;color:#7d98aa;text-align:right}
+.sim-metric-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.sim-metric{min-height:112px;padding:15px;background:#0a1822;border:1px solid #183140;border-radius:6px;min-width:0}
+.sim-metric-label{font-size:10px;color:#8da6b7;margin-bottom:10px;line-height:1.4;min-height:14px}
+.sim-metric-value{font-weight:650;letter-spacing:-.035em;font-size:22px;line-height:1.2;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.sim-metric-value[data-quality=UNAVAILABLE]{font-size:11px;color:#6f8797;letter-spacing:.015em;line-height:2.4}
+.sim-metric-value[data-state=STALE]{color:#c5b28d}
+.sim-metric-quality{font-size:9px;letter-spacing:.035em;color:#698698;margin-top:9px;min-height:13px}
+.sim-metric-quality[data-quality=ESTIMATED]{color:#bbaa85}
+.sim-metric-quality[data-state=STALE]{color:#cfaa6f}
+.sim-metric-asof{font-size:9px;color:#6e899b;margin-top:3px;font-variant-numeric:tabular-nums}
+.sim-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.sim-small-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.sim-lifecycles{display:grid;gap:10px}
+.sim-lifecycle{background:#0a1822;border:1px solid #193544;border-radius:6px;padding:16px}
+.sim-lifecycle-header{display:flex;justify-content:space-between;gap:15px;align-items:baseline;flex-wrap:wrap}
+.sim-lifecycle h3{font-size:12px;margin:0;overflow-wrap:anywhere;font-weight:600}
+.sim-lifecycle .sim-badge{font-size:9px;color:#bda0ed;background:#211c32;border:1px solid #403057;padding:3px 7px;border-radius:3px}
+.sim-lifecycle .sim-timeline{display:flex;gap:20px;flex-wrap:wrap;margin:13px 0;color:#8099ab;font-size:10px}
+.sim-lifecycle .sim-metric-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0}
+.sim-lifecycle .sim-metric{min-height:94px;background:#08151e;padding:11px}
+.sim-lifecycle .sim-metric-value{font-size:16px}
+.sim-lifecycle .sim-metric-value[data-quality=UNAVAILABLE]{font-size:10px}
+.sim-lifecycle details{margin-top:12px;font-size:11px;color:#8da6b7}
+.sim-lifecycle summary{cursor:pointer;color:#b8c7d1}
+.sim-lifecycle dl{margin:11px 0;display:grid;gap:10px}
+.sim-lifecycle dd{font-weight:400;overflow-wrap:anywhere;color:#9ab0bf}
+.sim-reasons{color:#b7a27d;overflow-wrap:anywhere;font-size:10px}
+.sim-empty{padding:30px 18px;text-align:center;color:#758e9f;font-size:12px;background:#091720;border:1px dashed #1d3544;border-radius:6px;margin:0}
+.sim-table-wrap{overflow-x:auto;border:1px solid #193342;border-radius:6px;background:#091720}
+.sim-table-wrap .sim-empty{border:0}
+.simulator-page table{width:100%;border-collapse:collapse;font-size:11px;text-align:left}
+.simulator-page table caption{position:absolute;clip-path:inset(50%);height:1px;width:1px;overflow:hidden}
+.simulator-page th{font-weight:500;color:#8ca4b5;background:#0d1d28;padding:11px 12px;white-space:nowrap}
+.simulator-page td{padding:11px 12px;border-top:1px solid #162d3c;font-variant-numeric:tabular-nums;vertical-align:top;max-width:290px;overflow-wrap:anywhere;color:#b6c8d4}
+.simulator-page td .sim-cell-detail{display:block;color:#718c9f;font-size:9px;margin-top:3px}
+.sim-source{padding:18px 20px;background:#091720;border:1px solid #183140;border-radius:6px}
+.sim-source dl{display:grid;gap:14px;margin:16px 0}
+.sim-source dl>div{display:grid;grid-template-columns:190px minmax(0,1fr);gap:15px}
+.sim-source dd{margin:0;font-weight:400;overflow-wrap:anywhere}
+.sim-source code{font-size:11px;color:#9cafbe}
+.sim-source .sim-disclosure{margin-bottom:0}
+.sim-footer{max-width:1480px;padding:0 24px 28px;margin:auto;font-size:10px;line-height:1.7;color:#6e889a}
+@media(min-width:1500px){.simulator-page main{padding-left:24px;padding-right:24px}}
+@media(max-width:1150px){.sim-metric-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.sim-small-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sim-status-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:780px){.sim-topbar{gap:16px;padding:17px 18px}.sim-topbar nav{gap:15px}.sim-readonly{display:none}.simulator-page main{padding:19px 16px 28px}.sim-heading{display:block;padding-top:23px}.simulator-page h1{font-size:25px}.sim-state-block{text-align:left;align-items:flex-start;max-width:none;margin-top:20px}.sim-state-label{display:none}.sim-state-block>span:last-child{min-height:17px}.sim-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sim-metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.sim-small-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.sim-columns{grid-template-columns:minmax(0,1fr);gap:0}.sim-section-heading{align-items:flex-start}.sim-metric-value{font-size:20px}.sim-source dl>div{grid-template-columns:minmax(0,1fr);gap:4px}.sim-lifecycle .sim-metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.sim-footer{padding-left:16px;padding-right:16px}}
+@media(max-width:450px){.sim-brand{width:100%}.sim-topbar{gap:10px}.sim-warning{font-size:10px;padding:11px 12px;line-height:1.7}.sim-metric-grid,.sim-small-grid,.sim-lifecycle .sim-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sim-metric{padding:12px;min-height:108px}.sim-section-heading>span{max-width:130px}.sim-status-panel{padding:15px}.sim-status-grid{gap:15px 12px}}
+@media(prefers-reduced-motion:reduce){.simulator-page *{scroll-behavior:auto!important}}
