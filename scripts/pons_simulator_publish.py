@@ -143,6 +143,25 @@ def baseline_version():
         policy_sha256=POLICY_HASH, adaptation_state='BASELINE_UNCHANGED')
 
 
+def auxiliary_observation():
+    path = PUBLICATION / 'operational-observation.json'
+    if not path.exists() and not path.is_symlink():
+        return None
+    value, _ = read_json(path, 4096)
+    need(type(value) is dict and set(value) == {'schema', 'captured_at', 'source_sha256',
+        'provider_requests', 'raw_curve_topic_events', 'provider_connected', 'execution_state',
+        'lineage_verified', 'native_evaluations', 'model_decision', 'boundary'})
+    need(value['schema'] == 'pons-simulator-auxiliary-observation-v1'
+         and type(value['source_sha256']) is str and re.fullmatch('[0-9a-f]{64}', value['source_sha256'])
+         and value['provider_connected'] is True and value['execution_state'] == 'STOPPED'
+         and value['lineage_verified'] is False and value['native_evaluations'] is None
+         and value['model_decision'] == 'WAIT' and value['boundary'] == 'PROVIDER_CLOCK_IDENTITY_UNAVAILABLE')
+    need(contract._stamp(value['captured_at']) <= time.time())
+    for key, maximum in (('provider_requests', 150), ('raw_curve_topic_events', 2**63 - 1)):
+        need(type(value[key]) is int and (1 if key == 'provider_requests' else 0) <= value[key] <= maximum)
+    return value
+
+
 def manager_journal(book):
     path = DECISIONS / 'journal.jsonl'
     if not path.exists() and not path.is_symlink():
@@ -235,6 +254,24 @@ def build(current, source_commit):
         put('activity', 'launch_events', projection.get('scout', {}).get('events', {}).get('launch'), observed_at)
         if not provider_failure and sum(row['completed_requests'] for row in capture.get('rpc_latency', [])):
             put('operational', 'connected', 1, observed_at)
+    auxiliary = auxiliary_observation()
+    if auxiliary is not None and (observed_at is None or
+            contract._stamp(auxiliary['captured_at']) > contract._stamp(observed_at)):
+        # Raw topic logs have no native qualification/lineage/queue population.
+        # Keep actual financial activity, but do not carry older native metrics
+        # into this newer raw-only sample or give them its observation clock.
+        groups['operational'] = {}
+        for key in ('events_seen', 'events_processed', 'queue_depth', 'sampled_block_debt',
+                    'launch_events', 'pairs_seen', 'duplicates', 'gaps', 'recovered_events',
+                    'dropped_events', 'unrecovered_events'):
+            groups['activity'].pop(key, None)
+        reasons = [code for code in reasons if code not in ('PROVIDER_UNAVAILABLE', 'INPUT_UNAVAILABLE')]
+        observed_at, execution = auxiliary['captured_at'], auxiliary['execution_state']
+        put('operational', 'provider_requests', auxiliary['provider_requests'], observed_at)
+        put('operational', 'connected', 1, observed_at)
+        put('activity', 'events_seen', auxiliary['raw_curve_topic_events'], observed_at)
+        reasons.extend(('AUTHENTICATED_RAW_OBSERVATION_ONLY', 'PROVIDER_CLOCK_IDENTITY_UNAVAILABLE',
+                        'WAIT_FOR_VERIFIED_PROTECTION'))
     if execution in ('STOPPED', 'FAILED'):
         reasons.append('SOURCE_STOPPED' if execution == 'STOPPED' else 'SOURCE_FAILED')
     equity_rows = [dict(at=row['at'], equity=metric(row['value'], 'USD', row['at']))

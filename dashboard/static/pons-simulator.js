@@ -56,7 +56,7 @@
     operational: [
       ['operational', 'connected', 'Provider connectivity'],
       ['activity', 'pairs_seen', 'Market pairs observed'],
-      ['activity', 'events_seen', 'Received curve events'],
+      ['activity', 'events_seen', 'Received curve-topic events (lineage may be unverified)'],
       ['activity', 'launch_events', 'Received launch events'],
       ['activity', 'events_processed', 'Durable economic events'],
       ['activity', 'queue_depth', 'Pending native candidates'],
