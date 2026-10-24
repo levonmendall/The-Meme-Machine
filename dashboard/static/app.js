@@ -73,9 +73,51 @@ function ponsObservationAge(at) {
   return (Date.now() - Date.parse(at)) / 1000;
 }
 const ponsObservationCount = n => Number.isSafeInteger(n) && n >= 0 ? n.toLocaleString() : 'Unavailable';
+function ponsAccountMetric(feed, group, key, unit, sameSource) {
+  const m = feed?.metrics?.[group]?.[key];
+  const unknown = {value:null, state:'UNAVAILABLE', quality:'UNAVAILABLE', as_of:null};
+  if (!sameSource || !['CURRENT','STALE'].includes(feed?.state) || !m || m.unit !== unit ||
+      !['MEASURED','ESTIMATED'].includes(m.quality) || !['CURRENT','STALE'].includes(m.state) ||
+      typeof m.value !== 'string' || !/^-?(?:0|[1-9][0-9]{0,29})(?:\.[0-9]{1,18})?$/.test(m.value)) return unknown;
+  const age = ponsObservationAge(m.as_of);
+  if (age === null || age < 0) return unknown;
+  if (unit === 'COUNT' && !/^(?:0|[1-9][0-9]*)(?:\.0+)?$/.test(m.value)) return unknown;
+  return {value:m.value, quality:m.quality, as_of:m.as_of,
+    state:feed.state === 'CURRENT' && m.state === 'CURRENT' && age <= PONS_FRESH_SECONDS ? 'CURRENT' : 'STALE'};
+}
+function ponsAccountPanel(feed, sameSource) {
+  const fields = [
+    ['Available simulated cash','financial','cash','USD','money'],
+    ['Marked simulated equity','financial','equity','USD','money'],
+    ['Realized net P&L','financial','realized_pnl','USD','money',true],
+    ['Unrealized net P&L','financial','unrealized_pnl','USD','money',true],
+    ['Net simulated return','financial','net_return_pct','PERCENT','percent',true],
+    ['Recorded fees / costs','financial','fees','USD','money']
+  ];
+  // Missing execution counters are unknown; shadow decisions never fill them.
+  for (const [label,key] of [['Executed PAPER entries','entries'],['Completed PAPER exits','exits'],['Open PAPER positions','open_positions']]) {
+    const count = ponsAccountMetric(feed,'activity',key,'COUNT',sameSource);
+    if (count.value !== null && count.quality === 'MEASURED')
+      fields.push([label,'activity',key,'COUNT','count']);
+  }
+  const cells = fields.map(([label,group,key,unit,kind,signed=false]) => {
+    const m = ponsAccountMetric(feed,group,key,unit,sameSource);
+    const evidence = m.value === null ? 'UNAVAILABLE' : m.state+' · '+m.quality+' · As of '+date(m.as_of);
+    // Keep the original portfolio formatter untouched. Its negative-zero
+    // currency edge must not render a sub-cent experimental loss as "-$.00".
+    const amount = kind === 'money' && m.value?.startsWith('-') && fixed(m.value) === '0.00'
+      ? `<span class="${signed ? 'negative' : ''}">-$0.00</span>` : value(m,kind,signed);
+    return `<div class="stat"><label>${esc(label)}</label><strong>${amount}</strong><small>${esc(evidence)}</small></div>`;
+  }).join('');
+  return `<p class="eyebrow">INDEPENDENT EXPERIMENTAL PONS — SIMULATED — NO REAL MONEY</p>
+    <div class="metric-grid">${cells}</div>
+    <p class="status-notice">Experimental ledger records are separate from the original portfolio. Missing valuations or execution counts remain unavailable; stale figures retain their original timestamp.</p>`;
+}
 function ponsObserverPanel(feed, expanded=false) {
   const observer = feed?.observer && typeof feed.observer === 'object' ? feed.observer : null;
-  const sameSource = !!(observer && feed?.identity?.source_commit === observer.source_commit);
+  const source = feed?.identity?.source_commit;
+  const sameSource = !!(observer && typeof source === 'string' && /^[0-9a-f]{40}$/.test(source) &&
+    source === observer.source_commit);
   const heartbeatAge = ponsObservationAge(observer?.heartbeat_at);
   const marketAge = ponsObservationAge(observer?.market_as_of);
   const fresh = feed?.state === 'CURRENT' && sameSource && observer?.status === 'RUNNING' &&
@@ -103,6 +145,7 @@ function ponsObserverPanel(feed, expanded=false) {
         <div><span>Market evidence</span><strong>${observer?.market_as_of ? esc(date(observer.market_as_of)) : 'Unavailable'}</strong></div>
         <div><span>Recorded restarts</span><strong>${ponsObservationCount(observer?.restart_count)}</strong></div>
       </div>
+      ${ponsAccountPanel(feed,sameSource)}
       <div class="table-wrap"><table><thead><tr><th>Strategy</th><th>Native complete</th><th>Eligible</th><th>WAIT</th><th>Incomplete</th><th>REJECT</th></tr></thead><tbody>${lanes.map(row).join('')}</tbody></table></div>
       ${lastDecisions}
       <p class="status-notice">History coverage: ${esc(observer?.history_coverage || 'UNAVAILABLE')} · Feed: ${esc(feed?.state || 'UNAVAILABLE')}. Counts are from the last verified observer snapshot; stale values are not current operations. No PAPER entries are authorized by this view.</p>

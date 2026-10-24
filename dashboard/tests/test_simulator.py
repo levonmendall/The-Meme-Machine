@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -612,6 +614,9 @@ class SimulatorHTTPTests(SimulatorFixture):
         self.assertIn(b'Pons Current', javascript)
         self.assertIn(b'Pons Survivor', javascript)
         self.assertIn(b'Original PAPER remains a separate, stopped portfolio', javascript)
+        self.assertIn(b'INDEPENDENT EXPERIMENTAL PONS', javascript)
+        self.assertIn(b'Available simulated cash', javascript)
+        self.assertIn(b'Recorded fees / costs', javascript)
         self.assertIn(b"api('portfolio')", javascript)
         self.assertNotIn(b'/dashboard/pons-simulator', javascript)
         self.assertEqual(self.request(base, '/dashboard/app.js')[0], 401)
@@ -620,6 +625,69 @@ class SimulatorHTTPTests(SimulatorFixture):
                                            authorization=OWNER_AUTH)
         self.assertEqual(status, 200)
         self.assertIn(b'"mode"', original)
+
+    @unittest.skipUnless(shutil.which('node'), 'Node is needed only for the offline primary-panel rendering check')
+    def test_primary_financial_panel_renders_verified_stale_and_unknown_values_without_invented_trades(self):
+        javascript = (Path(__file__).resolve().parents[1]/'static/app.js').read_text()
+        # Evaluate only the real declaration prefix. No browser startup, fetch,
+        # service, provider, timer or original-portfolio call runs here.
+        prefix = javascript[:javascript.index('\nfunction header(')]
+        source = dict(state='CURRENT', identity={'source_commit': SOURCE},
+            metrics=dict(financial=dict(
+                cash=dict(metric('950.00', 'USD'), state='CURRENT'),
+                equity=dict(metric(None, 'USD', quality='UNAVAILABLE'), state='UNAVAILABLE'),
+                realized_pnl=dict(metric('-0.01', 'USD'), state='CURRENT'),
+                fees=dict(metric('0.123456789012345679', 'USD', quality='ESTIMATED'), state='CURRENT')),
+                activity={}),
+            observer=dict(source_commit=SOURCE, status='RUNNING', heartbeat_at=utc(NOW), market_as_of=utc(NOW),
+                restart_count=1, current={}, survivor={}, decisions=[], history_coverage='INCOMPLETE'))
+        cases = {'fresh': source}
+        stale = deepcopy(source); stale['metrics']['financial']['cash']['as_of'] = utc(NOW-61)
+        cases['stale'] = stale
+        mismatch = deepcopy(source); mismatch['identity']['source_commit'] = 'f'*40
+        cases['mismatch'] = mismatch
+        missing_source = deepcopy(source)
+        del missing_source['identity']['source_commit']; del missing_source['observer']['source_commit']
+        cases['missing_source'] = missing_source
+        counted = deepcopy(source)
+        counted['metrics']['activity']['entries'] = dict(metric('0','COUNT'), state='CURRENT')
+        cases['counted'] = counted
+        estimated = deepcopy(counted); estimated['metrics']['activity']['entries']['quality'] = 'ESTIMATED'
+        cases['estimated'] = estimated
+        future = deepcopy(source); future['metrics']['financial']['cash']['as_of'] = utc(NOW+1)
+        cases['future'] = future
+        hostile = deepcopy(source); hostile['metrics']['financial']['cash']['value'] = '<script>PRIVATE</script>'
+        cases['hostile'] = hostile
+        subcent = deepcopy(source); subcent['metrics']['financial']['realized_pnl']['value'] = '-0.004'
+        cases['subcent'] = subcent
+        script = """
+const vm=require('vm');const fs=require('fs');const input=JSON.parse(fs.readFileSync(0,'utf8'));
+class Clock extends Date {static now(){return input.now*1000;}}
+const context={Date:Clock,document:{querySelector(){return {};}}};vm.createContext(context);
+vm.runInContext(input.source,context);const result={};
+for(const [name,feed] of Object.entries(input.cases))result[name]=context.ponsObserverPanel(feed);
+process.stdout.write(JSON.stringify(result));
+"""
+        completed = subprocess.run([shutil.which('node'), '-e', script],
+            input=json.dumps(dict(source=prefix, cases=cases, now=NOW)).encode(),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5, check=True)
+        rendered = json.loads(completed.stdout)
+        self.assertIn('$950.00', rendered['fresh'])
+        self.assertIn('-$0.01', rendered['fresh'])
+        self.assertIn('CURRENT · MEASURED · As of', rendered['fresh'])
+        self.assertIn('ESTIMATED', rendered['fresh'])
+        self.assertIn('UNAVAILABLE', rendered['fresh'])
+        self.assertNotIn('Executed PAPER entries', rendered['fresh'])
+        self.assertIn('Executed PAPER entries', rendered['counted'])
+        self.assertNotIn('Executed PAPER entries', rendered['estimated'])
+        self.assertIn('STALE · MEASURED · As of', rendered['stale'])
+        self.assertNotIn('$950.00', rendered['mismatch'])
+        self.assertNotIn('$950.00', rendered['missing_source'])
+        self.assertNotIn('$950.00', rendered['future'])
+        self.assertNotIn('<script>', rendered['hostile'])
+        self.assertIn('-$0.00', rendered['subcent'])
+        self.assertNotIn('-$.00', rendered['subcent'])
+        self.assertIn('Original PAPER remains a separate, stopped portfolio', rendered['fresh'])
 
     def original_store(self):
         return SnapshotStore(self.root/'original-latest.json',
