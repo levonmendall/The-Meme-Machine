@@ -175,6 +175,7 @@ FAST=[
 ]
 OPERATIONAL=FAST+[
  'tests.test_pons_simulator',
+ 'dashboard.tests.test_simulator',
  'tests.test_original_pump_window_replay',
  'tests.test_workload_efficiency',
  'tests.test_solana_source_intake.LiveIntakeBoundaryTests',
