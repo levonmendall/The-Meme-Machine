@@ -915,7 +915,9 @@ def install():
     from engineering.solana_capacity.proof_transport import Channel,Stream,WebSocketContext
     class NoRedirect(HTTPRedirectHandler):
         def redirect_request(self,*args,**kwargs):budget.fail('bounded_http_redirect')
-    opener=build_opener(ProxyHandler({}),NoRedirect()).open
+    # Keep the execution environment's authenticated egress route. Destination,
+    # RPC-method, admission, accounting and no-redirect checks remain below.
+    opener=build_opener(ProxyHandler(),NoRedirect()).open
     def opened(request,*args,**kwargs):
         try:body=json.loads(request.data)
         except (ValueError,TypeError,AttributeError):budget.fail('bounded_non_rpc_http')

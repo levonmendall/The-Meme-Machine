@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Read-only results from the independent Pons Current simulated trading experiment.">
+  <title>Pons Simulator · The Meme Machine</title>
+  <link rel="stylesheet" href="/dashboard/style.css">
+  <link rel="stylesheet" href="/dashboard/pons-simulator/style.css">
+  <script src="/dashboard/pons-simulator/app.js" defer></script>
+</head>
+<body class="simulator-page">
+  <a class="sim-skip" href="#sim-main">Skip to simulator results</a>
+  <header class="sim-topbar">
+    <a class="sim-brand" href="/dashboard">THE MEME MACHINE</a>
+    <nav aria-label="Dashboard views">
+      <a href="/dashboard">Original portfolio</a>
+      <a href="/dashboard/pons-simulator" aria-current="page">Pons Simulator</a>
+    </nav>
+    <span class="sim-readonly">READ-ONLY REPORTING</span>
+  </header>
+
+  <main id="sim-main" tabindex="-1" data-feed-state="UNAVAILABLE">
+    <div class="sim-warning">EXPERIMENTAL PONS CURRENT — SIMULATED TRADING — NO REAL MONEY</div>
+    <div class="sim-heading">
+      <div>
+        <p class="sim-eyebrow">Independent experiment</p>
+        <h1>Pons Current Simulator</h1>
+        <p class="sim-intro">Live-market observations and simulated execution. This ledger is separate from the original portfolios and protected pilot. This view cannot trade or change financial records.</p>
+      </div>
+      <div class="sim-state-block" aria-live="polite" aria-atomic="true">
+        <span class="sim-state-label">DATA FEED</span>
+        <strong id="sim-feed-state" class="sim-state" data-state="UNAVAILABLE">UNAVAILABLE</strong>
+        <span id="sim-feed-detail">Waiting for an authenticated experiment snapshot.</span>
+      </div>
+    </div>
+
+    <section class="sim-status-panel" aria-label="Experiment status">
+      <dl class="sim-status-grid">
+        <div><dt>Reported execution</dt><dd id="sim-execution">UNKNOWN</dd></div>
+        <div><dt>Captured</dt><dd id="sim-captured">UNAVAILABLE</dd></div>
+        <div><dt>Snapshot age</dt><dd id="sim-age">UNAVAILABLE</dd></div>
+        <div><dt>Sequence</dt><dd id="sim-sequence">UNAVAILABLE</dd></div>
+        <div><dt>Last successful fetch</dt><dd id="sim-fetched">UNAVAILABLE</dd></div>
+      </dl>
+      <p id="sim-reasons" class="sim-status-note">No experiment data received.</p>
+      <p class="sim-disclosure">CURRENT describes snapshot freshness. It does not verify strategy acceptance, recovery, or position protection. Metric timestamps can be older than the snapshot.</p>
+    </section>
+
+    <section class="sim-section" aria-labelledby="sim-financial-heading">
+      <div class="sim-section-heading"><h2 id="sim-financial-heading">Simulated financial statement</h2><span>USD unless labeled otherwise</span></div>
+      <div id="sim-financial" class="sim-metric-grid"></div>
+    </section>
+
+    <div class="sim-columns">
+      <section class="sim-section" aria-labelledby="sim-activity-heading">
+        <div class="sim-section-heading"><h2 id="sim-activity-heading">Trading activity</h2></div>
+        <div id="sim-activity" class="sim-metric-grid sim-small-grid"></div>
+      </section>
+      <section class="sim-section" aria-labelledby="sim-strategy-heading">
+        <div class="sim-section-heading"><h2 id="sim-strategy-heading">Strategy performance</h2></div>
+        <dl class="sim-status-grid">
+          <div><dt>Current strategy version</dt><dd id="sim-strategy-version">UNAVAILABLE</dd></div>
+          <div><dt>Policy revision</dt><dd id="sim-policy-revision">UNAVAILABLE</dd></div>
+          <div><dt>Policy SHA-256</dt><dd><code id="sim-policy-hash">UNAVAILABLE</code></dd></div>
+          <div><dt>Strategy changes</dt><dd id="sim-adaptation-state">UNAVAILABLE</dd></div>
+        </dl>
+        <p class="sim-disclosure">Codex candidate reviews and safety rejections are separate from complete native strategy qualification. An unavailable evaluation count is not zero.</p>
+        <div id="sim-strategy" class="sim-metric-grid sim-small-grid"></div>
+      </section>
+    </div>
+
+    <section class="sim-section" aria-labelledby="sim-operations-heading">
+      <div class="sim-section-heading"><h2 id="sim-operations-heading">Market processing and providers</h2><span>Reported observations, not inferred health</span></div>
+      <div id="sim-operational" class="sim-metric-grid"></div>
+    </section>
+
+    <section class="sim-section" aria-labelledby="sim-lifecycles-heading">
+      <div class="sim-section-heading"><h2 id="sim-lifecycles-heading">Position lifecycles</h2><span id="sim-lifecycle-count">UNAVAILABLE</span></div>
+      <p class="sim-disclosure">Entries and exits are simulated. An absent quote, liquidity estimate, fill assumption, or protective observation is unavailable evidence, not a guaranteed executable fill.</p>
+      <div id="sim-lifecycles" class="sim-lifecycles"><p class="sim-empty">Lifecycle history unavailable.</p></div>
+    </section>
+
+    <div class="sim-columns">
+      <section class="sim-section" aria-labelledby="sim-events-heading">
+        <div class="sim-section-heading"><h2 id="sim-events-heading">Decision and execution history</h2></div>
+        <p id="sim-events-coverage" class="sim-disclosure">History coverage unavailable.</p>
+        <div id="sim-events" class="sim-table-wrap"><p class="sim-empty">No verified history received.</p></div>
+      </section>
+      <section class="sim-section" aria-labelledby="sim-equity-heading">
+        <div class="sim-section-heading"><h2 id="sim-equity-heading">Equity history</h2></div>
+        <p id="sim-equity-coverage" class="sim-disclosure">History coverage unavailable.</p>
+        <div id="sim-equity" class="sim-table-wrap"><p class="sim-empty">No verified history received.</p></div>
+      </section>
+    </div>
+
+    <section class="sim-section sim-source" aria-labelledby="sim-source-heading">
+      <div class="sim-section-heading"><h2 id="sim-source-heading">Experiment identity and persistence</h2></div>
+      <dl>
+        <div><dt>Experiment</dt><dd id="sim-experiment">UNAVAILABLE</dd></div>
+        <div><dt>Independent simulated epoch</dt><dd id="sim-epoch">UNAVAILABLE</dd></div>
+        <div><dt>Application source</dt><dd><code id="sim-source">UNAVAILABLE</code></dd></div>
+        <div><dt>Inception SHA-256</dt><dd><code id="sim-inception">UNAVAILABLE</code></dd></div>
+        <div><dt>Dashboard persistence</dt><dd id="sim-persistence">UNAVAILABLE</dd></div>
+      </dl>
+      <p id="sim-persistence-detail" class="sim-disclosure">Historical persistence and ledger authority have not been verified by this view.</p>
+    </section>
+    <noscript><p class="sim-warning">JavaScript is required to fetch simulator results. No current data is being displayed.</p></noscript>
+  </main>
+  <footer class="sim-footer">Experimental simulated results do not establish profitability. No wallets, signing, real orders, or trading controls are available here. Refreshes approximately every 30 seconds.</footer>
+</body>
+</html>

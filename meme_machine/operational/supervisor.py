@@ -141,6 +141,10 @@ class Supervisor:
     def runtime_lanes(self):
         return getattr(self,'continuation_lanes',getattr(self,'observation_lanes',ACTIVE_LANES))
 
+    def verify_storage(self):
+        from .storage_guard import verify_storage
+        return verify_storage(self.root)
+
     def _assert_paused_lanes_clear(self,account):
         from .pause import assert_clear
         return assert_clear(self.root,account)
@@ -159,8 +163,7 @@ class Supervisor:
             from .admission import require_normal,require_autonomy
             if self.admission=='NORMAL':require_normal(startup=True)
             if self.admission=='AUTONOMY':require_autonomy(self.root)
-            from .storage_guard import verify_storage
-            verify_storage(self.root)
+            self.verify_storage()
         self.root.mkdir(parents=True,exist_ok=True,mode=0o700)
         self.lock=(self.root/'supervisor.lock').open('a')
         try:fcntl.flock(self.lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -360,11 +363,14 @@ class Supervisor:
         import uuid
         instance=uuid.uuid4().hex
         env=self.environment(lane);env['MM_LANE_PROCESS_INSTANCE']=instance
-        self.processes[lane]=subprocess.Popen(args,cwd=folder,env=env,start_new_session=True)
+        self.processes[lane]=self.launch_lane(lane,args,folder,env)
         self.process_instances[lane]=instance
         if getattr(self,'shared_capital',None):
             for suffix in ('current','survivor'):
                 self.shared_capital.owner(lane+'_'+suffix,instance,self.processes[lane].pid,ready=False,at=int(time.time()))
+
+    def launch_lane(self,lane,args,folder,env):
+        return subprocess.Popen(args,cwd=folder,env=env,start_new_session=True)
 
     def start_services(self):
         if not hasattr(self,'evidence'):self.evidence=None
@@ -737,6 +743,17 @@ class Supervisor:
             row=providers.get('evidence',{})
             if row.get('phase')!='ACTIVE' or not 0<=now-row.get('heartbeat',0)<=15:
                 reason='authenticated_solana_position_evidence_unavailable'
+        reason=self.resource_health(now,reason)
+        if outstanding(self.shared_capital.ledger()):
+            if reason:provider_failure(self,reason)
+            else:provider_recovered(self)
+        self.current_readiness_failure=reason
+
+    def resource_health(self,now,reason):
+        from decimal import localcontext
+        from .position_continuation import cpu_capacity
+        from meme_machine.shared_capital.model import CapitalError
+        budget=self.provider_budget
         try:
             configured_cpu=cpu_capacity(budget.envelope)
             group=current_service_cgroup()
@@ -768,10 +785,7 @@ class Supervisor:
         except (OSError,ValueError,KeyError,ArithmeticError,CapitalError):
             self.resource_measurement=dict(state='UNAVAILABLE',reason='existing_PAPER_cgroup_measurement_unavailable')
             reason=reason or 'continuation_cgroup_resource_measurement_unavailable'
-        if outstanding(self.shared_capital.ledger()):
-            if reason:provider_failure(self,reason)
-            else:provider_recovered(self)
-        self.current_readiness_failure=reason
+        return reason
 
     def recover_evidence(self):
         """An incident blocks new risk; existing native owners keep priority."""

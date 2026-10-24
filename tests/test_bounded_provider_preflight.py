@@ -173,6 +173,31 @@ class ProviderPreflightTests(unittest.TestCase):
         self.assertEqual(row['http_uncertain_bytes'],str(MAX_FRAME))
         self.assertEqual(row['rpc_cu'],'20')
 
+    def test_installed_metering_keeps_inherited_proxy_and_durable_accounting(self):
+        import urllib.request
+        from meme_machine.operational.bounded_provider import install
+        environment=dict(MM_BOUNDED_PROVIDER_DB=str(self.path),
+            MM_BOUNDED_PROVIDER_ENVELOPE=str(self.file),
+            HTTPS_PROXY='http://approved-proxy.invalid:8080')
+        with patch.dict(os.environ,environment,clear=True), \
+                patch('urllib.request.urlopen'),patch('urllib.request.build_opener') as opener, \
+                patch('meme_machine.lanes.pons.provider.urlopen'), \
+                patch('grpc.aio.secure_channel'),patch('meme_machine.solana_selective_source.connect'):
+            opener.return_value.open.return_value=io.BytesIO(b'offline-rpc-response')
+            install()
+            proxy=opener.call_args.args[0]
+            self.assertIsInstance(proxy,urllib.request.ProxyHandler)
+            self.assertEqual(proxy.proxies['https'],environment['HTTPS_PROXY'])
+            request=urllib.request.Request('https://solana-mainnet.g.alchemy.com/v2/offline',
+                data=json.dumps(dict(method='getSlot')).encode())
+            with urllib.request.urlopen(request) as response:
+                self.assertEqual(response.read(),b'offline-rpc-response')
+            opener.return_value.open.assert_called_once()
+        row=self.budget.snapshot()
+        self.assertEqual(row['http_attempts'],'1')
+        self.assertEqual(row['rpc_cu'],'20')
+        self.assertEqual(row['http_reserved'],'0')
+
     def test_first_failure_survives_expiration_without_replenishment(self):
         self.budget.change(reason='original_stream_failure',check=False);before=self.budget.snapshot()
         with patch('time.monotonic',return_value=self.budget.started+901):
