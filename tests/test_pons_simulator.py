@@ -296,6 +296,32 @@ class PonsSimulatorTests(unittest.TestCase):
             limits.assert_not_called()
             execute.assert_not_called()
 
+    def test_missing_actual_provider_clock_blocks_before_any_runtime_configuration_write(self):
+        from meme_machine.runtime.provider_clock import ProviderClockError
+        simulator.prepare()
+        env = {'MM_ROBINHOOD_READ_RPC_URL':
+               'https://robinhood-mainnet.g.alchemy.com/v2/PRIVATE_OFFLINE_TEST_KEY'}
+        with patch.dict(os.environ, env, clear=True), \
+                patch('meme_machine.runtime.provider_clock.current_identity',
+                      side_effect=ProviderClockError('disposable unavailable clock')), \
+                patch('meme_machine.operational.bounded_provider.Budget.create') as create, \
+                patch.object(simulator, 'verify_experimental_storage') as storage, \
+                patch.object(simulator, 'continuous_profile') as profile, \
+                patch.object(simulator, 'source_binding') as source:
+            result = simulator.runtime('shadow')
+            self.assertEqual(result['state'], 'BLOCKED')
+            self.assertIn('PROVIDER_CLOCK_IDENTITY_UNAVAILABLE', result['blockers'])
+            self.assertFalse(result['native_runtime_started'])
+            with self.assertRaisesRegex(simulator.SimulatorFailure, 'PROVIDER_CLOCK_IDENTITY_UNAVAILABLE'):
+                simulator.configure_runtime()
+            create.assert_not_called()
+            storage.assert_not_called()
+            profile.assert_not_called()
+            source.assert_not_called()
+        for relative in ('continuous-profile.json', 'simulator-storage.json', 'simulator-provider.json',
+                         'simulator-provider-initialization.json', 'shared/provider-usage.continuous.sqlite'):
+            self.assertFalse((self.state / relative).exists(), relative)
+
 
 if __name__ == '__main__':
     unittest.main()

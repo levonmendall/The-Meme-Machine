@@ -484,10 +484,22 @@ def prepare():
                 paper_only=True, real_money_authority=False)
 
 
+def require_provider_clock():
+    from meme_machine.runtime.provider_clock import current_identity, ProviderClockError
+    try:
+        return current_identity()
+    except ProviderClockError:
+        raise SimulatorFailure('PROVIDER_CLOCK_IDENTITY_UNAVAILABLE') from None
+
+
 def runtime_blockers(environ=None):
     """Configuration checks only: no provider call, public fallback or allowance."""
     env = os.environ if environ is None else environ
     blockers = []
+    try:
+        require_provider_clock()
+    except SimulatorFailure:
+        blockers.append('PROVIDER_CLOCK_IDENTITY_UNAVAILABLE')
     if not STATE.exists():
         blockers.append('SIMULATOR_NOT_PREPARED')
     from meme_machine.runtime.robinhood.provider_authority import endpoint
@@ -507,6 +519,7 @@ def status():
 
 
 def configure_runtime():
+    require_provider_clock()
     from .supervisor import validate_environment
     from meme_machine.runtime.robinhood.provider_authority import endpoint, reference
     endpoint()  # Configuration identity only. No secret is returned or serialized.
