@@ -344,7 +344,9 @@
       REVERTED: 'REVERTED — reported strategy version restored'
     }[strategy?.adaptation_state] || UNAVAILABLE;
     byId('sim-persistence').textContent = boundedText(snapshot?.persistence, 50);
-    byId('sim-persistence-detail').textContent = snapshot?.persistence === 'EPHEMERAL_UNVERIFIED'
+    byId('sim-persistence-detail').textContent = snapshot?.source_ledger_authoritative === false
+      ? 'This read-only observer has no financial ledger access or execution authority. Any retained financial statement keeps its original verification timestamp. Observer history is maintained at the source; this dashboard is not its durable archive.'
+      : snapshot?.persistence === 'EPHEMERAL_UNVERIFIED'
       ? 'Dashboard storage is ephemeral or unverified. Do not rely on this service as the historical archive. The experimental source ledger, not this dashboard, owns financial records; durable recovery must be verified separately.'
       : 'Historical persistence has not been independently verified by this view. The dashboard never owns trading or financial authority.';
     renderMetrics();

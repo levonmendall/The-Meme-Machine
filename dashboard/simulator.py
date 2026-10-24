@@ -436,7 +436,8 @@ class SimulatorReader:
         if state == 'STALE' and 'STALE_SNAPSHOT' not in reasons:
             reasons.append('STALE_SNAPSHOT')
         return dict(schema=VIEW_SCHEMA, label=LABEL, state=state,
-            persistence=PERSISTENCE, source_ledger_authoritative=True,
+            persistence=PERSISTENCE,
+            source_ledger_authoritative=not bool(value and value.get('observer', {}).get('read_only')),
             identity=deepcopy(self.store.identity) if self.store else None,
             strategy_version=deepcopy(value.get('strategy_version')) if value else None,
             observer=deepcopy(value.get('observer')) if value else None,
