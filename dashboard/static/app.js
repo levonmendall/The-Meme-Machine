@@ -48,6 +48,69 @@ async function api(path, params={}) {
     return await response.json();
   } finally { clearTimeout(timer); }
 }
+
+// Independent, authenticated Pons observation. This never alters the old PAPER feed.
+const PONS_FRESH_SECONDS = 60;
+async function ponsObserverFeed() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7000);
+  try {
+    const response = await fetch('/api/pons-simulator/state', {
+      signal: controller.signal, cache: 'no-store', credentials: 'same-origin',
+      headers: {Accept: 'application/json'}
+    });
+    if (!response.ok) return null;
+    const feed = await response.json();
+    return feed?.schema === 'pons-simulator-view-v1' ? feed : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+function ponsObservationAge(at) {
+  if (typeof at !== 'string' || !Number.isFinite(Date.parse(at))) return null;
+  return (Date.now() - Date.parse(at)) / 1000;
+}
+const ponsObservationCount = n => Number.isSafeInteger(n) && n >= 0 ? n.toLocaleString() : 'Unavailable';
+function ponsObserverPanel(feed, expanded=false) {
+  const observer = feed?.observer && typeof feed.observer === 'object' ? feed.observer : null;
+  const sameSource = !!(observer && feed?.identity?.source_commit === observer.source_commit);
+  const heartbeatAge = ponsObservationAge(observer?.heartbeat_at);
+  const marketAge = ponsObservationAge(observer?.market_as_of);
+  const fresh = feed?.state === 'CURRENT' && sameSource && observer?.status === 'RUNNING' &&
+    [heartbeatAge, marketAge].every(n => n !== null && n >= 0 && n <= PONS_FRESH_SECONDS);
+  const displayState = !observer ? 'UNAVAILABLE' : fresh ? 'CURRENT' : 'STALE';
+  const statusText = !observer ? 'No verified observer report received.' :
+    !sameSource ? 'Observer identity mismatch: results unavailable.' :
+    observer.status !== 'RUNNING' ? 'Observer reports '+observer.status+'.' :
+    fresh ? 'Market observation is fresh.' : 'Observer report or market evidence is stale or incomplete.';
+  const lanes = [['current','Pons Current'],['survivor','Pons Survivor']];
+  const row = ([key,label]) => {
+    const v = observer?.[key] || {};
+    return `<tr><td>${esc(label)}</td><td>${ponsObservationCount(v.completed)}</td><td>${ponsObservationCount(v.eligible)}</td><td>${ponsObservationCount(v.wait)}</td><td>${ponsObservationCount(v.incomplete)}</td><td>${ponsObservationCount(v.rejected)}</td></tr>`;
+  };
+  const events = feed?.metrics?.activity?.events_processed?.value;
+  const decisions = observer?.decisions && Array.isArray(observer.decisions) ? observer.decisions.slice(-(expanded ? 12 : 4)).reverse() : [];
+  const lastDecisions = decisions.length ? `<div class="table-wrap"><table><thead><tr><th>Observation</th><th>Strategy</th><th>Shadow decision</th><th>Evidence</th><th>Reason</th></tr></thead><tbody>${decisions.map(d => `<tr><td>${esc(date(d.at))}</td><td>${esc(d.strategy)}</td><td>${esc(d.action)}</td><td>${esc(d.qualification)}</td><td>${esc(d.reason)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="status-notice">No verified shadow decisions in the received report.</p>';
+  return `<section class="panel pons-observer-panel" aria-label="Live Pons observation">
+    <div class="panelhead"><div><p class="eyebrow">Independent market observation · no trading authority</p><h2>Pons Current &amp; Survivor — Live Observer</h2></div>${badge(displayState, fresh ? 'READ-ONLY · CURRENT' : 'READ-ONLY · '+displayState)}</div>
+    <div class="panelbody">
+      <p class="status-notice">${esc(statusText)} Original PAPER remains a separate, stopped portfolio. Shadow decisions are not trades, fills or evidence of profitability.</p>
+      <div class="pons-observer-kpis">
+        <div><span>Processed economic events</span><strong>${events == null ? 'Unavailable' : esc(events)}</strong></div>
+        <div><span>Observer heartbeat</span><strong>${observer?.heartbeat_at ? esc(date(observer.heartbeat_at)) : 'Unavailable'}</strong></div>
+        <div><span>Market evidence</span><strong>${observer?.market_as_of ? esc(date(observer.market_as_of)) : 'Unavailable'}</strong></div>
+        <div><span>Recorded restarts</span><strong>${ponsObservationCount(observer?.restart_count)}</strong></div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Strategy</th><th>Native complete</th><th>Eligible</th><th>WAIT</th><th>Incomplete</th><th>REJECT</th></tr></thead><tbody>${lanes.map(row).join('')}</tbody></table></div>
+      ${lastDecisions}
+      <p class="status-notice">History coverage: ${esc(observer?.history_coverage || 'UNAVAILABLE')} · Feed: ${esc(feed?.state || 'UNAVAILABLE')}. Counts are from the last verified observer snapshot; stale values are not current operations. No PAPER entries are authorized by this view.</p>
+      ${expanded ? '' : '<a class="link" href="#lanes">View Current and Survivor evidence →</a>'}
+    </div>
+  </section>`;
+}
+
 function header(name,p) {
   const demo = p.mode==='fixture';
   return `<div class="pagehead"><div><p class="eyebrow">Portfolio intelligence / Paper only</p><h1>${esc(name)}</h1></div><div class="head-right">${badge(demo?'UNKNOWN':p.state,demo?'DETERMINISTIC FIXTURE':p.paper_state==='STOPPED'?'PAPER STOPPED':p.state==='CURRENT'?'PAPER':title(p.state))}<small class="muted">Accounting ${date(p.as_of)}</small></div></div>`+
@@ -307,11 +370,11 @@ function operationsPanel(s,detailed=false) {
     </div></section>`;
 }
 async function overview(p) {
-  const [lanes,chart,positions,trades,system,...laneCharts] = await Promise.all([
-    api('lanes'),api('equity',{period:state.period,series:state.series}),api('positions',{limit:5}),api('trades',{limit:5}),api('system'),...LANES.map(l=>api('equity',{series:l,limit:60}))]);
+  const [observer,lanes,chart,positions,trades,system,...laneCharts] = await Promise.all([
+    ponsObserverFeed(),api('lanes'),api('equity',{period:state.period,series:state.series}),api('positions',{limit:5}),api('trades',{limit:5}),api('system'),...LANES.map(l=>api('equity',{series:l,limit:60}))]);
   const charts=Object.fromEntries(LANES.map((l,i)=>[l,laneCharts[i]]));
   return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}
-    ${operationsPanel(system.data)}${laneCards(lanes.data,charts)}
+    ${ponsObserverPanel(observer)}${operationsPanel(system.data)}${laneCards(lanes.data,charts)}
     <div class="chart-row overview-charts">
       ${chartPanel(chart)}
       <section class="panel"><div class="panelhead"><h2>P&L by lane</h2></div><div class="panelbody">${laneDonut(lanes.data,p)}</div></section>
@@ -322,10 +385,10 @@ async function overview(p) {
   </div>`;
 }
 async function lanePage(lane,p) {
-  const [r,chart,positions,trades]=await Promise.all([api('lanes/'+lane),api('equity',{series:lane,period:state.period}),api('positions',{lane,limit:25}),api('trades',{lane,limit:10})]);
+  const [r,chart,positions,trades,observer]=await Promise.all([api('lanes/'+lane),api('equity',{series:lane,period:state.period}),api('positions',{lane,limit:25}),api('trades',{lane,limit:10}),lane==='pons'?ponsObserverFeed():Promise.resolve(null)]);
   const l=r.data,m=l.metrics;
   const metrics=[['Portfolio contribution','contribution_pct','percent'],['Realized net P&L','realized_pnl','money'],['Unrealized net P&L','unrealized_pnl','money'],['Trades taken','trades_taken','count'],['Completed trades','completed_trades','count'],['Open positions','open_positions','count'],['Winners','wins','count'],['Losses','losses','count'],['Breakevens','breakevens','count'],['Win rate','win_rate','percent'],['Deployed capital','deployed_capital','money'],['Fees / costs','fees','money'],['Average completed result','average_result','money'],['Largest winner','largest_winner','money'],['Largest loss','largest_loser','money'],['Average holding time','average_holding_seconds','seconds'],['Max drawdown','max_drawdown_pct','percent'],['Standalone lane return','lane_return_pct','percent']];
-  return header(names[lane]+' lane',p)+`<section class="panel lane-hero ${lane}"><div class="panelhead"><div><p class="eyebrow">Net P&L / ${names[lane]}</p><div class="equity">${value(m.net_pnl,'money',true)}</div><p class="sample-count">${m.completed_trades.value??'Unknown'} completed trades · ${m.open_positions.value??'Unknown'} open · ${m.wins.value??'?'} wins / ${m.losses.value??'?'} losses / ${m.breakevens.value??'?'} breakevens</p></div>${badge(l.health.operational.state,l.health.operational.value)}</div><div class="metric-grid">${metrics.map(([label,key,kind])=>stat(label,m[key],kind,['realized_pnl','unrealized_pnl','contribution_pct'].includes(key))).join('')}</div></section><div class="detail-chart">${chartPanel(chart,false)}</div><div class="tables">${tablePanel('Open exposure',positions,false,'positions')}${tablePanel('Recent completed trades',trades,true,'trades')}</div>${healthPanel(lane,l.health)}`;
+  return header(names[lane]+' lane',p)+(lane==='pons'?ponsObserverPanel(observer,true):'')+`<section class="panel lane-hero ${lane}"><div class="panelhead"><div><p class="eyebrow">Net P&L / ${names[lane]}</p><div class="equity">${value(m.net_pnl,'money',true)}</div><p class="sample-count">${m.completed_trades.value??'Unknown'} completed trades · ${m.open_positions.value??'Unknown'} open · ${m.wins.value??'?'} wins / ${m.losses.value??'?'} losses / ${m.breakevens.value??'?'} breakevens</p></div>${badge(l.health.operational.state,l.health.operational.value)}</div><div class="metric-grid">${metrics.map(([label,key,kind])=>stat(label,m[key],kind,['realized_pnl','unrealized_pnl','contribution_pct'].includes(key))).join('')}</div></section><div class="detail-chart">${chartPanel(chart,false)}</div><div class="tables">${tablePanel('Open exposure',positions,false,'positions')}${tablePanel('Recent completed trades',trades,true,'trades')}</div>${healthPanel(lane,l.health)}`;
 }
 function healthPanel(lane,h) {
   return `<section class="panel ${lane}"><div class="panelhead"><h2 class="lane-label">${names[lane]}</h2>${badge(h.operational.state,h.operational.value)}</div><div class="panelbody"><div class="health-row"><span>Native accounting reconciliation</span>${badge(h.accounting.state,h.accounting.value===true?'RECONCILED':h.accounting.value===false?'MISMATCH':undefined)}</div><div class="health-row"><span>Evidence freshness</span>${badge(h.evidence.state)}</div><div class="health-row"><span>Progress age</span><span>${value(h.progress_age_seconds,'seconds')}</span></div><div class="health-row"><span>Persisted provider request count</span><span>${value(h.provider_requests,'count')}</span></div><p class="status-notice">A responsive process does not prove fresh evidence. Native campaign telemetry is separate from the new USD portfolio.</p>${nativePanel(h.native_accounting)}<details><summary>Source / policy / configuration identities</summary><p class="status-notice">Runtime-observed identities</p>${identityRows(h.runtime_identities)}<p class="status-notice">Configured source map (not proof of execution)</p>${identityRows(h.configured_identities)}</details></div></section>`;
@@ -349,8 +412,9 @@ async function analytics(p) {
   return header('Portfolio analytics',p)+`<p class="status-notice">Coverage: ${p.metrics.completed_trades.value??'unknown'} completed lifecycles. No statistical significance, ranking or strategy selection is inferred.</p><div class="chart-row">${chartPanel(chart)}<section class="panel"><div class="panelhead"><h2>Cumulative lane contribution</h2></div><div class="panelbody">${laneBars(lanes.data)}${stat('Unallocated / shared costs',p.metrics.shared_costs)}</div></section><section class="panel"><div class="panelhead"><h2>Wins / losses</h2></div><div class="panelbody">${laneBars(lanes.data,true)}</div></section></div><div class="panel metric-grid">${stat('Realized net P&L',p.metrics.realized_pnl,'money',true)}${stat('Unrealized net P&L',p.metrics.unrealized_pnl,'money',true)}${stat('Portfolio drawdown',p.metrics.max_drawdown_pct,'percent')}${stat('Completed sample',p.metrics.completed_trades,'count')}${stat('Breakevens',p.metrics.breakevens,'count')}${stat('Win rate',p.metrics.win_rate,'percent')}</div><div class="daily"><section class="panel"><div class="panelhead"><h2>Completed P&L by settlement day</h2></div>${dailyTable(true)}<div class="panelbody"><p class="status-notice">Full lifecycle net outcomes on terminal settlement day. Excludes open partial realizations and shared costs. Daily equity change is unavailable.</p></div></section><section class="panel"><div class="panelhead"><h2>Daily trade frequency</h2></div>${dailyTable(false)}<div class="panelbody"><p class="status-notice">${esc(daily.coverage)}. Showing up to 31 observed days.</p></div></section></div>`;
 }
 async function systemPage(p) {
-  const s=(await api('system')).data;
-  return header('System & evidence',p)+operationsPanel(s,true)+systemStrip(s)+`<p class="status-notice">Telemetry snapshot: ${date(s.observed_at)}. Polling reads local persisted state only. Each lane retains its own operational and evidence status.</p><div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div><section class="panel detail-chart"><div class="panelhead"><h2>Portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}${sharedCapital(p)}</details></div></section>`;
+  const [response,observer]=await Promise.all([api('system'),ponsObserverFeed()]);
+  const s=response.data;
+  return header('System & evidence',p)+ponsObserverPanel(observer,true)+operationsPanel(s,true)+systemStrip(s)+`<p class="status-notice">Telemetry snapshot: ${date(s.observed_at)}. Polling reads local persisted state only. Each lane retains its own operational and evidence status.</p><div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div><section class="panel detail-chart"><div class="panelhead"><h2>Portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}${sharedCapital(p)}</details></div></section>`;
 }
 async function showPosition(id) {
   try {
@@ -391,7 +455,7 @@ async function render() {
     syncTopbar(p);
     let html;
     if(route==='overview') html=await overview(p);
-    else if(route==='lanes') html=header('Active paper lanes',p)+laneCards((await api('lanes')).data)+`<a class="link" href="#analytics">Portfolio analytics →</a>`;
+    else if(route==='lanes') { const [lanes,observer]=await Promise.all([api('lanes'),ponsObserverFeed()]); html=header('Paper lanes & live Pons observations',p)+ponsObserverPanel(observer,true)+laneCards(lanes.data)+`<a class="link" href="#analytics">Portfolio analytics →</a>`; }
     else if(route.startsWith('lane/')&&LANES.includes(route.slice(5))) html=await lanePage(route.slice(5),p);
     else if(route==='positions'||route==='trades') html=await historyPage(route==='trades',p);
     else if(route==='analytics') html=await analytics(p);
