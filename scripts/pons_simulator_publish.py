@@ -11,6 +11,7 @@ from decimal import Decimal
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -22,10 +23,12 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from meme_machine.operational import pons_simulator as simulator
+from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH, POLICY_REVISION
 from dashboard import simulator as contract
 
 PUBLICATION = simulator.EXPERIMENT / 'publication'
 CAPTURES = simulator.EXPERIMENT / 'capture'
+DECISIONS = simulator.EXPERIMENT / 'decisions'
 ENDPOINT = 'https://meme-machine-dashboard-staging.onrender.com/api/pons-simulator/snapshot'
 EXPERIMENT_ID = 'pons-simulator-20261024'
 
@@ -135,6 +138,53 @@ def observation():
     return capture, utc(stamp), 'FAILED' if failed else 'STOPPED'
 
 
+def baseline_version():
+    return dict(version='baseline-' + POLICY_HASH[:16], policy_revision=POLICY_REVISION,
+        policy_sha256=POLICY_HASH, adaptation_state='BASELINE_UNCHANGED')
+
+
+def manager_journal(book):
+    path = DECISIONS / 'journal.jsonl'
+    if not path.exists() and not path.is_symlink():
+        return [], None
+    authority, _ = read_json(DECISIONS / 'authority.json', 4096)
+    need(authority == dict(epoch_id=book['epoch_id'], inception_sha256=book['inception_sha256']))
+    version, _ = read_json(DECISIONS / 'strategy-version-0001.json', 4096)
+    need(version == baseline_version())
+    raw, _ = private(path, 512 * 1024)
+    lines = raw.splitlines()
+    need(raw.endswith(b'\n') and 1 <= len(lines) <= 256)
+    previous, previous_at, events = '0' * 64, 0, []
+    fields = {'schema', 'sequence', 'previous_sha256', 'at', 'strategy_version', 'candidate_id',
+        'native_observation_id', 'observed_epoch_seconds', 'evidence_sha256', 'action',
+        'reason_code', 'qualification', 'quote', 'financial_effect', 'decision_sha256'}
+    for sequence, line in enumerate(lines, 1):
+        row = contract.decode_snapshot(line)
+        need(type(row) is dict and set(row) == fields and row['schema'] == 'pons-simulator-decision-v1'
+             and type(row['sequence']) is int and row['sequence'] == sequence
+             and row['previous_sha256'] == previous and row['strategy_version'] == version
+             and row['action'] == 'REJECT_ENTRY' and row['reason_code'] == 'PROTECTION_UNAVAILABLE'
+             and row['qualification'] == 'NOT_ESTABLISHED' and row['quote'] == 'UNAVAILABLE'
+             and row['financial_effect'] == 'NONE')
+        at = contract._stamp(row['at'])
+        observed = row['observed_epoch_seconds']
+        need(at >= previous_at and type(observed) in (int, float) and math.isfinite(observed)
+             and 0 <= observed <= at)
+        need(type(row['candidate_id']) is str and re.fullmatch(
+            r'pons:4663:0x[0-9a-f]{40}:0x[0-9a-f]{40}', row['candidate_id']))
+        need(type(row['native_observation_id']) is str and re.fullmatch(
+            r'0x[0-9a-f]{64}:0x[0-9a-f]+:[0-9a-f]{64}', row['native_observation_id']))
+        need(type(row['evidence_sha256']) is str and re.fullmatch('[0-9a-f]{64}', row['evidence_sha256']))
+        unsigned = {key: value for key, value in row.items() if key != 'decision_sha256'}
+        digest = hashlib.sha256(json.dumps(unsigned, sort_keys=True, separators=(',', ':'),
+            ensure_ascii=True, allow_nan=False).encode('ascii')).hexdigest()
+        need(row['decision_sha256'] == digest)
+        events.append(dict(at=row['at'], event_id=digest, kind='REJECTED',
+            lifecycle_id=None, reason_code=row['reason_code']))
+        previous, previous_at = digest, at
+    return events, events[-1]['at']
+
+
 def build(current, source_commit):
     book = simulator.export_state()
     portfolio = book['portfolio']
@@ -191,6 +241,13 @@ def build(current, source_commit):
         for row in portfolio.get('history', []) if row.get('series') == 'portfolio']
     history = dict(equity=dict(rows=equity_rows[-contract.MAX_EQUITY:], total=None, complete=False),
         events=dict(rows=[], total=None, complete=False))
+    manager_events, manager_at = manager_journal(book)
+    if manager_at is not None:
+        # Manager entry refusals are not completed canonical qualifications,
+        # fills, financial exits or strategy-rule rejections.
+        put('strategy', 'manager_decisions', len(manager_events), manager_at)
+        put('strategy', 'manager_rejections', len(manager_events), manager_at)
+        history['events']['rows'] = manager_events
     lifecycles = []
     for position in positions[-contract.MAX_LIFECYCLES:]:
         life = position['id']
@@ -210,7 +267,7 @@ def build(current, source_commit):
         identity=dict(experiment_id=EXPERIMENT_ID, epoch_id=book['epoch_id'], source_commit=source_commit,
             inception_sha256=book['inception_sha256']), sequence=current, captured_at=utc(time.time()),
         execution_state=execution, metrics=groups, lifecycles=lifecycles, history=history,
-        reason_codes=list(dict.fromkeys(reasons)))
+        reason_codes=list(dict.fromkeys(reasons)), strategy_version=baseline_version())
     value['snapshot_sha256'] = contract.snapshot_digest(value)
     return contract.validate_snapshot(value, value['identity'])
 
