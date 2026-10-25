@@ -125,7 +125,9 @@ class ActivePortfolioStore(SnapshotStore):
         if book.get('bundle') is None:
             raise ValueError('active_canonical_bundle_required')
         proof = book.get('observation', {}).get('financial_statement')
-        if (not isinstance(proof, dict) or proof.get('epoch_id') != self.epoch
+        if (not isinstance(proof, dict) or set(proof) != {'journal_sequence', 'journal_hash',
+                'projection_sha256', 'epoch_id', 'inception_sha256', 'risk_sha256'}
+                or proof.get('epoch_id') != self.epoch
                 or proof.get('inception_sha256') != self.inception_sha256
                 or proof.get('risk_sha256') != RISK_SHA256
                 or type(proof.get('journal_sequence')) is not int
@@ -225,6 +227,8 @@ class ActivePortfolioReader(SnapshotReader):
         result['portfolio'].update(financial_source=SOURCE_MODE,
             selected_financial_identity=identity,
             financial_source_label='Existing independent Pons experimental PAPER account')
+        statement = (self.snapshot or {}).get('portfolio', {}).get('observation', {}).get('financial_statement')
+        result['portfolio']['financial_statement'] = deepcopy(statement) if statement else None
         result['system']['selected_financial_identity'] = deepcopy(identity)
         # Selected runtime and native application are different truthful source
         # identities. The legacy original reader compares one shared commit.
