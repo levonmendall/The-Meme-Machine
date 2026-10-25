@@ -1,21 +1,21 @@
 {
   "schema": "pons-historical-research-v1",
   "status": "HISTORICAL",
-  "actual_market_asof": "2026-10-25T01:34:55Z",
-  "captured_at": "2026-10-25T01:34:56.839559Z",
+  "actual_market_asof": "2026-10-25T05:23:49Z",
+  "captured_at": "2026-10-25T05:23:51.362266Z",
   "source_app_commit": "ba6ef30d27c379ef03324cf72356bdcc8b1d73e2",
-  "report_sha256": "dbe12818c1937219ec3927cd90c87361028ef1759b791463f3d049e2bf1cd600",
-  "run_id": "40151186664",
-  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40151186664",
-  "confidence": "Retained native Survivor references, not a market census. No executable cost quotes, financial authority, fills or net-profit estimate.",
-  "coverage": "Read-only observer status from administration source 368658ebd663954aed0ed1d4f92c5ec9743351f3. Four retained Survivor candidates have source-native history through block 97,215,610, matching the sampled head. Three are age-eligible; one is aging with no retained decision. Three saved decisions expose complete short, medium and long history windows, but none has complete required inputs. Native progress is sampled across files, not atomic; scout coverage before enrollment is unobserved. These historical references do not requalify candidates or authorize financial execution.",
+  "report_sha256": "f35663665b30877742ab83ca204a2a1c3515857edcc8c1f9a785a28fc18b1187",
+  "run_id": "40165378712",
+  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40165378712",
+  "confidence": "Activity-biased V2 tape. Currency and executable net economics unavailable; no actual fills, profits or edge established. Frozen baseline unchanged.",
+  "coverage": "Read-only study of 512 complete contiguous ranges, blocks 97,330,619-97,345,661, market 04:57:06-05:23:49 UTC. It contains 294 receipt-authenticated signature events across 96 addresses; 261 events have retained native identity coverage. The 32 detailed assets contain 221 events, of which 206 have identity coverage; all 32 have retained native identities and 64 address details are omitted. Maximum observation delay is four seconds; invalid identity/screen rows are zero. This is a range-bounded V2 signature tape, not a factory census or V1/V3/post-graduation V4 study. Retained identity is a native-writer assertion and code hash, not independent factory replay. Screens are not matched point-in-time financial decisions; missing later prints remain unavailable.",
   "observations": [
-    "The aggregate records zero completed Survivor evaluations and 265 incomplete WAIT evaluation attempts. These are repeated evaluations, not 265 assets or trades. Zero block lag in the four retained histories is distinct from completed qualification. The runtime's separate 261 qualification_completed counter records internal calls, not 261 complete trading evaluations.",
-    "One recovery has eight native buyer-group proxies (not verified people) in 30 minutes and native return features of +46.99% over six hours and +1.87% over two hours, but -18.67% over the long window and -9.13% since graduation. Weak longer-term trend, choppy movement and no breakout still reject it. These historical features are not executable returns, realized profits or proof of a missed profitable trade.",
-    "All three saved decisions reject market conditions and lack ordinary/double-size roundtrip-cost inputs plus verified rally-cycle proof. Native reconstruction deliberately skips cost sizing when the market preview already rejects; missing costs here do not prove a provider outage. Complete history windows cannot substitute for execution economics. Frozen baseline unchanged; no challenger promoted."
+    "Among 20 detailed curves with repeated sell prints, 18 fell and two were unchanged; none rose. Median first-to-last sell-print change was -1.66%. Among 22 repeated buy series, 18 rose, one fell and three were unchanged; median +0.30%. Counts cover displayed assets only. These are side-specific quote/token ratios at different times and sizes, not executable prices, spreads, returns or a market win rate.",
+    "The most active detailed curve had 31 trades and 13 buyer-recipient address proxies, not verified people. Its buy-print ratio rose 52.48% while its sell-print ratio fell 4.64%. Different sides, sizes, fees and timestamps prevent an executable spread or profit inference. Timely ingestion does not establish complete qualification, proposed-size liquidity or execution economics.",
+    "Five native assets match the 02:31 and 05:23 studies by curve, token and retained identity hash. Changes between their last sell-print ratios ranged from -31.463% to +21.546%. This activity-biased sample omits intervening paths, executable liquidity, currency and costs. It is not a point-in-time rejection comparison, a missed profitable trade or evidence of an edge. No actual fills or profits are established; the baseline is unchanged."
   ],
   "shadow_hypotheses": [
-    "UNVALIDATED: Track whether the eight-group recovery develops sustained longer-term strength and a verified rally cycle. Compare later observations chronologically against the frozen baseline with fresh executable costs, liquidity and intervening drawdowns; the observed six-hour gain alone cannot validate an entry.",
-    "UNVALIDATED: Compare buyer persistence and subsequent-rally opportunities on later, separate tokens. Include additional losses as well as captured upside. No challenger is promoted, and mandatory capital, qualification and protection limits remain unchanged."
+    "UNVALIDATED: Study lower-progress candidates only in shadow against the immutable baseline. A complete native vector, a nonzero native-approved size and all other required evidence, policy, cost, capital and protection checks are necessary before any admission. This hypothesis grants no entry authority and changes no economic rule.",
+    "UNVALIDATED: Follow later, separate-token cohorts after actual availability, comparing subsequent rallies with losses, drawdowns and costs. Preserve missing future prints as unavailable; include quiet and omitted assets where authenticated coverage permits. Require size-specific executable entry and full-exit quotes before estimating attainable net outcomes or considering promotion."
   ]
 }
