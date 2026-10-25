@@ -115,3 +115,30 @@ footer{min-height:48px;padding:11px 28px;align-items:center;background:#061019;b
   .pons-observer-panel .panelhead h2{font-size:12px}
   .pons-observer-panel .panelhead .badge{font-size:9px}
 }
+
+/* Pons-first presentation. No change to execution, account data, or observer sources. */
+.pons-focus-page{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}
+.pons-focus-account{border-left:3px solid var(--pons);overflow:hidden}
+.pons-focus-account .panelhead,.pons-focus-market .panelhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pons-focus-account .eyebrow{margin:0 0 6px;color:#bca2eb;letter-spacing:.1em;font-size:10px}
+.pons-focus-account .panelbody,.pons-focus-market .panelbody{padding:18px}
+.pons-focus-balance{padding:4px 0 18px;border-bottom:1px solid #263746}
+.pons-focus-balance>span,.pons-focus-stat>span{display:block;text-transform:uppercase;letter-spacing:.075em;font-size:10px;color:var(--muted)}
+.pons-focus-balance .equity{display:block;font-size:clamp(34px,4vw,54px);line-height:1.15;font-weight:750;margin:9px 0}
+.pons-focus-return{font-size:14px;margin-bottom:6px}
+.pons-focus-balance small,.pons-focus-stat small{display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:6px}
+.pons-focus-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:10px 0 12px}
+.pons-focus-stat{padding:14px 12px 12px;min-width:0;border-bottom:1px solid #243747}
+.pons-focus-stat:nth-child(3n+1){padding-left:0}
+.pons-focus-stat strong{display:block;font-size:19px;font-weight:650;margin-top:7px;overflow-wrap:anywhere}
+.pons-focus-permission{padding:10px 12px;border-radius:6px;background:rgba(155,92,255,.07);border:1px solid #3a2c54}
+.pons-focus-market .pons-observer-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pons-focus-market .pons-observer-kpis>div{border-bottom:1px solid #253747}
+.pons-focus-market .pons-observer-kpis>div:nth-child(even){border-right:0}
+.pons-focus-market .pons-observer-kpis>div:nth-last-child(-n+2){border-bottom:0}
+.pons-focus-links{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px}
+.pons-system-disclosure{margin:16px 0;border:1px solid #28394b;border-radius:8px;padding:14px 16px}
+.pons-system-disclosure>summary{cursor:pointer;font-weight:650}
+.pons-system-disclosure>.panel,.pons-system-disclosure>.system-strip{margin-top:16px}
+@media(max-width:900px){.pons-focus-page{grid-template-columns:1fr}}
+@media(max-width:430px){.pons-focus-account .panelhead,.pons-focus-market .panelhead{align-items:flex-start;flex-wrap:wrap}.pons-focus-account .panelbody,.pons-focus-market .panelbody{padding:14px}.pons-focus-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pons-focus-stat:nth-child(3n+1){padding-left:12px}.pons-focus-stat:nth-child(2n+1){padding-left:0}.pons-focus-stat strong{font-size:17px}.pons-focus-balance .equity{font-size:38px}}

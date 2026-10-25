@@ -1,5 +1,5 @@
 'use strict';
-const LANES = ['pump', 'pons'];
+const LANES = ['pons'];
 const names = {pump:'Pump', pons:'Pons'};
 const regimeName = r => names[r.split('_')[0]]+' '+(r.endsWith('_current')?'Current':'Survivor');
 const main = document.querySelector('#main');
@@ -213,9 +213,60 @@ function ponsObserverPanel(feed, expanded=false) {
   </section>`;
 }
 
+function ponsFocusedOverview(feed) {
+  const obs=feed?.observer && typeof feed.observer==='object'?feed.observer:null;
+  const source=feed?.identity?.source_commit;
+  const sameSource=!!(obs && typeof source==='string' && /^[0-9a-f]{40}$/.test(source) && source===obs.source_commit);
+  const hbAge=ponsObservationAge(obs?.heartbeat_at),mkAge=ponsObservationAge(obs?.market_as_of);
+  const fresh=feed?.state==='CURRENT' && sameSource && obs?.status==='RUNNING' &&
+    [hbAge,mkAge].every(n=>n!==null&&n>=0&&n<=PONS_FRESH_SECONDS);
+  const obsState=!obs?'UNAVAILABLE':fresh?'CURRENT':'STALE';
+  const metric=(g,k,u)=>ponsAccountMetric(feed,g,k,u,sameSource);
+  const eq=metric('financial','equity','USD'),ret=metric('financial','net_return_pct','PERCENT');
+  const asOf=m=>m.value===null?'UNAVAILABLE':m.state+' · '+m.quality+' · '+date(m.as_of);
+  const tile=(name,g,k,u,kind='money',signed=false)=>{
+    const m=metric(g,k,u);
+    return `<div class="pons-focus-stat"><span>${esc(name)}</span><strong>${value(m,kind,signed)}</strong><small>${esc(asOf(m))}</small></div>`;
+  };
+  const report=ponsPaperStatus(feed,sameSource) || 'Current PAPER permission and readiness are unavailable in this feed.';
+  const events=feed?.metrics?.activity?.events_processed?.value;
+  const showEvents=sameSource&&typeof events==='string'&&/^(?:0|[1-9][0-9]*)$/.test(events);
+  return `<div class="pons-focus-page">
+    <section class="panel pons-focus-account" aria-label="Experimental Pons PAPER account">
+      <div class="panelhead"><div><p class="eyebrow">PONS CURRENT · EXPERIMENTAL PAPER</p><h2>Autonomous trading account</h2></div>${badge(obsState,fresh?'CURRENT MARKET FEED':obsState+' MARKET FEED')}</div>
+      <div class="panelbody">
+        <div class="pons-focus-balance"><span>Marked simulated equity</span><strong class="equity">${value(eq)}</strong><div class="pons-focus-return">${value(ret,'percent',true)} net simulated return</div><small>${esc(asOf(eq))}</small></div>
+        <div class="pons-focus-stats">
+          ${tile('Available cash','financial','cash','USD')}
+          ${tile('Realized net P&L','financial','realized_pnl','USD','money',true)}
+          ${tile('Unrealized net P&L','financial','unrealized_pnl','USD','money',true)}
+          ${tile('PAPER entries','activity','entries','COUNT','count')}
+          ${tile('PAPER exits','activity','exits','COUNT','count')}
+          ${tile('Open positions','activity','open_positions','COUNT','count')}
+        </div>
+        <p class="status-notice pons-focus-permission">${report}</p>
+        <p class="status-notice">Simulated funds only. Standing permission is distinct from the per-opportunity native risk gate; an armed account is not a trade. The original PAPER portfolio is stopped and has separate accounting.</p>
+      </div>
+    </section>
+    <section class="panel pons-focus-market" aria-label="Pons market observation">
+      <div class="panelhead"><h2>Market observation</h2>${badge(obsState,fresh?'FRESH · READ ONLY':obsState)}</div>
+      <div class="panelbody">
+        <div class="pons-observer-kpis">
+          <div><span>Economic events observed</span><strong>${showEvents?esc(events):'Unavailable'}</strong></div>
+          <div><span>Observer heartbeat</span><strong>${obs?.heartbeat_at?esc(date(obs.heartbeat_at)):'Unavailable'}</strong></div>
+          <div><span>Market evidence</span><strong>${obs?.market_as_of?esc(date(obs.market_as_of)):'Unavailable'}</strong></div>
+          <div><span>Recorded restarts</span><strong>${sameSource?ponsObservationCount(obs?.restart_count):'Unavailable'}</strong></div>
+        </div>
+        <p class="status-notice">${fresh?'Market observation is fresh.':'Market freshness is unverified; last reported observations may be stale.'} Survivor remains unfunded. Reference decisions are not entries, fills or evidence of profitability.</p>
+        <div class="pons-focus-links"><a class="link" href="#lanes">Current &amp; Survivor details →</a><a class="link" href="#system">System evidence →</a></div>
+      </div>
+    </section>
+  </div>`;
+}
+
 function header(name,p) {
   const demo = p.mode==='fixture';
-  return `<div class="pagehead"><div><p class="eyebrow">Portfolio intelligence / Paper only</p><h1>${esc(name)}</h1></div><div class="head-right">${badge(demo?'UNKNOWN':p.state,demo?'DETERMINISTIC FIXTURE':p.paper_state==='STOPPED'?'PAPER STOPPED':p.state==='CURRENT'?'PAPER':title(p.state))}<small class="muted">Accounting ${date(p.as_of)}</small></div></div>`+
+  return `<div class="pagehead"><div><p class="eyebrow">Portfolio intelligence / Paper only</p><h1>${esc(name)}</h1></div><div class="head-right">${badge(demo?'UNKNOWN':p.state,demo?'DETERMINISTIC FIXTURE':p.paper_state==='STOPPED'?'ORIGINAL PAPER STOPPED':p.state==='CURRENT'?'PAPER':title(p.state))}<small class="muted">Accounting ${date(p.as_of)}</small></div></div>`+
     (demo?'<div class="banner fixture"><strong>DEVELOPMENT FIXTURE</strong> · Synthetic balances and trades. Fixed demo clock. These results are not market performance.</div>':'')+
     (p.state==='NOT_INITIALIZED'?`<div class="banner"><strong>Portfolio not initialized.</strong> Planned inception ${value({value:p.desired_starting_capital,state:p.state})}. No canonical inception is connected; historical campaigns are excluded.</div>`:'')+
     (p.state==='FAIL_CLOSED'?'<div class="banner error"><strong>Accounting fail-closed.</strong> Source validation or reconciliation failed. Values are not trusted current balances.</div>':'')+
@@ -254,10 +305,10 @@ function sharedCapital(p) {
     marked_equity:'Marked portfolio equity',free_cash:'Available shared cash',actual_cash:'Actual shared cash',
     deployed_basis:'Deployed basis',active_reservations:'Reserved cash',
     pending_authoritative_commitments:'Pending commitments',required_funding_obligations:'Funding obligations'};
-  const regimes=['pump_current','pump_survivor','pons_current','pons_survivor'];
+  const regimes=['pons_current','pons_survivor'];
   const limits=c.risk_limits,base=Number(c.risk.risk_base);
   const riskRows=limits ? [['Portfolio',c.risk.exposure.portfolio,limits.portfolio_bps],
-    ...['pump','pons'].map(f=>[names[f],c.risk.exposure.family[f],limits.family_max_bps[f]]),
+    ...['pons'].map(f=>[names[f],c.risk.exposure.family[f],limits.family_max_bps[f]]),
     ['Conservative marked asset / lineage',Math.max(0,...Object.values(c.risk.exposure.asset).map(Number)),limits.asset_bps],
     ...['solana','robinhood','directional','crypto_beta'].map(g=>[title(g),c.risk.exposure.group[g],limits.group_bps[g]])] : [];
   const riskUse=(exposure,bps)=>{const ceiling=base*Number(bps)/10000;return ceiling>0 ? `${(Number(exposure)/ceiling*100).toFixed(1)}% of ${ceiling.toFixed(2)} USD` : 'Unavailable'};
@@ -441,7 +492,7 @@ function operationsPanel(s,detailed=false) {
     const r=phases[name]||{status:'UNAVAILABLE'}, previous=r.previous_attempt;
     return `<tr><td>${name}</td><td>${badge(r.status)}${previous?`<small>Previous source: ${esc(previous.status)} · ${seconds(previous.elapsed_seconds)} · ${esc(previous.commit)}</small>`:''}</td><td>${seconds(r.elapsed_seconds)}${r.required_seconds?` / ${seconds(r.required_seconds)}`:''}</td><td>${r.status==='PASS'&&r.verified_result?'PASS':r.status==='NOT_STARTED'?'No current-candidate result':esc(r.status)}</td></tr>`;
   }).join('');
-  const activeRegimes=['Pump Current','Pump Survivor','Pons Current','Pons Survivor'];
+  const activeRegimes=['Pons Current','Pons Survivor'];
   const statusRows=activeRegimes.map(name=>{
     const r=regimes[name]||{};
     const phase=o.paper_state==='STOPPED'?'STOPPED':(r.phase||'UNAVAILABLE');
@@ -449,8 +500,8 @@ function operationsPanel(s,detailed=false) {
     return `<tr><td>${name}</td><td>${badge(phase)}</td><td>${badge(evidence)}${r.report_age_seconds!=null?`<small>Report age ${seconds(r.report_age_seconds)}</small>`:''}</td></tr>`;
   }).join('');
   const candidates=Object.entries(regimes).filter(([name])=>activeRegimes.includes(name)).flatMap(([name,r])=>measuredRows(r.machinery).filter(([k])=>/candidate|qualif|evidence|completed steps|successful steps|processed events|completed windows/.test(k)).map(([k,v])=>[name+' · '+k,v]));
-  const errors=(rh.usage||[]).filter(r=>(r.metric.startsWith('failure:')||['responses_429','retries'].includes(r.metric))&&r.lane!=='inactive_strategy');
-  const usage=(rh.usage||[]).filter(r=>['physical_http_requests','logical_rpc_calls','completed_transport_attempts'].includes(r.metric)&&r.lane!=='inactive_strategy');
+  const errors=(rh.usage||[]).filter(r=>(r.metric.startsWith('failure:')||['responses_429','retries'].includes(r.metric))&&r.lane!=='inactive_strategy'&&!String(r.lane||'').toLowerCase().includes('pump'));
+  const usage=(rh.usage||[]).filter(r=>['physical_http_requests','logical_rpc_calls','completed_transport_attempts'].includes(r.metric)&&r.lane!=='inactive_strategy'&&!String(r.lane||'').toLowerCase().includes('pump'));
   const providers=[
     ['Solana queue depth',observed.solana_provider?.queue_depth], ['Robinhood queue depth',rh.queue_depth],
     ['Solana rate errors',observed.solana_provider?.pressure?(observed.solana_provider.pressure).reduce((a,r)=>a+(r.rate_errors||0),0):undefined],
@@ -471,21 +522,11 @@ function operationsPanel(s,detailed=false) {
     ${detailed?Object.entries(phases).filter(([,r])=>r.results).map(([name,r])=>`<details><summary>${name} recorded results</summary>${observationsTable(measuredRows(r.results))}</details>`).join(''):''}
     </div></section>`;
 }
-async function overview(p) {
-  const [observer,research,lanes,chart,positions,trades,system,...laneCharts] = await Promise.all([
-    ponsObserverFeed(),ponsResearchSnapshot(),api('lanes'),api('equity',{period:state.period,series:state.series}),api('positions',{limit:5}),api('trades',{limit:5}),api('system'),...LANES.map(l=>api('equity',{series:l,limit:60}))]);
-  const charts=Object.fromEntries(LANES.map((l,i)=>[l,laneCharts[i]]));
-  return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}
-    ${ponsObserverPanel(observer)}${ponsResearchPanel(research)}${operationsPanel(system.data)}${laneCards(lanes.data,charts)}
-    <div class="chart-row overview-charts">
-      ${chartPanel(chart)}
-      <section class="panel"><div class="panelhead"><h2>P&L by lane</h2></div><div class="panelbody">${laneDonut(lanes.data,p)}</div></section>
-      <section class="panel"><div class="panelhead"><h2>Trade outcomes</h2></div><div class="panelbody">${laneBars(lanes.data,true)}</div></section>
-    </div>
-    <div class="tables overview-tables">${tablePanel('Recent trades',trades,true,'trades')}${tablePanel('Open positions',positions,false,'positions')}</div>
-    ${overviewStatus(system.data,p)}
-  </div>`;
+async function overview(p,feed) {
+  const fixture=p.mode==='fixture'?'<div class="banner fixture"><strong>DEVELOPMENT FIXTURE</strong> · Synthetic balances and trades, not market performance.</div>':'';
+  return `<div class="overview-page">${fixture}${ponsFocusedOverview(feed)}</div>`;
 }
+
 async function lanePage(lane,p) {
   const [r,chart,positions,trades,observer]=await Promise.all([api('lanes/'+lane),api('equity',{series:lane,period:state.period}),api('positions',{lane,limit:25}),api('trades',{lane,limit:10}),lane==='pons'?ponsObserverFeed():Promise.resolve(null)]);
   const l=r.data,m=l.metrics;
@@ -504,20 +545,29 @@ function nativePanel(data) {
 function identityRows(ids) {return Object.entries(ids).map(([k,v])=>`<div class="identity"><span class="muted">${esc(title(k))}</span><br>${esc(v||'Unavailable')}</div>`).join('');}
 async function historyPage(completed,p) {
   const route=completed?'trades':'positions';
-  const res=await api(route,{...state.filters,offset:state.offset,limit:25});
+  const res=await api(route,{...state.filters,lane:'pons',offset:state.offset,limit:25});
   const f=state.filters;
-  return header(completed?'Trade history':'Open positions',p)+`<form class="filters" id="filters"><input type="search" name="q" aria-label="Search asset, pool or position" placeholder="Search asset, pool, position…" value="${esc(f.q||'')}"><select name="lane" aria-label="Filter lane"><option value="">All lanes</option>${LANES.map(l=>`<option value="${l}" ${f.lane===l?'selected':''}>${names[l]}</option>`).join('')}</select>${completed?`<select name="outcome" aria-label="Filter outcome"><option value="">All outcomes</option>${['winner','loser','breakeven'].map(o=>`<option ${f.outcome===o?'selected':''}>${o}</option>`).join('')}</select><input name="strategy" aria-label="Strategy or source identity" placeholder="Strategy / source SHA" value="${esc(f.strategy||'')}"><label>From <input type="date" name="from" value="${esc((f.from||'').slice(0,10))}"></label><label>To <input type="date" name="to" value="${esc((f.to||'').slice(0,10))}"></label>`:''}<button type="submit">Apply filters</button></form><section class="panel">${res.total===null?empty('Canonical position state unavailable'):positionsTable(res.data,completed)}<div class="pagination"><span>${res.total===null?'Unknown total':`${res.total} matching lifecycles · ${res.total?res.offset+1:0}–${res.offset+res.data.length}`} · snapshot ${date(res.as_of)}</span><span><button data-page="${Math.max(0,state.offset-25)}" ${state.offset===0?'disabled':''}>Previous</button> <button data-page="${res.next_offset??0}" ${res.next_offset===null?'disabled':''}>Next</button></span></div></section>`;
+  return header(completed?'Original PAPER · Pons trade history':'Original PAPER · Pons open positions',p)+`<form class="filters" id="filters"><input type="search" name="q" aria-label="Search asset, pool or position" placeholder="Search asset, pool, position…" value="${esc(f.q||'')}"><input type="hidden" name="lane" value="pons"><span class="status-notice">Pons lane only</span>${completed?`<select name="outcome" aria-label="Filter outcome"><option value="">All outcomes</option>${['winner','loser','breakeven'].map(o=>`<option ${f.outcome===o?'selected':''}>${o}</option>`).join('')}</select><input name="strategy" aria-label="Strategy or source identity" placeholder="Strategy / source SHA" value="${esc(f.strategy||'')}"><label>From <input type="date" name="from" value="${esc((f.from||'').slice(0,10))}"></label><label>To <input type="date" name="to" value="${esc((f.to||'').slice(0,10))}"></label>`:''}<button type="submit">Apply filters</button></form><section class="panel">${res.total===null?empty('Canonical position state unavailable'):positionsTable(res.data,completed)}<div class="pagination"><span>${res.total===null?'Unknown total':`${res.total} matching lifecycles · ${res.total?res.offset+1:0}–${res.offset+res.data.length}`} · snapshot ${date(res.as_of)}</span><span><button data-page="${Math.max(0,state.offset-25)}" ${state.offset===0?'disabled':''}>Previous</button> <button data-page="${res.next_offset??0}" ${res.next_offset===null?'disabled':''}>Next</button></span></div></section>`;
 }
 async function analytics(p) {
   const [lanes,chart,daily]=await Promise.all([api('lanes'),api('equity',{series:state.series,period:state.period}),api('analytics')]);
   const dailyTable=(pnl)=>daily.data.length?`<div class="table-wrap"><table><thead><tr><th>UTC day</th><th>${pnl?'Completed net P&L':'Entries'}</th><th>Settlements</th></tr></thead><tbody>${daily.data.map(d=>`<tr><td>${esc(d.day)}</td><td>${pnl?value({value:d.completed_net_pnl,state:p.state},'money',true):d.entries}</td><td>${d.settlements}</td></tr>`).join('')}</tbody></table></div>`:empty('Recorded daily lifecycle data unavailable');
-  return header('Portfolio analytics',p)+`<p class="status-notice">Coverage: ${p.metrics.completed_trades.value??'unknown'} completed lifecycles. No statistical significance, ranking or strategy selection is inferred.</p><div class="chart-row">${chartPanel(chart)}<section class="panel"><div class="panelhead"><h2>Cumulative lane contribution</h2></div><div class="panelbody">${laneBars(lanes.data)}${stat('Unallocated / shared costs',p.metrics.shared_costs)}</div></section><section class="panel"><div class="panelhead"><h2>Wins / losses</h2></div><div class="panelbody">${laneBars(lanes.data,true)}</div></section></div><div class="panel metric-grid">${stat('Realized net P&L',p.metrics.realized_pnl,'money',true)}${stat('Unrealized net P&L',p.metrics.unrealized_pnl,'money',true)}${stat('Portfolio drawdown',p.metrics.max_drawdown_pct,'percent')}${stat('Completed sample',p.metrics.completed_trades,'count')}${stat('Breakevens',p.metrics.breakevens,'count')}${stat('Win rate',p.metrics.win_rate,'percent')}</div><div class="daily"><section class="panel"><div class="panelhead"><h2>Completed P&L by settlement day</h2></div>${dailyTable(true)}<div class="panelbody"><p class="status-notice">Full lifecycle net outcomes on terminal settlement day. Excludes open partial realizations and shared costs. Daily equity change is unavailable.</p></div></section><section class="panel"><div class="panelhead"><h2>Daily trade frequency</h2></div>${dailyTable(false)}<div class="panelbody"><p class="status-notice">${esc(daily.coverage)}. Showing up to 31 observed days.</p></div></section></div>`;
+  return header('Portfolio analytics',p)+`<p class="status-notice">Coverage: ${p.metrics.completed_trades.value??'unknown'} completed lifecycles. No statistical significance, ranking or strategy selection is inferred.</p><div class="chart-row">${chartPanel(chart)}<section class="panel"><div class="panelhead"><h2>Cumulative lane contribution</h2></div><div class="panelbody">${laneBars(lanes.data.filter(l=>LANES.includes(l.lane)))}${stat('Unallocated / shared costs',p.metrics.shared_costs)}</div></section><section class="panel"><div class="panelhead"><h2>Wins / losses</h2></div><div class="panelbody">${laneBars(lanes.data.filter(l=>LANES.includes(l.lane)),true)}</div></section></div><div class="panel metric-grid">${stat('Realized net P&L',p.metrics.realized_pnl,'money',true)}${stat('Unrealized net P&L',p.metrics.unrealized_pnl,'money',true)}${stat('Portfolio drawdown',p.metrics.max_drawdown_pct,'percent')}${stat('Completed sample',p.metrics.completed_trades,'count')}${stat('Breakevens',p.metrics.breakevens,'count')}${stat('Win rate',p.metrics.win_rate,'percent')}</div><div class="daily"><section class="panel"><div class="panelhead"><h2>Completed P&L by settlement day</h2></div>${dailyTable(true)}<div class="panelbody"><p class="status-notice">Full lifecycle net outcomes on terminal settlement day. Excludes open partial realizations and shared costs. Daily equity change is unavailable.</p></div></section><section class="panel"><div class="panelhead"><h2>Daily trade frequency</h2></div>${dailyTable(false)}<div class="panelbody"><p class="status-notice">${esc(daily.coverage)}. Showing up to 31 observed days.</p></div></section></div>`;
 }
-async function systemPage(p) {
-  const [response,observer]=await Promise.all([api('system'),ponsObserverFeed()]);
-  const s=response.data;
-  return header('System & evidence',p)+ponsObserverPanel(observer,true)+operationsPanel(s,true)+systemStrip(s)+`<p class="status-notice">Telemetry snapshot: ${date(s.observed_at)}. Polling reads local persisted state only. Each lane retains its own operational and evidence status.</p><div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div><section class="panel detail-chart"><div class="panelhead"><h2>Portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}${sharedCapital(p)}</details></div></section>`;
+async function systemPage(p,feed) {
+  const [res,research]=await Promise.all([api('system'),ponsResearchSnapshot()]);
+  const s=res.data;
+  return `<div class="pagehead"><div><p class="eyebrow">Pons experiment · read-only</p><h1>System &amp; evidence</h1></div></div>
+    ${ponsObserverPanel(feed,true)}
+    <details class="pons-system-disclosure"><summary>Historical Pons market research</summary>${ponsResearchPanel(research)}</details>
+    <details class="pons-system-disclosure"><summary>Original stopped PAPER · legacy operational and accounting reports</summary>
+      ${operationsPanel(s,true)}${systemStrip(s)}
+      <p class="status-notice">Legacy status and stale service reports describe the original stopped portfolio, not the separate Pons experimental resident.</p>
+      <div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div>
+      <section class="panel detail-chart"><div class="panelhead"><h2>Original portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}${sharedCapital(p)}</details></div></section>
+    </details>`;
 }
+
 async function showPosition(id) {
   try {
     const p=(await api('positions/'+encodeURIComponent(id))).data;
@@ -525,17 +575,19 @@ async function showPosition(id) {
     document.querySelector('#detail').showModal();
   } catch { document.querySelector('#detail-content').textContent='Position details unavailable.'; document.querySelector('#detail').showModal(); }
 }
-function syncTopbar(p) {
-  const indicator=document.querySelector('#live-indicator');
-  const updated=document.querySelector('#last-update');
-  if(indicator) {
-    const label=p.mode==='fixture'?'FIXTURE (Paper)':p.snapshot_state&&p.snapshot_state!=='CURRENT'?`PAPER · ${title(p.snapshot_state)}`:p.paper_state==='STOPPED'?'PAPER · STOPPED':p.paper_state==='RUNNING'&&p.state==='CURRENT'?'LIVE (Paper)':p.paper_state==='UNAVAILABLE'||!p.paper_state?'PAPER · UNAVAILABLE':`PAPER · ${title(p.state)}`;
-    indicator.textContent=label;
-    indicator.className='live-indicator '+(p.state==='CURRENT'&&p.mode!=='fixture'&&p.paper_state==='RUNNING'&&(!p.snapshot_state||p.snapshot_state==='CURRENT')?'is-live':p.state==='FAIL_CLOSED'?'is-error':'is-caution');
+function syncTopbar(p,feed=null) {
+  const indicator=document.querySelector('#live-indicator'),updated=document.querySelector('#last-update'),obs=feed?.observer;
+  const source=feed?.identity?.source_commit;
+  const sameSource=typeof source==='string'&&/^[0-9a-f]{40}$/.test(source)&&source===obs?.source_commit;
+  const fresh=feed?.state==='CURRENT'&&sameSource&&obs?.status==='RUNNING'&&
+    [ponsObservationAge(obs?.heartbeat_at),ponsObservationAge(obs?.market_as_of)].every(n=>n!==null&&n>=0&&n<=PONS_FRESH_SECONDS);
+  if(indicator){
+    indicator.textContent=p?.mode==='fixture'?'PAPER · FIXTURE':fresh?'PONS PAPER · MARKET CURRENT':'PONS PAPER · FEED UNAVAILABLE';
+    indicator.className='live-indicator '+(fresh&&p?.mode!=='fixture'?'is-live':'is-caution');
   }
-  const at=p.snapshot_at||p.as_of;
-  if(updated) updated.textContent=at?new Date(at).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Unavailable';
+  if(updated)updated.textContent=fresh?date(obs.heartbeat_at):'Unavailable';
 }
+
 function bind() {
   document.querySelectorAll('[data-period]').forEach(b=>b.addEventListener('click',()=>{state.period=b.dataset.period;render();}));
   document.querySelector('#series')?.addEventListener('change',e=>{state.series=e.target.value;render();});
@@ -553,20 +605,21 @@ async function render() {
   const route=location.hash.slice(1)||'overview';
   document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('active',a.hash==='#'+(route.startsWith('lane/')?'lanes':route)));
   try {
-    const p=(await api('portfolio')).data;
-    syncTopbar(p);
+    const [portfolio,ponsFeed]=await Promise.all([api('portfolio'),ponsObserverFeed()]);
+    const p=portfolio.data;
+    syncTopbar(p,ponsFeed);
     let html;
-    if(route==='overview') html=await overview(p);
-    else if(route==='lanes') { const [lanes,observer]=await Promise.all([api('lanes'),ponsObserverFeed()]); html=header('Paper lanes & live Pons observations',p)+ponsObserverPanel(observer,true)+laneCards(lanes.data)+`<a class="link" href="#analytics">Portfolio analytics →</a>`; }
+    if(route==='overview') html=await overview(p,ponsFeed);
+    else if(route==='lanes') html=`<div class="pagehead"><div><p class="eyebrow">Independent experimental Pons · simulated</p><h1>Pons Current &amp; Survivor</h1></div></div>`+ponsObserverPanel(ponsFeed,true);
     else if(route.startsWith('lane/')&&LANES.includes(route.slice(5))) html=await lanePage(route.slice(5),p);
     else if(route==='positions'||route==='trades') html=await historyPage(route==='trades',p);
     else if(route==='analytics') html=await analytics(p);
-    else if(route==='system') html=await systemPage(p);
+    else if(route==='system') html=await systemPage(p,ponsFeed);
     else html=empty('Page not found');
     if(generation===state.generation){main.innerHTML=html;state.lastPortfolio=p;bind();}
   } catch {
     if(generation===state.generation) {
-      syncTopbar({...state.lastPortfolio,state:'STALE',snapshot_state:'UNAVAILABLE'});
+      syncTopbar({...state.lastPortfolio,state:'STALE',snapshot_state:'UNAVAILABLE'},null);
       const warning='<div id="unavailable-banner" class="banner error"><strong>Dashboard UNAVAILABLE.</strong> Last displayed observations are STALE.</div>';
       if(state.lastPortfolio) { if(!document.querySelector('#unavailable-banner'))main.insertAdjacentHTML('afterbegin',warning); }
       else main.innerHTML=warning+'<button id="retry">Retry read</button>';
