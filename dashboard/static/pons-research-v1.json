@@ -1,18 +1,18 @@
 {
   "schema": "pons-historical-research-v1",
   "status": "HISTORICAL",
-  "actual_market_asof": "2026-10-24T22:47:27Z",
-  "captured_at": "2026-10-24T22:47:27.657645Z",
+  "actual_market_asof": "2026-10-24T23:43:23Z",
+  "captured_at": "2026-10-24T23:43:24.398655Z",
   "source_app_commit": "ba6ef30d27c379ef03324cf72356bdcc8b1d73e2",
-  "report_sha256": "245b75bcb3bea00302b48fc76c5198f5af7546b45d03754570af69344f91368d",
-  "run_id": "40140041571",
-  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40140041571",
-  "confidence": "Post-recovery receipt-signature tape; 315 events covered by retained native identities. Partial identity coverage; no factory census or executable quotes.",
-  "coverage": "361 receipt-authenticated signature events across 71 curves from 22:20:46 to 22:47:27 UTC. Only the 32 most active curves are detailed, containing 322 events; 39 curves are omitted. Retained native identities cover 315 events. Signature matching alone does not prove Pons factory origin. This activity-biased V2 curve sample excludes V1/V3 and post-graduation V4. Quote currency, executable liquidity and cost-adjusted profit are unavailable.",
+  "report_sha256": "ee4b0e16cd69ebe1d4bbe316cdb3255d1a0b54db80facf552e7ac357d3173fd7",
+  "run_id": "40143872446",
+  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40143872446",
+  "confidence": "Chronological receipt-signature tapes with partial native identity coverage. No factory census, executable quotes, fills or net-profit estimate.",
+  "coverage": "301 receipt-authenticated signature events across 74 curves, 23:16:41\u201323:43:23 UTC. Retained native identities cover 240 events. The 32 most active curves contain 257 events; 42 curves are omitted. This activity-biased V2 sample excludes V1/V3 and post-graduation V4. Signature matching alone does not prove factory origin. Price ratios are side-specific average prints in raw units, not spot prices or attainable returns.",
   "observations": [
-    "Every event in this bounded post-recovery tape was recorded within four seconds of market time. Median first-observation lag among the 32 detailed curves was two seconds. This is actual ingestion evidence for the sampled window, not proof of complete strategy qualification, fills or uninterrupted future operation.",
-    "Among detailed curves with repeated same-side prints, median first-to-last sell-price ratio change was -3.25% (18 curves; two positive), while the buy-price median was +1.05% (19 curves). Different sides, times and trade sizes cannot be subtracted into a spread or interpreted as attainable P&L.",
-    "One curve with retained Current rejection records, 0x9ed77ca588a40cc34313a54c06f2748172f60550, had 30 trades and 11 buyer-address proxies, with buy prints +20.60% and sell prints +3.94% first-to-last. Its exact contemporaneous rejection cause and realistic fills are not established by this report. This is a candidate for follow-up, not evidence of missed executable profit or permission to relax the baseline."
+    "All events in this bounded tape were recorded within four seconds of market time. This supports timely ingestion in the sampled interval; it does not establish complete financial qualification or executed PAPER trades.",
+    "Among detailed curves with repeated prints, the sell-side median first-to-last price-ratio change was -2.735% (20 curves; four positive); the buy-side median was +2.91% (24 curves). The busiest curve had 50 trades, with buy prints +47.41% and sell prints -39.94%. Different sides, times and sizes cannot establish an executable spread, drawdown or P&L.",
+    "Follow-up of curve 0x9ed77ca588a40cc34313a54c06f2748172f60550: its last sell print in this sample was about 12.8% below its last sell print in earlier study 40140041571. Separate native decision evidence in run 40140739178 records Current's age exclusion at about 5.4 hours; the market studies alone do not establish that rejection. This is observed later behavior, not proof an executable loss was avoided; quotes, position size, liquidity and all costs remain unavailable."
   ],
   "shadow_hypotheses": [
     "UNVALIDATED: Compare early/late age and curve-progress exclusions chronologically against the frozen baseline using evidence actually available at the decision time, including realistic quotes, costs, liquidity and drawdowns.",
