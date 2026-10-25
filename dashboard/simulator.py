@@ -39,7 +39,7 @@ METRICS = {
             'net_return_pct': 'PERCENT'},
     'activity': dict.fromkeys((
         'pairs_seen', 'events_seen', 'events_processed', 'duplicates', 'gaps',
-        'queue_depth', 'entries', 'exits', 'round_trips', 'open_positions',
+        'queue_depth', 'entries', 'partial_exits', 'exits', 'round_trips', 'open_positions',
         'winners', 'losers', 'recovered_events', 'dropped_events',
         'unrecovered_events', 'sampled_block_debt', 'launch_events'), 'COUNT') | {
             'average_hold_seconds': 'SECONDS',
@@ -242,10 +242,59 @@ def _observer(value, identity, captured):
                   'simulator_observer_entry_evidence')
 
 
+def _paper(value, identity, captured, *, lifecycle_count, event_count):
+    """A dated resident report, never a Render execution permission."""
+    _keys(value, ('schema', 'source_commit', 'epoch_id', 'inception_sha256',
+        'policy_sha256', 'authority_sha256', 'permission_enabled', 'new_risk_enabled',
+        'state', 'heartbeat_at', 'ledger_sequence', 'ledger_sha256',
+        'lifecycle_total', 'lifecycle_truncated', 'event_total', 'events_truncated'))
+    _need(value['schema'] == 'pons-current-paper-report-v1'
+          and value['source_commit'] == identity['source_commit']
+          and value['epoch_id'] == identity['epoch_id']
+          and value['inception_sha256'] == identity['inception_sha256']
+          and value['policy_sha256'] == BASELINE_STRATEGY['policy_sha256'],
+          'simulator_paper_identity')
+    for name in ('permission_enabled', 'new_risk_enabled'):
+        _need(value[name] is None or type(value[name]) is bool,
+              'simulator_paper_permission')
+    if value['authority_sha256'] is not None:
+        _hash(value['authority_sha256'])
+    _need(value['state'] in ('UNAVAILABLE', 'DISABLED', 'WARMING', 'READY',
+          'MANAGING', 'FAILED', 'STOPPED', 'STALE'), 'simulator_paper_state')
+    if value['heartbeat_at'] is not None:
+        _need(_stamp(value['heartbeat_at']) <= captured, 'simulator_paper_clock')
+    elif value['state'] != 'UNAVAILABLE':
+        raise ValueError('simulator_paper_clock')
+    if value['state'] == 'UNAVAILABLE':
+        _need(value['permission_enabled'] is None and value['new_risk_enabled'] is None,
+              'simulator_paper_permission')
+    if value['permission_enabled'] is True:
+        _need(value['authority_sha256'] is not None, 'simulator_paper_permission')
+    if value['state'] == 'READY':
+        _need(value['permission_enabled'] is True, 'simulator_paper_permission')
+    if value['state'] == 'DISABLED':
+        _need(value['permission_enabled'] is False, 'simulator_paper_permission')
+    if value['new_risk_enabled'] is True:
+        _need(value['permission_enabled'] is True and value['authority_sha256'] is not None
+              and value['state'] in ('READY', 'MANAGING'), 'simulator_paper_permission')
+    _need((value['ledger_sequence'] is None) == (value['ledger_sha256'] is None),
+          'simulator_paper_ledger')
+    if value['ledger_sequence'] is not None:
+        _integer(value['ledger_sequence'], minimum=1)
+        _hash(value['ledger_sha256'])
+    for total, truncated, count in (('lifecycle_total', 'lifecycle_truncated', lifecycle_count),
+                                    ('event_total', 'events_truncated', event_count)):
+        _need(type(value[truncated]) is bool)
+        if value[total] is not None:
+            _integer(value[total])
+            _need(value[total] >= count, 'simulator_paper_population')
+            _need(value[truncated] is (value[total] > count), 'simulator_paper_population')
+
+
 def validate_snapshot(value, identity):
     _keys(value, ('schema', 'label', 'identity', 'sequence', 'snapshot_sha256',
                   'captured_at', 'execution_state', 'metrics', 'lifecycles',
-                  'history', 'reason_codes'), ('strategy_version', 'observer'))
+                  'history', 'reason_codes'), ('strategy_version', 'observer', 'paper'))
     _need(value['schema'] == SCHEMA and value['label'] == LABEL)
     _identity(value['identity'])
     _need(value['identity'] == identity, 'simulator_identity')
@@ -304,10 +353,13 @@ def validate_snapshot(value, identity):
         event_ids.add(row['event_id'])
         if row['lifecycle_id'] is not None:
             _hash(row['lifecycle_id'])
-        _need(row['kind'] in ('ENTRY', 'PARTIAL_EXIT', 'EXIT', 'SETTLEMENT',
+        _need(row['kind'] in ('ENTRY', 'ADD', 'PARTIAL_EXIT', 'EXIT', 'SETTLEMENT',
                               'REJECTED', 'PROTECTION', 'STOP'))
         _need(type(row['reason_code']) is str and row['reason_code'] in REASONS)
     _reasons(value['reason_codes'])
+    if 'paper' in value:
+        _paper(value['paper'], identity, captured,
+               lifecycle_count=len(value['lifecycles']), event_count=len(events['rows']))
     raw = json.dumps(value, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode('ascii')
     _need(len(raw) <= MAX_BYTES, 'simulator_capacity')
     _need(snapshot_digest(value) == value['snapshot_sha256'], 'simulator_digest')
@@ -435,7 +487,7 @@ class SimulatorReader:
         reasons = list(value['reason_codes']) if value else ['SNAPSHOT_UNAVAILABLE']
         if state == 'STALE' and 'STALE_SNAPSHOT' not in reasons:
             reasons.append('STALE_SNAPSHOT')
-        return dict(schema=VIEW_SCHEMA, label=LABEL, state=state,
+        result = dict(schema=VIEW_SCHEMA, label=LABEL, state=state,
             persistence=PERSISTENCE,
             source_ledger_authoritative=not bool(value and value.get('observer', {}).get('read_only')),
             identity=deepcopy(self.store.identity) if self.store else None,
@@ -446,6 +498,14 @@ class SimulatorReader:
             captured_at=value['captured_at'] if value else None,
             age_seconds=age, execution_state=value['execution_state'] if value else 'UNKNOWN',
             metrics=metrics, lifecycles=lifecycles, history=history, reason_codes=reasons)
+        if value and 'paper' in value:
+            paper = deepcopy(value['paper'])
+            heartbeat = _stamp(paper['heartbeat_at']) if paper['heartbeat_at'] is not None else None
+            if paper['state'] != 'UNAVAILABLE' and (state != 'CURRENT' or heartbeat is None
+                    or not 0 <= now-heartbeat <= STALE_SECONDS):
+                paper['state'] = 'STALE'
+            result['paper'] = paper
+        return result
 
 
 class SimulatorChannel:

@@ -120,6 +120,28 @@ function ponsAccountMetric(feed, group, key, unit, sameSource) {
   return {value:m.value, quality:m.quality, as_of:m.as_of,
     state:feed.state === 'CURRENT' && m.state === 'CURRENT' && age <= PONS_FRESH_SECONDS ? 'CURRENT' : 'STALE'};
 }
+function ponsPaperStatus(feed, sameSource) {
+  const p = feed?.paper;
+  if (p == null) return '';
+  const states = new Set(['UNAVAILABLE','DISABLED','WARMING','READY','MANAGING','FAILED','STOPPED','STALE']);
+  const flag = v => v === null || typeof v === 'boolean';
+  const hash = v => v === null || typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
+  const bound = sameSource && p.schema === 'pons-current-paper-report-v1' &&
+    p.source_commit === feed?.identity?.source_commit && p.epoch_id === feed?.identity?.epoch_id &&
+    p.inception_sha256 === feed?.identity?.inception_sha256 &&
+    p.policy_sha256 === '909738760e6f722b8668a99493f698c3a415867f77f08199a61b0fb047381be7' &&
+    states.has(p.state) && flag(p.permission_enabled) && flag(p.new_risk_enabled) && hash(p.authority_sha256) &&
+    (p.permission_enabled !== true || p.authority_sha256 !== null) &&
+    (p.new_risk_enabled !== true || p.permission_enabled === true && ['READY','MANAGING'].includes(p.state));
+  const age = bound ? ponsObservationAge(p.heartbeat_at) : null;
+  const fresh = bound && feed?.state === 'CURRENT' && age !== null && age >= 0 && age <= PONS_FRESH_SECONDS;
+  const reportState = !bound ? 'UNAVAILABLE' : !fresh && p.state !== 'UNAVAILABLE' ? 'STALE' : p.state;
+  const labels = {READY:'ARMED · AWAITING QUALIFICATION',MANAGING:'MANAGING NATIVE PAPER POSITION',
+    WARMING:'WARMING · NEW ENTRIES CLOSED',DISABLED:'DISABLED',FAILED:'FAILED · NEW ENTRIES CLOSED',
+    STOPPED:'STOPPED',STALE:'STALE',UNAVAILABLE:'UNAVAILABLE'};
+  const displayFlag = value => !fresh || value === null ? 'UNKNOWN' : value ? 'ENABLED' : 'DISABLED';
+  return `<p class="status-notice">Pons Current PAPER: ${esc(labels[reportState])} · Standing permission ${esc(displayFlag(p.permission_enabled))} · Native new-risk gate ${esc(displayFlag(p.new_risk_enabled))} · Reported ${bound && p.heartbeat_at ? esc(date(p.heartbeat_at)) : 'Unavailable'}. This read-only report grants no trading authority.</p>`;
+}
 function ponsAccountPanel(feed, sameSource) {
   const fields = [
     ['Available simulated cash','financial','cash','USD','money'],
@@ -145,6 +167,7 @@ function ponsAccountPanel(feed, sameSource) {
     return `<div class="stat"><label>${esc(label)}</label><strong>${amount}</strong><small>${esc(evidence)}</small></div>`;
   }).join('');
   return `<p class="eyebrow">INDEPENDENT EXPERIMENTAL PONS — SIMULATED — NO REAL MONEY</p>
+    ${ponsPaperStatus(feed,sameSource)}
     <div class="metric-grid">${cells}</div>
     <p class="status-notice">Experimental ledger records are separate from the original portfolio. Missing valuations or execution counts remain unavailable; stale figures retain their original timestamp.</p>`;
 }
