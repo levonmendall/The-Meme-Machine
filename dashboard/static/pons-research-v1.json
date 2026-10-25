@@ -1,21 +1,21 @@
 {
   "schema": "pons-historical-research-v1",
   "status": "HISTORICAL",
-  "actual_market_asof": "2026-10-24T23:43:23Z",
-  "captured_at": "2026-10-24T23:43:24.398655Z",
+  "actual_market_asof": "2026-10-25T01:34:55Z",
+  "captured_at": "2026-10-25T01:34:56.839559Z",
   "source_app_commit": "ba6ef30d27c379ef03324cf72356bdcc8b1d73e2",
-  "report_sha256": "ee4b0e16cd69ebe1d4bbe316cdb3255d1a0b54db80facf552e7ac357d3173fd7",
-  "run_id": "40143872446",
-  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40143872446",
-  "confidence": "Chronological receipt-signature tapes with partial native identity coverage. No factory census, executable quotes, fills or net-profit estimate.",
-  "coverage": "301 receipt-authenticated signature events across 74 curves, 23:16:41\u201323:43:23 UTC. Retained native identities cover 240 events. The 32 most active curves contain 257 events; 42 curves are omitted. This activity-biased V2 sample excludes V1/V3 and post-graduation V4. Signature matching alone does not prove factory origin. Price ratios are side-specific average prints in raw units, not spot prices or attainable returns.",
+  "report_sha256": "dbe12818c1937219ec3927cd90c87361028ef1759b791463f3d049e2bf1cd600",
+  "run_id": "40151186664",
+  "report_url": "https://github.com/levonmendall/meme-machine-admin/actions/runs/40151186664",
+  "confidence": "Retained native Survivor references, not a market census. No executable cost quotes, financial authority, fills or net-profit estimate.",
+  "coverage": "Read-only observer status from administration source 368658ebd663954aed0ed1d4f92c5ec9743351f3. Four retained Survivor candidates have source-native history through block 97,215,610, matching the sampled head. Three are age-eligible; one is aging with no retained decision. Three saved decisions expose complete short, medium and long history windows, but none has complete required inputs. Native progress is sampled across files, not atomic; scout coverage before enrollment is unobserved. These historical references do not requalify candidates or authorize financial execution.",
   "observations": [
-    "All events in this bounded tape were recorded within four seconds of market time. This supports timely ingestion in the sampled interval; it does not establish complete financial qualification or executed PAPER trades.",
-    "Among detailed curves with repeated prints, the sell-side median first-to-last price-ratio change was -2.735% (20 curves; four positive); the buy-side median was +2.91% (24 curves). The busiest curve had 50 trades, with buy prints +47.41% and sell prints -39.94%. Different sides, times and sizes cannot establish an executable spread, drawdown or P&L.",
-    "Follow-up of curve 0x9ed77ca588a40cc34313a54c06f2748172f60550: its last sell print in this sample was about 12.8% below its last sell print in earlier study 40140041571. Separate native decision evidence in run 40140739178 records Current's age exclusion at about 5.4 hours; the market studies alone do not establish that rejection. This is observed later behavior, not proof an executable loss was avoided; quotes, position size, liquidity and all costs remain unavailable."
+    "The aggregate records zero completed Survivor evaluations and 265 incomplete WAIT evaluation attempts. These are repeated evaluations, not 265 assets or trades. Zero block lag in the four retained histories is distinct from completed qualification. The runtime's separate 261 qualification_completed counter records internal calls, not 261 complete trading evaluations.",
+    "One recovery has eight native buyer-group proxies (not verified people) in 30 minutes and native return features of +46.99% over six hours and +1.87% over two hours, but -18.67% over the long window and -9.13% since graduation. Weak longer-term trend, choppy movement and no breakout still reject it. These historical features are not executable returns, realized profits or proof of a missed profitable trade.",
+    "All three saved decisions reject market conditions and lack ordinary/double-size roundtrip-cost inputs plus verified rally-cycle proof. Native reconstruction deliberately skips cost sizing when the market preview already rejects; missing costs here do not prove a provider outage. Complete history windows cannot substitute for execution economics. Frozen baseline unchanged; no challenger promoted."
   ],
   "shadow_hypotheses": [
-    "UNVALIDATED: Compare early/late age and curve-progress exclusions chronologically against the frozen baseline using evidence actually available at the decision time, including realistic quotes, costs, liquidity and drawdowns.",
-    "UNVALIDATED: Test buyer persistence and sell-side continuation on later, separate tokens. Positive print paths alone cannot promote a challenger or authorize allocation; capital and protection limits remain unchanged."
+    "UNVALIDATED: Track whether the eight-group recovery develops sustained longer-term strength and a verified rally cycle. Compare later observations chronologically against the frozen baseline with fresh executable costs, liquidity and intervening drawdowns; the observed six-hour gain alone cannot validate an entry.",
+    "UNVALIDATED: Compare buyer persistence and subsequent-rally opportunities on later, separate tokens. Include additional losses as well as captured upside. No challenger is promoted, and mandatory capital, qualification and protection limits remain unchanged."
   ]
 }
