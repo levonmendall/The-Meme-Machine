@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from .api import Dashboard
 from .model import Reader
 from .snapshots import MAX_BYTES, SnapshotReader, SnapshotStore
+from .active_portfolio import select_financial_source, SelectedOperationsChannel
 from .simulator import (MAX_BYTES as SIMULATOR_MAX_BYTES, SimulatorChannel,
                         configured_channel, decode_snapshot)
 
@@ -85,6 +86,7 @@ def make_server(
     clock=time.monotonic,
     owner=None, ingest_token=None, snapshot_store=None, public_reads=None,
     simulator_channel=None, simulator_ingest_token=None,
+    active_portfolio_store=None,
 ):
     limiter = FixedWindowRateLimiter(rate_limit_per_minute, clock=clock)
     # Public viewing must be explicitly enabled; authenticated ingestion never changes.
@@ -137,6 +139,47 @@ def make_server(
             client = self.client_address[0] if self.client_address else "unknown"
             if not limiter.allow(client):
                 self._json(429, {"error": "rate_limited"}, headers={"Retry-After": "60"})
+                return
+            if path == '/api/dashboard/active-portfolio/snapshot':
+                if not simulator_ingest_token or active_portfolio_store is None:
+                    self._json(503, {'error': 'active_portfolio_ingestion_unavailable'})
+                    return
+                expected = ('Bearer ' + simulator_ingest_token).encode()
+                if not hmac.compare_digest(self.headers.get('Authorization', '').encode(), expected):
+                    self._json(401, {'error': 'unauthorized'})
+                    return
+                if self.command != 'POST':
+                    self._json(405, {'error': 'ingestion_post_only'}, headers={'Allow': 'POST'})
+                    return
+                try:
+                    if (urlsplit(self.path).query or self.headers.get('Transfer-Encoding')
+                            or self.headers.get('Content-Encoding', 'identity') != 'identity'
+                            or self.headers.get('Content-Type', '').split(';')[0] != 'application/json'):
+                        raise ValueError('active_snapshot_content_type')
+                    size = int(self.headers.get('Content-Length', '0'))
+                    if not 0 < size <= MAX_BYTES:
+                        self._json(413, {'error': 'snapshot_capacity'})
+                        return
+                    body = self.rfile.read(size)
+                    if len(body) != size:
+                        raise ValueError('active_snapshot_incomplete')
+                    # The canonical receiver rejects ambiguous duplicate keys.
+                    def unique(pairs):
+                        value = {}
+                        for key, item in pairs:
+                            if key in value:
+                                raise ValueError('active_snapshot_duplicate_key')
+                            value[key] = item
+                        return value
+                    value = json.loads(body, object_pairs_hook=unique)
+                    result = active_portfolio_store.accept(value)
+                except (ValueError, TypeError, KeyError, RuntimeError, OverflowError, RecursionError):
+                    self._json(400, {'error': 'invalid_active_portfolio_snapshot'})
+                    return
+                except OSError:
+                    self._json(503, {'error': 'active_portfolio_unavailable'})
+                    return
+                self._json(202, dict(status='accepted', captured_at=value['captured_at'], **result))
                 return
             # The old POST remains an authenticated wire-compatibility alias for
             # the installed observer. It is not a second dashboard or financial
@@ -320,6 +363,11 @@ def main():
             inception_sha256=args.inception_sha256)
         reader = SnapshotReader(store)
 
+    selection = select_financial_source(os.environ, reader, store)
+    reader = selection.reader
+    channel = configured_channel(os.environ)
+    if selection.selected:
+        channel = SelectedOperationsChannel(channel, reader)
     try:
         server = make_server(
             Dashboard(reader),
@@ -328,7 +376,8 @@ def main():
             max_concurrency=args.max_concurrency,
             rate_limit_per_minute=args.rate_limit_per_minute,
             snapshot_store=store,
-            simulator_channel=configured_channel(os.environ),
+            simulator_channel=channel,
+            active_portfolio_store=selection.store,
         )
     except ValueError as error:
         parser.error(str(error))
