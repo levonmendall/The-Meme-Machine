@@ -609,6 +609,8 @@ class Reader:
                 history = data['history']
                 portfolio.update(epoch=data['epoch'], starting_capital=metric(capital), desired_starting_capital=data['epoch']['starting_capital'],as_of=data['as_of'],
                                  excluded_historical_positions=data['excluded_positions'], identities=data['identities'])
+                portfolio['financial_identity'] = dict(epoch_id=data['epoch']['epoch_id'],
+                    inception_sha256=hashlib.sha256(canonical(data['epoch']).encode()).hexdigest())
                 if data.get('shared_capital') is not None:portfolio['shared_capital']=deepcopy(data['shared_capital'])
                 for lane in LANES:
                     lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state,data['retired'].get(lane),starting_capital=capital), as_of=data['as_of'])

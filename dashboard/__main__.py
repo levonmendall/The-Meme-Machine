@@ -138,7 +138,10 @@ def make_server(
             if not limiter.allow(client):
                 self._json(429, {"error": "rate_limited"}, headers={"Retry-After": "60"})
                 return
-            if path == '/api/pons-simulator/snapshot':
+            # The old POST remains an authenticated wire-compatibility alias for
+            # the installed observer. It is not a second dashboard or financial
+            # feed and cannot write the original portfolio snapshot.
+            if path in ('/api/dashboard/live/snapshot', '/api/pons-simulator/snapshot'):
                 if not simulator_ingest_token or simulator_channel.store is None:
                     self._json(503, {'error': 'simulator_ingestion_unavailable'})
                     return

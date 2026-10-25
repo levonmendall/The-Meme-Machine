@@ -116,6 +116,7 @@ class Dashboard:
                 # Preserve actual samples. Never smooth, interpolate or bridge unknowns.
                 shown = filtered[-limit:]
                 data.update(data=shown, series=series, unit='USD equity' if series=='portfolio' else 'USD cumulative net P&L',
+                            financial_identity=view['portfolio'].get('financial_identity'),
                             sample_count=len(filtered), displayed_count=len(shown), truncated=len(filtered)>limit,
                             reference=view['portfolio']['starting_capital']['value'] if series=='portfolio' else '0.00',
                             periods=[p for p, duration in PERIODS.items() if duration is None or points and end-stamp(points[0]['at']) >= duration])

@@ -133,40 +133,23 @@ class PaperReportTests(unittest.TestCase):
             value['history']['events']['rows'][0]['kind'] = 'ADD'
             self.validate(sealed(value))
 
-    def test_primary_status_uses_report_identity_and_never_observer_running_as_authority(self):
-        node = shutil.which('node')
-        if node is None:
-            self.skipTest('Node is required for the real primary status renderer')
-        source = (Path(__file__).resolve().parents[1]/'static/app.js').read_text()
-        renderer = source[source.index('function ponsPaperStatus('):source.index('function ponsAccountPanel(')]
-        ready = reported()['paper']
-        script = """const PONS_FRESH_SECONDS=60;
-const esc=v=>String(v).replaceAll('<','&lt;'); const date=v=>v;
-const ponsObservationAge=v=>typeof v==='string'?(NOW-Date.parse(v))/1000:null;
-""".replace('NOW', str(int(NOW*1000))) + renderer + """
-const base=INPUT;
-const feed={state:'CURRENT',identity:{source_commit:base.source_commit,
- epoch_id:base.epoch_id,inception_sha256:base.inception_sha256},paper:base};
-const run=p=>ponsPaperStatus({...feed,paper:p},true);
-const values=[run(base),run({...base,state:'MANAGING',permission_enabled:false,
- new_risk_enabled:false,authority_sha256:null}),run({...base,heartbeat_at:OLD}),
- run({...base,source_commit:'PRIVATE_PROVIDER_TOKEN'}),run({...base,state:'STALE'}),
- ponsPaperStatus({state:'CURRENT',observer:{status:'RUNNING'}},true)];
-process.stdout.write(JSON.stringify(values));
-""".replace('INPUT', json.dumps(ready)).replace('OLD', json.dumps(utc(NOW-61)))
-        result = subprocess.run([node, '-e', script], check=True, capture_output=True, text=True)
-        ready_html, disabled_held, stale, mismatched, explicit_stale, legacy = json.loads(result.stdout)
-        self.assertIn('ARMED · AWAITING QUALIFICATION', ready_html)
-        self.assertIn('Standing permission ENABLED', ready_html)
-        self.assertIn('MANAGING NATIVE PAPER POSITION', disabled_held)
-        self.assertIn('Standing permission DISABLED', disabled_held)
-        self.assertIn('PAPER: STALE', stale)
-        self.assertNotIn('permission ENABLED', stale)
-        self.assertIn('PAPER: UNAVAILABLE', mismatched)
-        self.assertNotIn('PRIVATE', mismatched)
-        self.assertIn('PAPER: STALE', explicit_stale)
-        self.assertNotIn('permission ENABLED', explicit_stale)
-        self.assertEqual(legacy, '')
+    def test_original_operations_status_exposes_permission_but_no_experimental_finances(self):
+        value = reported()
+        store = type('Store', (), {'get': lambda _: deepcopy(value),
+            'clock': staticmethod(lambda: NOW), 'identity': value['identity']})()
+        code, _, raw = simulator.SimulatorChannel(store).response('GET', '/api/dashboard/live')
+        self.assertEqual(code, 200)
+        view = json.loads(raw)
+        self.assertEqual(view['paper']['state'], 'READY')
+        self.assertTrue(view['paper']['permission_enabled'])
+        self.assertFalse(view['source_ledger_authoritative'])
+        self.assertFalse(view['financial_authority'])
+        self.assertEqual(view['account_cutover']['state'], 'NOT_ESTABLISHED')
+        for key in ('ledger_sequence', 'ledger_sha256', 'lifecycle_total', 'event_total'):
+            self.assertNotIn(key, view['paper'])
+        self.assertNotIn('financial', view['metrics'])
+        self.assertNotIn('history', view)
+        self.assertNotIn('lifecycles', view)
 
 
 if __name__ == '__main__':
