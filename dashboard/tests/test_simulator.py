@@ -197,9 +197,8 @@ class ReadOnlyObserverTests(SimulatorFixture):
         self.assertIsNone(simulator.SimulatorReader(self.store).view()['observer'])
         self.assertTrue(simulator.SimulatorReader(self.store).view()['source_ledger_authoritative'])
         code, _, raw = simulator.SimulatorChannel(self.store).response('GET', '/dashboard/pons-simulator')
-        self.assertEqual(code, 200)
-        self.assertIn(b'Pons Current and Survivor', raw)
-        self.assertIn(b'read-only shadow observer', raw)
+        self.assertEqual(code, 410)
+        self.assertIn(b'/dashboard', raw)
 
 
 class SimulatorStoreTests(SimulatorFixture):
@@ -535,19 +534,19 @@ class SimulatorStrategyVersionTests(SimulatorFixture):
 class SimulatorChannelTests(SimulatorFixture):
     def test_missing_configuration_is_explicit_and_original_routes_are_not_claimed(self):
         channel = simulator.SimulatorChannel()
-        status, headers, raw = channel.response('GET', '/api/pons-simulator/state')
+        status, headers, raw = channel.response('GET', '/api/dashboard/live')
         view = json.loads(raw)
         self.assertEqual(status, 200)
-        self.assertEqual(view['schema'], 'pons-simulator-view-v1')
+        self.assertEqual(view['schema'], 'pons-live-operations-v1')
         self.assertEqual(view['state'], 'UNAVAILABLE')
         self.assertIsNone(view['identity'])
         self.assertEqual(view['reason_codes'], ['CONFIGURATION_UNAVAILABLE'])
         self.assertIsNone(view['sequence'])
-        self.assertIsNone(view['metrics']['financial']['cash']['value'])
+        self.assertNotIn('financial', view['metrics'])
         self.assertEqual(headers['Cache-Control'], 'no-store')
         self.assertIsNone(channel.response('GET', '/api/dashboard/portfolio'))
-        self.assertEqual(channel.response('POST', '/api/pons-simulator/state')[0], 405)
-        self.assertEqual(channel.response('GET', '/api/pons-simulator/state?epoch=old')[0], 400)
+        self.assertEqual(channel.response('POST', '/api/dashboard/live')[0], 405)
+        self.assertEqual(channel.response('GET', '/api/dashboard/live?epoch=old')[0], 400)
 
     def test_configuration_cannot_alias_original_snapshot_by_path_hardlink_or_symlink(self):
         original = self.root/'original-snapshot.json'
@@ -565,7 +564,7 @@ class SimulatorChannelTests(SimulatorFixture):
             with self.subTest(path=path.name):
                 channel = simulator.configured_channel(dict(config,
                     MM_PONS_SIMULATOR_SNAPSHOT_PATH=str(path)))
-                view = json.loads(channel.response('GET', '/api/pons-simulator/state')[2])
+                view = json.loads(channel.response('GET', '/api/dashboard/live')[2])
                 self.assertEqual(view['state'], 'UNAVAILABLE')
                 self.assertEqual(view['reason_codes'], ['CONFIGURATION_UNAVAILABLE'])
                 self.assertIsNone(channel.store)
@@ -582,7 +581,7 @@ class SimulatorChannelTests(SimulatorFixture):
             with self.subTest(config=config):
                 channel = simulator.configured_channel(config)
                 self.assertIsNone(channel.store)
-                self.assertEqual(json.loads(channel.response('GET', '/api/pons-simulator/state')[2])
+                self.assertEqual(json.loads(channel.response('GET', '/api/dashboard/live')[2])
                     ['reason_codes'], ['CONFIGURATION_UNAVAILABLE'])
         self.assertFalse(self.path.exists())
 
@@ -603,91 +602,20 @@ class SimulatorChannelTests(SimulatorFixture):
 
 
 class SimulatorHTTPTests(SimulatorFixture):
-    def test_primary_dashboard_displays_pons_current_and_survivor_without_replacing_paper(self):
+    def test_primary_dashboard_uses_one_nonfinancial_operations_route(self):
         base = self.server()
         status, _, html = self.request(base, '/dashboard', authorization=OWNER_AUTH)
         self.assertEqual(status, 200)
         self.assertIn(b'THE <strong>MEME MACHINE</strong>', html)
         status, _, javascript = self.request(base, '/dashboard/app.js', authorization=OWNER_AUTH)
         self.assertEqual(status, 200)
-        self.assertIn(b"/api/pons-simulator/state", javascript)
-        self.assertIn(b'Pons Current', javascript)
-        self.assertIn(b'Pons Survivor', javascript)
-        self.assertIn(b'Original PAPER remains a separate, stopped portfolio', javascript)
-        self.assertIn(b'INDEPENDENT EXPERIMENTAL PONS', javascript)
-        self.assertIn(b'Available simulated cash', javascript)
-        self.assertIn(b'Recorded fees / costs', javascript)
-        self.assertIn(b"api('portfolio')", javascript)
+        self.assertIn(b"api('live')", javascript)
+        self.assertNotIn(b'/api/pons-simulator/state', javascript)
         self.assertNotIn(b'/dashboard/pons-simulator', javascript)
+        self.assertIn(b"api('portfolio')", javascript)
         self.assertEqual(self.request(base, '/dashboard/app.js')[0], 401)
-        self.assertEqual(self.request(base, '/api/pons-simulator/state')[0], 401)
-        status, _, original = self.request(base, '/api/dashboard/portfolio',
-                                           authorization=OWNER_AUTH)
-        self.assertEqual(status, 200)
-        self.assertIn(b'"mode"', original)
-
-    @unittest.skipUnless(shutil.which('node'), 'Node is needed only for the offline primary-panel rendering check')
-    def test_primary_financial_panel_renders_verified_stale_and_unknown_values_without_invented_trades(self):
-        javascript = (Path(__file__).resolve().parents[1]/'static/app.js').read_text()
-        # Evaluate only the real declaration prefix. No browser startup, fetch,
-        # service, provider, timer or original-portfolio call runs here.
-        prefix = javascript[:javascript.index('\nfunction header(')]
-        source = dict(state='CURRENT', identity={'source_commit': SOURCE},
-            metrics=dict(financial=dict(
-                cash=dict(metric('950.00', 'USD'), state='CURRENT'),
-                equity=dict(metric(None, 'USD', quality='UNAVAILABLE'), state='UNAVAILABLE'),
-                realized_pnl=dict(metric('-0.01', 'USD'), state='CURRENT'),
-                fees=dict(metric('0.123456789012345679', 'USD', quality='ESTIMATED'), state='CURRENT')),
-                activity={}),
-            observer=dict(source_commit=SOURCE, status='RUNNING', heartbeat_at=utc(NOW), market_as_of=utc(NOW),
-                restart_count=1, current={}, survivor={}, decisions=[], history_coverage='INCOMPLETE'))
-        cases = {'fresh': source}
-        stale = deepcopy(source); stale['metrics']['financial']['cash']['as_of'] = utc(NOW-61)
-        cases['stale'] = stale
-        mismatch = deepcopy(source); mismatch['identity']['source_commit'] = 'f'*40
-        cases['mismatch'] = mismatch
-        missing_source = deepcopy(source)
-        del missing_source['identity']['source_commit']; del missing_source['observer']['source_commit']
-        cases['missing_source'] = missing_source
-        counted = deepcopy(source)
-        counted['metrics']['activity']['entries'] = dict(metric('0','COUNT'), state='CURRENT')
-        cases['counted'] = counted
-        estimated = deepcopy(counted); estimated['metrics']['activity']['entries']['quality'] = 'ESTIMATED'
-        cases['estimated'] = estimated
-        future = deepcopy(source); future['metrics']['financial']['cash']['as_of'] = utc(NOW+1)
-        cases['future'] = future
-        hostile = deepcopy(source); hostile['metrics']['financial']['cash']['value'] = '<script>PRIVATE</script>'
-        cases['hostile'] = hostile
-        subcent = deepcopy(source); subcent['metrics']['financial']['realized_pnl']['value'] = '-0.004'
-        cases['subcent'] = subcent
-        script = """
-const vm=require('vm');const fs=require('fs');const input=JSON.parse(fs.readFileSync(0,'utf8'));
-class Clock extends Date {static now(){return input.now*1000;}}
-const context={Date:Clock,document:{querySelector(){return {};}}};vm.createContext(context);
-vm.runInContext(input.source,context);const result={};
-for(const [name,feed] of Object.entries(input.cases))result[name]=context.ponsObserverPanel(feed);
-process.stdout.write(JSON.stringify(result));
-"""
-        completed = subprocess.run([shutil.which('node'), '-e', script],
-            input=json.dumps(dict(source=prefix, cases=cases, now=NOW)).encode(),
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5, check=True)
-        rendered = json.loads(completed.stdout)
-        self.assertIn('$950.00', rendered['fresh'])
-        self.assertIn('-$0.01', rendered['fresh'])
-        self.assertIn('CURRENT · MEASURED · As of', rendered['fresh'])
-        self.assertIn('ESTIMATED', rendered['fresh'])
-        self.assertIn('UNAVAILABLE', rendered['fresh'])
-        self.assertNotIn('Executed PAPER entries', rendered['fresh'])
-        self.assertIn('Executed PAPER entries', rendered['counted'])
-        self.assertNotIn('Executed PAPER entries', rendered['estimated'])
-        self.assertIn('STALE · MEASURED · As of', rendered['stale'])
-        self.assertNotIn('$950.00', rendered['mismatch'])
-        self.assertNotIn('$950.00', rendered['missing_source'])
-        self.assertNotIn('$950.00', rendered['future'])
-        self.assertNotIn('<script>', rendered['hostile'])
-        self.assertIn('-$0.00', rendered['subcent'])
-        self.assertNotIn('-$.00', rendered['subcent'])
-        self.assertIn('Original PAPER remains a separate, stopped portfolio', rendered['fresh'])
+        self.assertEqual(self.request(base, '/api/dashboard/live')[0], 401)
+        self.assertEqual(self.request(base, '/api/dashboard/portfolio', authorization=OWNER_AUTH)[0], 200)
 
     def original_store(self):
         return SnapshotStore(self.root/'original-latest.json',
@@ -731,24 +659,22 @@ process.stdout.write(JSON.stringify(result));
             authorization='Bearer '+ORIGINAL_TOKEN, value=original_snapshot(NOW+1))
         self.assertEqual(code, 202)
         self.assertEqual(original.get()['captured_at'], utc(NOW+1))
-        code, _, raw = self.request(base, '/api/pons-simulator/state', authorization=OWNER_AUTH)
+        code, _, raw = self.request(base, '/api/dashboard/live', authorization=OWNER_AUTH)
         self.assertEqual(code, 200)
         self.assertEqual(json.loads(raw)['state'], 'UNAVAILABLE')
 
-    def test_new_read_routes_share_existing_basic_policy_without_bearer_read_authority(self):
+    def test_only_live_operations_shares_existing_read_auth_and_legacy_ui_is_retired(self):
         self.store.accept(snapshot())
         base = self.server()
-        for target in ('/api/pons-simulator/state', '/dashboard/pons-simulator',
-                       '/dashboard/pons-simulator/app.js', '/dashboard/pons-simulator/style.css'):
+        targets = ('/api/dashboard/live', '/api/pons-simulator/state',
+            '/dashboard/pons-simulator', '/dashboard/pons-simulator/',
+            '/dashboard/pons-simulator/app.js', '/dashboard/pons-simulator/style.css')
+        for target in targets:
             for auth in (None, 'Bearer '+SIMULATOR_TOKEN):
-                with self.subTest(target=target, authorization=auth):
-                    self.assertEqual(self.request(base, target, authorization=auth)[0], 401)
-            code, headers, _ = self.request(base, target, authorization=OWNER_AUTH)
-            self.assertEqual(code, 200)
+                self.assertEqual(self.request(base, target, authorization=auth)[0], 401)
+            code, headers, raw = self.request(base, target, authorization=OWNER_AUTH)
+            self.assertEqual(code, 200 if target == '/api/dashboard/live' else 410)
             self.assertEqual(headers['Cache-Control'], 'no-store')
-        code, _, raw = self.request(base, '/api/pons-simulator/state', authorization=OWNER_AUTH)
-        self.assertEqual(code, 200)
-        self.assertEqual(json.loads(raw)['identity']['experiment_id'], EXPERIMENT)
         code, _, raw = self.request(base, '/api/dashboard/portfolio', authorization=OWNER_AUTH)
         self.assertEqual(code, 200)
         self.assertEqual(json.loads(raw)['data']['state'], 'NOT_INITIALIZED')
@@ -758,8 +684,7 @@ process.stdout.write(JSON.stringify(result));
     def test_public_reads_do_not_open_either_ingest_route_or_mutating_methods(self):
         original = self.original_store()
         base = self.server(original_store=original, public_reads=True)
-        for target in ('/dashboard/pons-simulator', '/api/pons-simulator/state',
-                       '/dashboard', '/api/dashboard/portfolio'):
+        for target in ('/api/dashboard/live', '/dashboard', '/api/dashboard/portfolio'):
             code, headers, _ = self.request(base, target)
             self.assertEqual(code, 200)
             self.assertNotIn('WWW-Authenticate', headers)
@@ -767,7 +692,7 @@ process.stdout.write(JSON.stringify(result));
             method='POST', value=snapshot())[0], 401)
         self.assertEqual(self.request(base, '/api/dashboard/snapshot',
             method='POST', value=original_snapshot(NOW))[0], 401)
-        self.assertEqual(self.request(base, '/api/pons-simulator/state',
+        self.assertEqual(self.request(base, '/api/dashboard/live',
             method='POST', raw=b'{}')[0], 405)
         self.assertEqual(self.request(base, '/api/dashboard/portfolio',
             method='POST', raw=b'{}')[0], 405)

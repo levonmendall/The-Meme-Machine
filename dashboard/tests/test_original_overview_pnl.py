@@ -27,6 +27,12 @@ class OriginalPortfolioPnlTests(unittest.TestCase):
         self.assertIn("hero(p,chart)", overview)
         self.assertNotIn("ponsFocusedOverview", overview)
         self.assertNotIn("ponsObserverPanel", overview)
+        self.assertIn("livePonsPanel(live,p)", overview)
+        self.assertIn("livePonsFeed()", overview)
+        self.assertLess(overview.index("livePonsPanel(live,p)"), overview.index("canonicalPnlGraph(p,chart)"))
+        self.assertNotIn("/api/pons-simulator/state", code)
+        self.assertNotIn("ponsAccountPanel", code)
+        self.assertNotIn("ponsAccountMetric", code)
         renderer = code.split("async function render() {", 1)[1]
         self.assertNotIn("ponsObserverFeed()", renderer)
         self.assertIn("if(route==='overview') html=await overview(p);", renderer)
@@ -44,11 +50,12 @@ class OriginalPortfolioPnlTests(unittest.TestCase):
         const end=source.indexOf("document.querySelector('#close-detail')");
         assert(end>0);
         const execute=`
-          const account={mode:'canonical',epoch:{epoch_id:'paper-shared-1000-original'},
+          const financialIdentity={epoch_id:'paper-shared-1000-original',inception_sha256:'a'.repeat(64)};
+          const account={mode:'canonical',epoch:{epoch_id:'paper-shared-1000-original'},financial_identity:financialIdentity,
             paper_state:'STOPPED',starting_capital:{value:'1000.00'}};
           const at1='2026-10-25T10:00:00Z',at2='2026-10-25T10:05:00Z',
             at3='2026-10-25T10:10:00Z';
-          const data={mode:'canonical',series:'portfolio',reference:'1000.00',
+          const data={mode:'canonical',series:'portfolio',reference:'1000.00',financial_identity:financialIdentity,
             periods:['ALL','1H'],truncated:false,
             data:[{at:at1,value:'1000.00'},{at:at2,value:'1025.00'},
               {at:at3,value:'990.00'}]};
@@ -63,6 +70,12 @@ class OriginalPortfolioPnlTests(unittest.TestCase):
           assert(spoof.includes('HISTORY UNAVAILABLE'));
           const wrongInception=canonicalPnlGraph(account,{...data,reference:'500.00'});
           assert(wrongInception.includes('HISTORY UNAVAILABLE'));
+          const wrongEpoch=canonicalPnlGraph(account,{...data,financial_identity:{...financialIdentity,epoch_id:'different-1000-account'}});
+          assert(wrongEpoch.includes('HISTORY UNAVAILABLE'));
+          const wrongHash=canonicalPnlGraph(account,{...data,financial_identity:{...financialIdentity,inception_sha256:'b'.repeat(64)}});
+          assert(wrongHash.includes('HISTORY UNAVAILABLE'));
+          const missingIdentity=canonicalPnlGraph(account,{...data,financial_identity:null});
+          assert(missingIdentity.includes('HISTORY UNAVAILABLE'));
           const noHistory=canonicalPnlGraph({...account,epoch:null},data);
           assert(noHistory.includes('HISTORY UNAVAILABLE'));
           const unknown=canonicalPnlGraph(account,{...data,data:[]});

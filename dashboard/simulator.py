@@ -1,7 +1,9 @@
-"""Independent, bounded projection of an external Pons simulator ledger.
+"""Authenticated Pons telemetry intake and nonfinancial dashboard projection.
 
-This channel cannot read the original portfolio or control either trading service.
-Its local latest-file cache is disposable; the external experiment owns history.
+The retained wire format preserves the installed observer's identity/sequence
+contract. Only operations are exposed in the original dashboard; financial views
+continue to use the original canonical portfolio. This channel has no execution
+authority and its latest-file cache is disposable.
 """
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -18,7 +20,7 @@ import threading
 import time
 from urllib.parse import urlsplit
 
-from .api import HEADERS, STATIC
+from .api import HEADERS
 
 
 SCHEMA = 'pons-simulator-snapshot-v1'
@@ -517,30 +519,46 @@ class SimulatorChannel:
 
     def response(self, method, target):
         parsed = urlsplit(target)
-        files = {
-            '/dashboard/pons-simulator': ('pons-simulator.html', 'text/html; charset=utf-8'),
-            '/dashboard/pons-simulator/': ('pons-simulator.html', 'text/html; charset=utf-8'),
-            '/dashboard/pons-simulator/app.js': ('pons-simulator.js', 'text/javascript; charset=utf-8'),
-            '/dashboard/pons-simulator/style.css': ('pons-simulator.css', 'text/css; charset=utf-8'),
-        }
-        if parsed.path not in files and parsed.path != '/api/pons-simulator/state':
+        retired = (parsed.path == '/api/pons-simulator/state'
+                   or parsed.path == '/dashboard/pons-simulator'
+                   or parsed.path.startswith('/dashboard/pons-simulator/'))
+        if not retired and parsed.path != '/api/dashboard/live':
             return None
         headers = dict(HEADERS)
         if method not in ('GET', 'HEAD'):
             return 405, dict(headers, **{'Content-Type': 'application/json', 'Allow': 'GET, HEAD'}), b'{"error":"read_only"}'
+        if retired:
+            return 410, dict(headers, **{'Content-Type': 'application/json'}), b'{"error":"dashboard_retired","dashboard":"/dashboard"}'
         if parsed.query:
             return 400, dict(headers, **{'Content-Type': 'application/json'}), b'{"error":"invalid_request"}'
-        if parsed.path in files:
-            name, mime = files[parsed.path]
-            try:
-                return 200, dict(headers, **{'Content-Type': mime}), (STATIC / name).read_bytes()
-            except OSError:
-                return 503, dict(headers, **{'Content-Type': 'application/json'}), b'{"error":"simulator_unavailable"}'
         view = self.reader.view()
         if self.store is None:
             view['reason_codes'] = [self.reason]
+        # This is an allowlist, not a relabelled financial snapshot. In particular,
+        # no experimental cash, fills, equity series or lifecycle may escape into
+        # the original portfolio's cards, chart, position or trade history.
+        activity = ('pairs_seen', 'events_seen', 'events_processed', 'duplicates',
+                    'gaps', 'queue_depth', 'recovered_events', 'dropped_events',
+                    'unrecovered_events', 'sampled_block_debt', 'launch_events')
+        result = {key: view[key] for key in (
+            'state', 'persistence', 'identity', 'strategy_version', 'observer',
+            'sequence', 'snapshot_sha256', 'captured_at', 'age_seconds',
+            'execution_state', 'reason_codes')}
+        result.update(schema='pons-live-operations-v1', label='Live Pons operations — PAPER only',
+            financial_authority=False, source_ledger_authoritative=False,
+            financial_source='ORIGINAL_CANONICAL_PORTFOLIO_ONLY',
+            account_cutover=dict(state='NOT_ESTABLISHED',
+                current_owner_epoch=(view['identity'] or {}).get('epoch_id'),
+                reason='NO_AUTHENTICATED_ORIGINAL_EXECUTION_BINDING'),
+            metrics=dict(operational=view['metrics']['operational'],
+                activity={key: view['metrics']['activity'][key] for key in activity}))
+        if 'paper' in view:
+            result['paper'] = {key: view['paper'][key] for key in (
+                'schema', 'state', 'heartbeat_at', 'source_commit', 'epoch_id',
+                'inception_sha256', 'policy_sha256', 'permission_enabled',
+                'new_risk_enabled', 'authority_sha256')}
         return 200, dict(headers, **{'Content-Type': 'application/json'}), json.dumps(
-            view, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode('ascii')
+            result, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode('ascii')
 
     def serve(self, handler):
         result = self.response(handler.command, handler.path)

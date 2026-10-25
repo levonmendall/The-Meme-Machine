@@ -84,193 +84,138 @@ function ponsResearchPanel(s) {
     </div></section>`;
 }
 
-// Independent, authenticated Pons observation. This never alters the old PAPER feed.
+// Live operations are reporting only. Original financial endpoints stay authoritative.
 const PONS_FRESH_SECONDS = 60;
-async function ponsObserverFeed() {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 7000);
+async function livePonsFeed() {
   try {
-    const response = await fetch('/api/pons-simulator/state', {
-      signal: controller.signal, cache: 'no-store', credentials: 'same-origin',
-      headers: {Accept: 'application/json'}
-    });
-    if (!response.ok) return null;
-    const feed = await response.json();
-    return feed?.schema === 'pons-simulator-view-v1' ? feed : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+    const feed = await api('live');
+    return feed?.schema === 'pons-live-operations-v1' ? feed : null;
+  } catch { return null; }
 }
 function ponsObservationAge(at) {
-  if (typeof at !== 'string' || !Number.isFinite(Date.parse(at))) return null;
+  if (typeof at !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/.test(at) ||
+      !Number.isFinite(Date.parse(at))) return null;
   return (Date.now() - Date.parse(at)) / 1000;
 }
 const ponsObservationCount = n => Number.isSafeInteger(n) && n >= 0 ? n.toLocaleString() : 'Unavailable';
-function ponsAccountMetric(feed, group, key, unit, sameSource) {
-  const m = feed?.metrics?.[group]?.[key];
-  const unknown = {value:null, state:'UNAVAILABLE', quality:'UNAVAILABLE', as_of:null};
-  if (!sameSource || !['CURRENT','STALE'].includes(feed?.state) || !m || m.unit !== unit ||
-      !['MEASURED','ESTIMATED'].includes(m.quality) || !['CURRENT','STALE'].includes(m.state) ||
-      typeof m.value !== 'string' || !/^-?(?:0|[1-9][0-9]{0,29})(?:\.[0-9]{1,18})?$/.test(m.value)) return unknown;
-  const age = ponsObservationAge(m.as_of);
-  if (age === null || age < 0) return unknown;
-  if (unit === 'COUNT' && !/^(?:0|[1-9][0-9]*)(?:\.0+)?$/.test(m.value)) return unknown;
-  return {value:m.value, quality:m.quality, as_of:m.as_of,
-    state:feed.state === 'CURRENT' && m.state === 'CURRENT' && age <= PONS_FRESH_SECONDS ? 'CURRENT' : 'STALE'};
+function livePonsEvidence(feed) {
+  const observer = feed?.observer;
+  const source = feed?.identity?.source_commit;
+  const bound = feed?.schema === 'pons-live-operations-v1' && feed.financial_authority === false &&
+    feed.financial_source === 'ORIGINAL_CANONICAL_PORTFOLIO_ONLY' &&
+    typeof source === 'string' && /^[0-9a-f]{40}$/.test(source) &&
+    observer && typeof observer === 'object' && observer.source_commit === source;
+  const freshAt = at => {
+    const age = ponsObservationAge(at);
+    return age !== null && age >= 0 && age <= PONS_FRESH_SECONDS;
+  };
+  const current = !!(bound && feed.state === 'CURRENT' && observer.status === 'RUNNING' &&
+    [feed.captured_at, observer.heartbeat_at, observer.market_as_of].every(freshAt));
+  return {bound:!!bound,current,observer:bound?observer:null,
+    state:!bound?'UNAVAILABLE':current?'CURRENT':'STALE',freshAt};
 }
-function ponsPaperStatus(feed, sameSource) {
+function livePonsMetric(feed, group, key, evidence) {
+  const m = feed?.metrics?.[group]?.[key];
+  if (!evidence.bound || !m || !['MEASURED','ESTIMATED'].includes(m.quality) ||
+      !['CURRENT','STALE'].includes(m.state) || !['COUNT','SECONDS','MILLISECONDS','BOOLEAN'].includes(m.unit) ||
+      typeof m.value !== 'string' || !/^(?:0|[1-9][0-9]{0,29})(?:\.[0-9]{1,18})?$/.test(m.value))
+    return {text:'Unavailable',state:'UNAVAILABLE'};
+  const age = ponsObservationAge(m.as_of);
+  if (age === null || age < 0 || m.unit === 'COUNT' && !/^(?:0|[1-9][0-9]*)(?:\.0+)?$/.test(m.value))
+    return {text:'Unavailable',state:'UNAVAILABLE'};
+  return {text:m.value,state:evidence.current && m.state === 'CURRENT' && age <= PONS_FRESH_SECONDS?'CURRENT':'STALE'};
+}
+function livePonsPaper(feed,evidence) {
   const p = feed?.paper;
-  if (p == null) return '';
-  const states = new Set(['UNAVAILABLE','DISABLED','WARMING','READY','MANAGING','FAILED','STOPPED','STALE']);
   const flag = v => v === null || typeof v === 'boolean';
   const hash = v => v === null || typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
-  const bound = sameSource && p.schema === 'pons-current-paper-report-v1' &&
-    p.source_commit === feed?.identity?.source_commit && p.epoch_id === feed?.identity?.epoch_id &&
-    p.inception_sha256 === feed?.identity?.inception_sha256 &&
-    p.policy_sha256 === '909738760e6f722b8668a99493f698c3a415867f77f08199a61b0fb047381be7' &&
-    states.has(p.state) && flag(p.permission_enabled) && flag(p.new_risk_enabled) && hash(p.authority_sha256) &&
+  const states = ['UNAVAILABLE','DISABLED','WARMING','READY','MANAGING','FAILED','STOPPED','STALE'];
+  const bound = evidence.bound && p?.schema === 'pons-current-paper-report-v1' &&
+    p.source_commit === feed.identity.source_commit && p.epoch_id === feed.identity.epoch_id &&
+    p.inception_sha256 === feed.identity.inception_sha256 &&
+    typeof p.policy_sha256 === 'string' && /^[0-9a-f]{64}$/.test(p.policy_sha256) &&
+    p.policy_sha256 === feed?.strategy_version?.policy_sha256 && states.includes(p.state) &&
+    flag(p.permission_enabled) && flag(p.new_risk_enabled) && hash(p.authority_sha256) &&
     (p.permission_enabled !== true || p.authority_sha256 !== null) &&
     (p.new_risk_enabled !== true || p.permission_enabled === true && ['READY','MANAGING'].includes(p.state));
-  const age = bound ? ponsObservationAge(p.heartbeat_at) : null;
-  const fresh = bound && !['STALE','UNAVAILABLE'].includes(p.state) && feed?.state === 'CURRENT' &&
-    age !== null && age >= 0 && age <= PONS_FRESH_SECONDS;
-  const reportState = !bound ? 'UNAVAILABLE' : !fresh && p.state !== 'UNAVAILABLE' ? 'STALE' : p.state;
-  const labels = {READY:'ARMED · AWAITING QUALIFICATION',MANAGING:'MANAGING NATIVE PAPER POSITION',
+  const current = !!(bound && feed.state === 'CURRENT' && evidence.freshAt(feed.captured_at) &&
+    evidence.freshAt(p.heartbeat_at) && !['UNAVAILABLE','STALE'].includes(p.state));
+  const labels = {READY:'ARMED · AWAITING QUALIFICATION',MANAGING:'NATIVE MANAGEMENT REPORTED',
     WARMING:'WARMING · NEW ENTRIES CLOSED',DISABLED:'DISABLED',FAILED:'FAILED · NEW ENTRIES CLOSED',
     STOPPED:'STOPPED',STALE:'STALE',UNAVAILABLE:'UNAVAILABLE'};
-  const displayFlag = value => !fresh || value === null ? 'UNKNOWN' : value ? 'ENABLED' : 'DISABLED';
-  return `<p class="status-notice">Pons Current PAPER: ${esc(labels[reportState])} · Standing permission ${esc(displayFlag(p.permission_enabled))} · Native new-risk gate ${esc(displayFlag(p.new_risk_enabled))} · Reported ${bound && p.heartbeat_at ? esc(date(p.heartbeat_at)) : 'Unavailable'}. This read-only report grants no trading authority.</p>`;
+  const reportState = !bound?'UNAVAILABLE':!current&&p.state!=='UNAVAILABLE'?'STALE':p.state;
+  return {bound,current,state:reportState,label:labels[reportState],
+    permission:current&&p.permission_enabled!==null?(p.permission_enabled?'ENABLED':'DISABLED'):'UNKNOWN',
+    gate:current&&p.new_risk_enabled!==null?(p.new_risk_enabled?'OPEN':'CLOSED'):'UNKNOWN',
+    heartbeat:bound?p.heartbeat_at:null,epoch:bound?p.epoch_id:null};
 }
-function ponsAccountPanel(feed, sameSource) {
-  const fields = [
-    ['Available simulated cash','financial','cash','USD','money'],
-    ['Marked simulated equity','financial','equity','USD','money'],
-    ['Realized net P&L','financial','realized_pnl','USD','money',true],
-    ['Unrealized net P&L','financial','unrealized_pnl','USD','money',true],
-    ['Net simulated return','financial','net_return_pct','PERCENT','percent',true],
-    ['Recorded fees / costs','financial','fees','USD','money']
-  ];
-  // Missing execution counters are unknown; shadow decisions never fill them.
-  for (const [label,key] of [['Executed PAPER entries','entries'],['Completed PAPER exits','exits'],['Open PAPER positions','open_positions']]) {
-    const count = ponsAccountMetric(feed,'activity',key,'COUNT',sameSource);
-    if (count.value !== null && count.quality === 'MEASURED')
-      fields.push([label,'activity',key,'COUNT','count']);
-  }
-  const cells = fields.map(([label,group,key,unit,kind,signed=false]) => {
-    const m = ponsAccountMetric(feed,group,key,unit,sameSource);
-    const evidence = m.value === null ? 'UNAVAILABLE' : m.state+' · '+m.quality+' · As of '+date(m.as_of);
-    // Keep the original portfolio formatter untouched. Its negative-zero
-    // currency edge must not render a sub-cent experimental loss as "-$.00".
-    const amount = kind === 'money' && m.value?.startsWith('-') && fixed(m.value) === '0.00'
-      ? `<span class="${signed ? 'negative' : ''}">-$0.00</span>` : value(m,kind,signed);
-    return `<div class="stat"><label>${esc(label)}</label><strong>${amount}</strong><small>${esc(evidence)}</small></div>`;
+function originalFinancialCutoverPending(p,feed,paper) {
+  const cutover = feed?.account_cutover;
+  // A live owner report is never a binding to the original portfolio account.
+  const pending = cutover?.state !== 'VERIFIED' || p.paper_state === 'STOPPED' && paper.permission === 'DISABLED';
+  if (!pending) return '';
+  return `<p class="banner original-cutover-pending"><strong>Original financial cutover pending.</strong> The original portfolio reports ${esc(p.paper_state||'UNAVAILABLE')}. Live Pons observations and the execution-owner report do not establish trading authority for this portfolio. All balances, trades and P&amp;L remain original-account records.</p>`;
+}
+function livePonsPanel(feed,p,expanded=false) {
+  const evidence = livePonsEvidence(feed),observer = evidence.observer;
+  const paper = livePonsPaper(feed,evidence);
+  const metric = (group,key) => {
+    const m = livePonsMetric(feed,group,key,evidence);
+    return `${esc(m.text.replace(/\.0+$/,''))}${m.state==='STALE'?' · STALE':''}`;
+  };
+  const latest = Array.isArray(observer?.decisions)?observer.decisions.slice(-12).reverse():[];
+  const actions = new Set(['ENTER','WAIT','REJECT','HOLD','ADD','REDUCE','EXIT']);
+  const strategies = new Set(['CURRENT','SURVIVOR']);
+  const qualification = new Set(['COMPLETE','INCOMPLETE','UNKNOWN']);
+  const decisions = latest.filter(d => d && actions.has(d.action) && strategies.has(d.strategy) &&
+    qualification.has(d.qualification) && typeof d.reason === 'string' && /^[a-z0-9_.:-]{1,128}$/.test(d.reason) &&
+    ponsObservationAge(d.at)!==null && ponsObservationAge(d.at)>=0);
+  const decisionRows = decisions.map(d => {
+    const age = ponsObservationAge(d.at);
+    return `<tr><td>${esc(date(d.at))}${!evidence.current||age>PONS_FRESH_SECONDS?' · HISTORICAL':''}</td><td>Pons ${d.strategy==='CURRENT'?'Current':'Survivor'}</td><td>${esc(d.action)} · SHADOW</td><td>${esc(d.qualification)}</td><td>${esc(title(d.reason))}</td></tr>`;
   }).join('');
-  return `<p class="eyebrow">INDEPENDENT EXPERIMENTAL PONS — SIMULATED — NO REAL MONEY</p>
-    ${ponsPaperStatus(feed,sameSource)}
-    <div class="metric-grid">${cells}</div>
-    <p class="status-notice">Experimental ledger records are separate from the original portfolio. Missing valuations or execution counts remain unavailable; stale figures retain their original timestamp.</p>`;
-}
-function ponsObserverPanel(feed, expanded=false) {
-  const observer = feed?.observer && typeof feed.observer === 'object' ? feed.observer : null;
-  const source = feed?.identity?.source_commit;
-  const sameSource = !!(observer && typeof source === 'string' && /^[0-9a-f]{40}$/.test(source) &&
-    source === observer.source_commit);
-  const heartbeatAge = ponsObservationAge(observer?.heartbeat_at);
-  const marketAge = ponsObservationAge(observer?.market_as_of);
-  const fresh = feed?.state === 'CURRENT' && sameSource && observer?.status === 'RUNNING' &&
-    [heartbeatAge, marketAge].every(n => n !== null && n >= 0 && n <= PONS_FRESH_SECONDS);
-  const displayState = !observer ? 'UNAVAILABLE' : fresh ? 'CURRENT' : 'STALE';
-  const statusText = !observer ? 'No verified observer report received.' :
-    !sameSource ? 'Observer identity mismatch: results unavailable.' :
-    observer.status !== 'RUNNING' ? 'Observer reports '+observer.status+'.' :
-    fresh ? 'Market observation is fresh.' : 'Observer report or market evidence is stale or incomplete.';
-  const lanes = [['current','Pons Current'],['survivor','Pons Survivor']];
-  const row = ([key,label]) => {
+  const references = [['current','Current'],['survivor','Survivor']].map(([key,label]) => {
     const v = observer?.[key] || {};
-    return `<tr><td>${esc(label)}</td><td>${ponsObservationCount(v.completed)}</td><td>${ponsObservationCount(v.eligible)}</td><td>${ponsObservationCount(v.wait)}</td><td>${ponsObservationCount(v.incomplete)}</td><td>${ponsObservationCount(v.rejected)}</td></tr>`;
-  };
-  const events = feed?.metrics?.activity?.events_processed?.value;
-  const decisions = observer?.decisions && Array.isArray(observer.decisions) ? observer.decisions.slice(-(expanded ? 12 : 4)).reverse() : [];
-  const lastDecisions = decisions.length ? `<div class="table-wrap"><table><thead><tr><th>Observation</th><th>Strategy</th><th>Shadow decision</th><th>Evidence</th><th>Reason</th></tr></thead><tbody>${decisions.map(d => `<tr><td>${esc(date(d.at))}</td><td>${esc(d.strategy)}</td><td>${esc(d.action)}</td><td>${esc(d.qualification)}</td><td>${esc(d.reason)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="status-notice">No verified shadow decisions in the received report.</p>';
-  return `<section class="panel pons-observer-panel" aria-label="Live Pons observation">
-    <div class="panelhead"><div><p class="eyebrow">Independent market observation · no trading authority</p><h2>Pons Current &amp; Survivor — Live Observer</h2></div>${badge(displayState, fresh ? 'READ-ONLY · CURRENT' : 'READ-ONLY · '+displayState)}</div>
-    <div class="panelbody">
-      <p class="status-notice">${esc(statusText)} Original PAPER remains a separate, stopped portfolio. Shadow decisions are not trades, fills or evidence of profitability.</p>
-      <div class="pons-observer-kpis">
-        <div><span>Processed economic events</span><strong>${events == null ? 'Unavailable' : esc(events)}</strong></div>
-        <div><span>Observer heartbeat</span><strong>${observer?.heartbeat_at ? esc(date(observer.heartbeat_at)) : 'Unavailable'}</strong></div>
-        <div><span>Market evidence</span><strong>${observer?.market_as_of ? esc(date(observer.market_as_of)) : 'Unavailable'}</strong></div>
-        <div><span>Recorded restarts</span><strong>${ponsObservationCount(observer?.restart_count)}</strong></div>
+    return `<tr><td>Pons ${label}</td><td>${ponsObservationCount(v.completed)}</td><td>${ponsObservationCount(v.eligible)}</td><td>${ponsObservationCount(v.wait)}</td><td>${ponsObservationCount(v.incomplete)}</td><td>${ponsObservationCount(v.rejected)}</td></tr>`;
+  }).join('');
+  const details = expanded ? `<div class="table-wrap"><table><thead><tr><th>Strategy</th><th>Reference complete</th><th>Reference eligible</th><th>WAIT</th><th>Incomplete</th><th>REJECT</th></tr></thead><tbody>${references}</tbody></table></div>
+    <p class="status-notice">Retained observer reference counts are not financial Current qualifications or executed trades. Current and Survivor are evaluated independently; reference eligibility grants no allocation. History coverage: ${esc(observer?.history_coverage||'UNAVAILABLE')}.</p>
+    <h3>Reported shadow decisions</h3>${decisionRows?`<div class="table-wrap"><table><thead><tr><th>Observation</th><th>Strategy</th><th>Decision</th><th>Evidence</th><th>Reason</th></tr></thead><tbody>${decisionRows}</tbody></table></div>`:'<p class="status-notice">No verified shadow decisions supplied.</p>'}
+    <div class="live-operations-facts"><span>Pending candidates: ${metric('activity','queue_depth')}</span><span>Cumulative provider failures: ${metric('operational','provider_failures')}</span><span>Cumulative provider requests: ${metric('operational','provider_requests')}</span><span>Reported restarts: ${ponsObservationCount(observer?.restart_count)}</span></div>` : '';
+  const epoch = paper.epoch && p.epoch?.epoch_id && paper.epoch === p.epoch.epoch_id ?
+    'A matching epoch label alone is not an authenticated financial cutover.' :
+    'The live execution owner and original portfolio use separate account identities.';
+  return `<section class="panel live-operations-panel" aria-label="Live Pons operations">
+    <div class="panelhead"><div><p class="eyebrow">Market observation and resident status</p><h2>Live Pons operations</h2></div>${badge(evidence.state,evidence.current?'MARKET CURRENT':evidence.state)}</div>
+    <div class="panelbody">${originalFinancialCutoverPending(p,feed,paper)}
+      <p class="status-notice">${esc(evidence.current?'Market observation is fresh.':'Current market operation is unavailable or stale; retained observations do not prove connectivity.')} ${esc(epoch)}</p>
+      <div class="live-operations-kpis">
+        <div><span>Processed market events</span><strong>${metric('activity','events_processed')}</strong></div>
+        <div><span>Sampled block debt</span><strong>${metric('activity','sampled_block_debt')}</strong></div>
+        <div><span>Observer heartbeat</span><strong>${observer?.heartbeat_at?esc(date(observer.heartbeat_at)):'Unavailable'}</strong></div>
+        <div><span>Market evidence</span><strong>${observer?.market_as_of?esc(date(observer.market_as_of)):'Unavailable'}</strong></div>
       </div>
-      ${ponsAccountPanel(feed,sameSource)}
-      <div class="table-wrap"><table><thead><tr><th>Strategy</th><th>Reference complete</th><th>Reference eligible</th><th>WAIT</th><th>Incomplete</th><th>REJECT</th></tr></thead><tbody>${lanes.map(row).join('')}</tbody></table></div>
-      ${lastDecisions}
-      <p class="status-notice">History coverage: ${esc(observer?.history_coverage || 'UNAVAILABLE')} · Feed: ${esc(feed?.state || 'UNAVAILABLE')}. These are retained unfunded reference counts, not financial Current qualifications or PAPER fills. Stale values are not current operations. No PAPER entries are authorized by this view.</p>
-      ${expanded ? '' : '<a class="link" href="#lanes">View Current and Survivor evidence →</a>'}
-    </div>
-  </section>`;
+      <p class="status-notice"><strong>Current resident: ${esc(paper.label)}</strong> · Reported owner permission ${esc(paper.permission)} · Native new-risk gate ${esc(paper.gate)}. These describe the live owner, not original-account authority.</p>
+      <p class="status-notice">Native qualification detail: UNAVAILABLE in this feed. Position-protection acceptance: UNAVAILABLE; observer freshness or enabled permission does not establish it. ${paper.heartbeat?'Resident report '+esc(date(paper.heartbeat))+'.':''} Shadow decisions are not entries, fills or profits.</p>
+      ${details}${expanded?'':'<a class="link" href="#lanes">Current and Survivor evidence →</a>'}
+    </div></section>`;
 }
 
-function ponsFocusedOverview(feed) {
-  const obs=feed?.observer && typeof feed.observer==='object'?feed.observer:null;
-  const source=feed?.identity?.source_commit;
-  const sameSource=!!(obs && typeof source==='string' && /^[0-9a-f]{40}$/.test(source) && source===obs.source_commit);
-  const hbAge=ponsObservationAge(obs?.heartbeat_at),mkAge=ponsObservationAge(obs?.market_as_of);
-  const fresh=feed?.state==='CURRENT' && sameSource && obs?.status==='RUNNING' &&
-    [hbAge,mkAge].every(n=>n!==null&&n>=0&&n<=PONS_FRESH_SECONDS);
-  const obsState=!obs?'UNAVAILABLE':fresh?'CURRENT':'STALE';
-  const metric=(g,k,u)=>ponsAccountMetric(feed,g,k,u,sameSource);
-  const eq=metric('financial','equity','USD'),ret=metric('financial','net_return_pct','PERCENT');
-  const asOf=m=>m.value===null?'UNAVAILABLE':m.state+' · '+m.quality+' · '+date(m.as_of);
-  const tile=(name,g,k,u,kind='money',signed=false)=>{
-    const m=metric(g,k,u);
-    return `<div class="pons-focus-stat"><span>${esc(name)}</span><strong>${value(m,kind,signed)}</strong><small>${esc(asOf(m))}</small></div>`;
-  };
-  const report=ponsPaperStatus(feed,sameSource) || 'Current PAPER permission and readiness are unavailable in this feed.';
-  const events=feed?.metrics?.activity?.events_processed?.value;
-  const showEvents=sameSource&&typeof events==='string'&&/^(?:0|[1-9][0-9]*)$/.test(events);
-  return `<div class="pons-focus-page">
-    <section class="panel pons-focus-account" aria-label="Experimental Pons PAPER account">
-      <div class="panelhead"><div><p class="eyebrow">PONS CURRENT · EXPERIMENTAL PAPER</p><h2>Autonomous trading account</h2></div>${badge(obsState,fresh?'CURRENT MARKET FEED':obsState+' MARKET FEED')}</div>
-      <div class="panelbody">
-        <div class="pons-focus-balance"><span>Marked simulated equity</span><strong class="equity">${value(eq)}</strong><div class="pons-focus-return">${value(ret,'percent',true)} net simulated return</div><small>${esc(asOf(eq))}</small></div>
-        <div class="pons-focus-stats">
-          ${tile('Available cash','financial','cash','USD')}
-          ${tile('Realized net P&L','financial','realized_pnl','USD','money',true)}
-          ${tile('Unrealized net P&L','financial','unrealized_pnl','USD','money',true)}
-          ${tile('PAPER entries','activity','entries','COUNT','count')}
-          ${tile('PAPER exits','activity','exits','COUNT','count')}
-          ${tile('Open positions','activity','open_positions','COUNT','count')}
-        </div>
-        <p class="status-notice pons-focus-permission">${report}</p>
-        <p class="status-notice">Simulated funds only. Standing permission is distinct from the per-opportunity native risk gate; an armed account is not a trade. The original PAPER portfolio is stopped and has separate accounting.</p>
-      </div>
-    </section>
-    <section class="panel pons-focus-market" aria-label="Pons market observation">
-      <div class="panelhead"><h2>Market observation</h2>${badge(obsState,fresh?'FRESH · READ ONLY':obsState)}</div>
-      <div class="panelbody">
-        <div class="pons-observer-kpis">
-          <div><span>Economic events observed</span><strong>${showEvents?esc(events):'Unavailable'}</strong></div>
-          <div><span>Observer heartbeat</span><strong>${obs?.heartbeat_at?esc(date(obs.heartbeat_at)):'Unavailable'}</strong></div>
-          <div><span>Market evidence</span><strong>${obs?.market_as_of?esc(date(obs.market_as_of)):'Unavailable'}</strong></div>
-          <div><span>Recorded restarts</span><strong>${sameSource?ponsObservationCount(obs?.restart_count):'Unavailable'}</strong></div>
-        </div>
-        <p class="status-notice">${fresh?'Market observation is fresh.':'Market freshness is unverified; last reported observations may be stale.'} Survivor remains unfunded. Reference decisions are not entries, fills or evidence of profitability.</p>
-        <div class="pons-focus-links"><a class="link" href="#lanes">Current &amp; Survivor details →</a><a class="link" href="#system">System evidence →</a></div>
-      </div>
-    </section>
-  </div>`;
-}
 
+function canonicalHistoryIdentity(p,h) {
+  const a=p?.financial_identity,b=h?.financial_identity;
+  const valid=v=>v&&typeof v.epoch_id==='string'&&v.epoch_id.length>0&&v.epoch_id.length<=240&&
+    typeof v.inception_sha256==='string'&&/^[0-9a-f]{64}$/.test(v.inception_sha256);
+  return !!(valid(a)&&valid(b)&&a.epoch_id===p?.epoch?.epoch_id&&
+    a.epoch_id===b.epoch_id&&a.inception_sha256===b.inception_sha256);
+}
 function canonicalPnlGraph(p,h) {
   // Only original authenticated canonical portfolio equity, never simulator data.
   const fmt=n=>(n<0?'−$':'$')+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const noData=message=>`<section class="panel canonical-pnl-chart"><div class="panelhead"><h2>Total portfolio P&amp;L</h2>${badge('UNAVAILABLE','HISTORY UNAVAILABLE')}</div><div class="panelbody"><p class="canonical-chart-unavailable">${esc(message)}</p></div></section>`;
   const dec=s=>typeof s==='string'&&/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(s)&&Number.isFinite(Number(s))?Number(s):null;
   const basis=dec(p?.starting_capital?.value);
-  if(!p?.epoch||h?.mode!==p.mode||h?.series!=='portfolio'||basis===null||
+  if(!p?.epoch||!canonicalHistoryIdentity(p,h)||h?.mode!==p.mode||h?.series!=='portfolio'||basis===null||
      dec(h?.reference)!==basis||!Array.isArray(h?.data)||h.data.length>500)
     return noData('Original portfolio history or verified inception capital is unavailable.');
   let prior=-Infinity,bad=false;
@@ -336,7 +281,7 @@ function header(name,p) {
 function hero(p,chart) {
   const m=p.metrics;
   const capitalLabel=p.epoch?'Starting capital':'Planned starting capital';
-  const spark=plot(chart?.data||[],chart?.reference??p.starting_capital?.value,'portfolio',true);
+  const spark=plot(canonicalHistoryIdentity(p,chart)?chart?.data||[]:[],chart?.reference??p.starting_capital?.value,'portfolio',true);
   return `<section class="panel hero portfolio-summary">
     <div class="portfolio-primary">
       <p class="summary-label">Portfolio value</p>
@@ -346,6 +291,11 @@ function hero(p,chart) {
           <div class="pnl-line">${value(m.net_pnl,'money',true)} <span class="muted">(${value(m.return_pct,'percent',true)})</span></div>
         </div>
         <div class="hero-spark">${spark}</div>
+      </div>
+      <div class="portfolio-cash-breakdown">
+        ${stat('Available cash',m.available_cash)}
+        ${stat('Realized P&L',m.realized_pnl,'money',true)}
+        ${stat('Unrealized P&L',m.unrealized_pnl,'money',true)}
       </div>
     </div>
     <div class="summary-stats">
@@ -584,19 +534,19 @@ function operationsPanel(s,detailed=false) {
     </div></section>`;
 }
 async function overview(p) {
-  const chart=await api('equity',{period:state.period,series:'portfolio',limit:240});
+  const [chart,live]=await Promise.all([api('equity',{period:state.period,series:'portfolio',limit:240}),livePonsFeed()]);
   const mode=p.paper_state||'UNAVAILABLE';
   return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}
     <section class="panel canonical-source-card"><div class="panelhead"><h2>Original portfolio status</h2>${badge(mode,mode==='STOPPED'?'PAPER STOPPED':title(mode))}</div>
       <div class="panelbody">All balances, positions, trades and P&amp;L on this page come from the original canonical portfolio. No experimental account is included. Snapshot ${esc(date(p.as_of))} · Reconciliation ${badge(p.reconciliation?.state||'UNAVAILABLE')}.</div></section>
-    ${canonicalPnlGraph(p,chart)}</div>`;
+    ${livePonsPanel(live,p)}${canonicalPnlGraph(p,chart)}</div>`;
 }
 
 async function lanePage(lane,p) {
-  const [r,chart,positions,trades]=await Promise.all([api('lanes/'+lane),api('equity',{series:lane,period:state.period}),api('positions',{lane,limit:25}),api('trades',{lane,limit:10})]);
+  const [r,chart,positions,trades,live]=await Promise.all([api('lanes/'+lane),api('equity',{series:lane,period:state.period}),api('positions',{lane,limit:25}),api('trades',{lane,limit:10}),livePonsFeed()]);
   const l=r.data,m=l.metrics;
   const metrics=[['Portfolio contribution','contribution_pct','percent'],['Realized net P&L','realized_pnl','money'],['Unrealized net P&L','unrealized_pnl','money'],['Trades taken','trades_taken','count'],['Completed trades','completed_trades','count'],['Open positions','open_positions','count'],['Winners','wins','count'],['Losses','losses','count'],['Breakevens','breakevens','count'],['Win rate','win_rate','percent'],['Deployed capital','deployed_capital','money'],['Fees / costs','fees','money'],['Average completed result','average_result','money'],['Largest winner','largest_winner','money'],['Largest loss','largest_loser','money'],['Average holding time','average_holding_seconds','seconds'],['Max drawdown','max_drawdown_pct','percent'],['Standalone lane return','lane_return_pct','percent']];
-  return header('Original PAPER · '+names[lane]+' lane',p)+`<section class="panel lane-hero ${lane}"><div class="panelhead"><div><p class="eyebrow">Net P&L / ${names[lane]}</p><div class="equity">${value(m.net_pnl,'money',true)}</div><p class="sample-count">${m.completed_trades.value??'Unknown'} completed trades · ${m.open_positions.value??'Unknown'} open · ${m.wins.value??'?'} wins / ${m.losses.value??'?'} losses / ${m.breakevens.value??'?'} breakevens</p></div>${badge(l.health.operational.state,l.health.operational.value)}</div><div class="metric-grid">${metrics.map(([label,key,kind])=>stat(label,m[key],kind,['realized_pnl','unrealized_pnl','contribution_pct'].includes(key))).join('')}</div></section><div class="detail-chart">${chartPanel(chart,false)}</div><div class="tables">${tablePanel('Open exposure',positions,false,'positions')}${tablePanel('Recent completed trades',trades,true,'trades')}</div>${healthPanel(lane,l.health)}`;
+  return header('Original PAPER · '+names[lane]+' lane',p)+livePonsPanel(live,p,true)+`<section class="panel lane-hero ${lane}"><div class="panelhead"><div><p class="eyebrow">Net P&L / ${names[lane]}</p><div class="equity">${value(m.net_pnl,'money',true)}</div><p class="sample-count">${m.completed_trades.value??'Unknown'} completed trades · ${m.open_positions.value??'Unknown'} open · ${m.wins.value??'?'} wins / ${m.losses.value??'?'} losses / ${m.breakevens.value??'?'} breakevens</p></div>${badge(l.health.operational.state,l.health.operational.value)}</div><div class="metric-grid">${metrics.map(([label,key,kind])=>stat(label,m[key],kind,['realized_pnl','unrealized_pnl','contribution_pct'].includes(key))).join('')}</div></section><div class="detail-chart">${chartPanel(chart,false)}</div><div class="tables">${tablePanel('Open exposure',positions,false,'positions')}${tablePanel('Recent completed trades',trades,true,'trades')}</div>${healthPanel(lane,l.health)}`;
 }
 function healthPanel(lane,h) {
   return `<section class="panel ${lane}"><div class="panelhead"><h2 class="lane-label">${names[lane]}</h2>${badge(h.operational.state,h.operational.value)}</div><div class="panelbody"><div class="health-row"><span>Native accounting reconciliation</span>${badge(h.accounting.state,h.accounting.value===true?'RECONCILED':h.accounting.value===false?'MISMATCH':undefined)}</div><div class="health-row"><span>Evidence freshness</span>${badge(h.evidence.state)}</div><div class="health-row"><span>Progress age</span><span>${value(h.progress_age_seconds,'seconds')}</span></div><div class="health-row"><span>Persisted provider request count</span><span>${value(h.provider_requests,'count')}</span></div><p class="status-notice">A responsive process does not prove fresh evidence. Native campaign telemetry is separate from the new USD portfolio.</p>${nativePanel(h.native_accounting)}<details><summary>Source / policy / configuration identities</summary><p class="status-notice">Runtime-observed identities</p>${identityRows(h.runtime_identities)}<p class="status-notice">Configured source map (not proof of execution)</p>${identityRows(h.configured_identities)}</details></div></section>`;
@@ -620,8 +570,8 @@ async function analytics(p) {
   return header('Portfolio analytics',p)+`<p class="status-notice">Coverage: ${p.metrics.completed_trades.value??'unknown'} completed lifecycles. No statistical significance, ranking or strategy selection is inferred.</p><div class="chart-row">${chartPanel(chart)}<section class="panel"><div class="panelhead"><h2>Cumulative lane contribution</h2></div><div class="panelbody">${laneBars(lanes.data.filter(l=>LANES.includes(l.lane)))}${stat('Unallocated / shared costs',p.metrics.shared_costs)}</div></section><section class="panel"><div class="panelhead"><h2>Wins / losses</h2></div><div class="panelbody">${laneBars(lanes.data.filter(l=>LANES.includes(l.lane)),true)}</div></section></div><div class="panel metric-grid">${stat('Realized net P&L',p.metrics.realized_pnl,'money',true)}${stat('Unrealized net P&L',p.metrics.unrealized_pnl,'money',true)}${stat('Portfolio drawdown',p.metrics.max_drawdown_pct,'percent')}${stat('Completed sample',p.metrics.completed_trades,'count')}${stat('Breakevens',p.metrics.breakevens,'count')}${stat('Win rate',p.metrics.win_rate,'percent')}</div><div class="daily"><section class="panel"><div class="panelhead"><h2>Completed P&L by settlement day</h2></div>${dailyTable(true)}<div class="panelbody"><p class="status-notice">Full lifecycle net outcomes on terminal settlement day. Excludes open partial realizations and shared costs. Daily equity change is unavailable.</p></div></section><section class="panel"><div class="panelhead"><h2>Daily trade frequency</h2></div>${dailyTable(false)}<div class="panelbody"><p class="status-notice">${esc(daily.coverage)}. Showing up to 31 observed days.</p></div></section></div>`;
 }
 async function systemPage(p) {
-  const response=await api('system'),s=response.data;
-  return header('Original portfolio · system & evidence',p)+operationsPanel(s,true)+systemStrip(s)+
+  const [response,live]=await Promise.all([api('system'),livePonsFeed()]),s=response.data;
+  return header('Original portfolio · system & evidence',p)+livePonsPanel(live,p,true)+operationsPanel(s,true)+systemStrip(s)+
     `<p class="status-notice">Original portfolio telemetry snapshot: ${esc(date(s.observed_at))}. Experimental accounts are not part of this financial view.</p>
      <div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div>
      <section class="panel detail-chart"><div class="panelhead"><h2>Original portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}${sharedCapital(p)}</details></div></section>`;
@@ -665,7 +615,7 @@ async function render() {
     syncTopbar(p);
     let html;
     if(route==='overview') html=await overview(p);
-    else if(route==='lanes') { const lanes=await api('lanes'); html=header('Original PAPER · Pons lane',p)+laneCards(lanes.data.filter(l=>LANES.includes(l.lane))); }
+    else if(route==='lanes') { const [lanes,live]=await Promise.all([api('lanes'),livePonsFeed()]); html=header('Original PAPER · Pons lane',p)+livePonsPanel(live,p,true)+laneCards(lanes.data.filter(l=>LANES.includes(l.lane))); }
     else if(route.startsWith('lane/')&&LANES.includes(route.slice(5))) html=await lanePage(route.slice(5),p);
     else if(route==='positions'||route==='trades') html=await historyPage(route==='trades',p);
     else if(route==='analytics') html=await analytics(p);
