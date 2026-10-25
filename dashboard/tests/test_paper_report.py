@@ -150,12 +150,12 @@ const feed={state:'CURRENT',identity:{source_commit:base.source_commit,
 const run=p=>ponsPaperStatus({...feed,paper:p},true);
 const values=[run(base),run({...base,state:'MANAGING',permission_enabled:false,
  new_risk_enabled:false,authority_sha256:null}),run({...base,heartbeat_at:OLD}),
- run({...base,source_commit:'PRIVATE_PROVIDER_TOKEN'}),
+ run({...base,source_commit:'PRIVATE_PROVIDER_TOKEN'}),run({...base,state:'STALE'}),
  ponsPaperStatus({state:'CURRENT',observer:{status:'RUNNING'}},true)];
 process.stdout.write(JSON.stringify(values));
 """.replace('INPUT', json.dumps(ready)).replace('OLD', json.dumps(utc(NOW-61)))
         result = subprocess.run([node, '-e', script], check=True, capture_output=True, text=True)
-        ready_html, disabled_held, stale, mismatched, legacy = json.loads(result.stdout)
+        ready_html, disabled_held, stale, mismatched, explicit_stale, legacy = json.loads(result.stdout)
         self.assertIn('ARMED · AWAITING QUALIFICATION', ready_html)
         self.assertIn('Standing permission ENABLED', ready_html)
         self.assertIn('MANAGING NATIVE PAPER POSITION', disabled_held)
@@ -164,6 +164,8 @@ process.stdout.write(JSON.stringify(values));
         self.assertNotIn('permission ENABLED', stale)
         self.assertIn('PAPER: UNAVAILABLE', mismatched)
         self.assertNotIn('PRIVATE', mismatched)
+        self.assertIn('PAPER: STALE', explicit_stale)
+        self.assertNotIn('permission ENABLED', explicit_stale)
         self.assertEqual(legacy, '')
 
 

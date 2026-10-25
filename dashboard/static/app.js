@@ -134,7 +134,8 @@ function ponsPaperStatus(feed, sameSource) {
     (p.permission_enabled !== true || p.authority_sha256 !== null) &&
     (p.new_risk_enabled !== true || p.permission_enabled === true && ['READY','MANAGING'].includes(p.state));
   const age = bound ? ponsObservationAge(p.heartbeat_at) : null;
-  const fresh = bound && feed?.state === 'CURRENT' && age !== null && age >= 0 && age <= PONS_FRESH_SECONDS;
+  const fresh = bound && !['STALE','UNAVAILABLE'].includes(p.state) && feed?.state === 'CURRENT' &&
+    age !== null && age >= 0 && age <= PONS_FRESH_SECONDS;
   const reportState = !bound ? 'UNAVAILABLE' : !fresh && p.state !== 'UNAVAILABLE' ? 'STALE' : p.state;
   const labels = {READY:'ARMED · AWAITING QUALIFICATION',MANAGING:'MANAGING NATIVE PAPER POSITION',
     WARMING:'WARMING · NEW ENTRIES CLOSED',DISABLED:'DISABLED',FAILED:'FAILED · NEW ENTRIES CLOSED',
