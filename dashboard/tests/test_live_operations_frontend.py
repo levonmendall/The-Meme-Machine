@@ -66,11 +66,11 @@ class LiveOperationsFrontendTests(unittest.TestCase):
         const render=expression=>vm.runInContext(expression,context);
         const html=render('livePonsPanel(FEED,ORIGINAL,true)');
         assert(html.includes('MARKET CURRENT'));
-        assert(html.includes('Original financial cutover pending'));
+        assert(html.includes('Financial account selection pending'));
         assert(html.includes('original portfolio reports STOPPED'));
         assert(html.includes('Reported owner permission DISABLED'));
         assert(html.includes('Native new-risk gate CLOSED'));
-        assert(html.includes('separate account identities'));
+        assert(html.includes('not verified as the same account'));
         assert(html.includes('Reference complete')&&html.includes('Reference eligible'));
         assert(html.includes('not financial Current qualifications'));
         assert(html.includes('HISTORICAL')&&html.includes('WAIT · SHADOW'));
@@ -80,8 +80,8 @@ class LiveOperationsFrontendTests(unittest.TestCase):
         context.FEED={...feed,paper:{...feed.paper,state:'READY',permission_enabled:true,authority_sha256:'e'.repeat(64)}};
         const armed=render('livePonsPanel(FEED,ORIGINAL)');
         assert(armed.includes('ARMED · AWAITING QUALIFICATION'));
-        assert(armed.includes('Original financial cutover pending'));
-        assert(armed.includes('not original-account authority'));
+        assert(armed.includes('Financial account selection pending'));
+        assert(armed.includes('authority for the displayed account is not established'));
         context.FEED={...feed,observer:{...feed.observer,market_as_of:stamp(-61)}};
         const stale=render('livePonsPanel(FEED,ORIGINAL)');
         assert(stale.includes('STALE')&&!stale.includes('MARKET CURRENT'));
@@ -97,6 +97,54 @@ class LiveOperationsFrontendTests(unittest.TestCase):
         assert(render('livePonsPanel(FEED,ORIGINAL)').includes('permission UNKNOWN'));
         context.FEED=null;
         assert(render('livePonsPanel(FEED,ORIGINAL)').includes('UNAVAILABLE'));
+        const selectedIdentity={...identity,epoch_id:'paper-pons-simulator-1000-20261024',
+          inception_sha256:'0098b5790dee06e6b540a1e02fad0db562d115006f10b3575b36ba4e0f221474'};
+        const selected={mode:'canonical',financial_source:'pons_experiment',state:'CURRENT',snapshot_state:'CURRENT',
+          as_of:stamp(-3),paper_state:'DISABLED',epoch:{epoch_id:selectedIdentity.epoch_id},
+          financial_identity:{epoch_id:selectedIdentity.epoch_id,inception_sha256:selectedIdentity.inception_sha256},
+          selected_financial_identity:selectedIdentity};
+        const selectedFeed={...feed,financial_source:'pons_experiment',identity:selectedIdentity,
+          paper:{...feed.paper,...selectedIdentity},account_cutover:{state:'VERIFIED',
+            current_owner_epoch:selectedIdentity.epoch_id,inception_sha256:selectedIdentity.inception_sha256,
+            reason:'AUTHENTICATED_SELECTED_CANONICAL_BINDING'}};
+        context.ACCOUNT=selected;context.FEED=selectedFeed;
+        assert(render('selectedFinancialBinding(ACCOUNT,FEED,livePonsEvidence(FEED))'));
+        context.ACCOUNT={...selected,as_of:selected.as_of.replace('Z','+00:00')};
+        assert(render('selectedFinancialBinding(ACCOUNT,FEED,livePonsEvidence(FEED))'));
+        context.ACCOUNT=selected;
+        const boundHtml=render('livePonsPanel(FEED,ACCOUNT,true)');
+        assert(!boundHtml.includes('selection pending')&&!boundHtml.includes('binding unavailable'));
+        assert(boundHtml.includes('selected canonical PAPER account identity'));
+        assert(boundHtml.includes('Reported owner permission DISABLED'));
+        assert(boundHtml.includes('dashboard grants no execution authority'));
+        assert(boundHtml.includes('WAIT · SHADOW')&&!boundHtml.includes('999999'));
+        const refusedBindings=[
+          [{...selected,financial_identity:null},selectedFeed],
+          [{...selected,financial_identity:{...selected.financial_identity,inception_sha256:'f'.repeat(64)}},selectedFeed],
+          [{...selected,selected_financial_identity:{...selectedIdentity,source_commit:'f'.repeat(40)}},selectedFeed],
+          [{...selected,selected_financial_identity:{...selectedIdentity,source_commit:1}},selectedFeed],
+          [{...selected,selected_financial_identity:{...selectedIdentity,epoch_id:'another-1000-account'}},selectedFeed],
+          [{...selected,epoch:{epoch_id:'another-1000-account'}},selectedFeed],
+          [{...selected,as_of:stamp(-61)},selectedFeed],
+          [{...selected,state:'STALE'},selectedFeed],
+          [{...selected,snapshot_state:'STALE'},selectedFeed],
+          [{...selected,mode:'fixture'},selectedFeed],
+          [selected,{...selectedFeed,captured_at:stamp(-61)}],
+          [selected,{...selectedFeed,state:'STALE'}],
+          [selected,{...selectedFeed,identity:{...selectedIdentity,inception_sha256:'f'.repeat(64)}}],
+          [selected,{...selectedFeed,identity:{...selectedIdentity,source_commit:'f'.repeat(40)}}],
+          [selected,{...selectedFeed,account_cutover:{...selectedFeed.account_cutover,state:'NOT_ESTABLISHED'}}],
+          [selected,{...selectedFeed,account_cutover:{...selectedFeed.account_cutover,current_owner_epoch:'other'}}],
+          [selected,{...selectedFeed,account_cutover:{...selectedFeed.account_cutover,inception_sha256:'f'.repeat(64)}}],
+          [selected,{...selectedFeed,account_cutover:{...selectedFeed.account_cutover,reason:'OTHER'}}]
+        ];
+        for(const [account,operations] of refusedBindings){
+          context.ACCOUNT=account;context.FEED=operations;
+          assert(!render('selectedFinancialBinding(ACCOUNT,FEED,livePonsEvidence(FEED))'));
+          assert(render('livePonsPanel(FEED,ACCOUNT)').includes('Live account binding unavailable'));
+        }
+        context.ACCOUNT=selected;context.FEED={...selectedFeed,paper:{...selectedFeed.paper,permission_enabled:1}};
+        assert(render('livePonsPanel(FEED,ACCOUNT)').includes('permission UNKNOWN'));
         (async()=>{await render('livePonsFeed()');
           assert.deepEqual(requested,['/api/dashboard/live']);
           process.stdout.write('LIVE_OPERATIONS_ORIGINAL_UI_PASS');

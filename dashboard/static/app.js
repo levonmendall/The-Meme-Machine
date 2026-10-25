@@ -84,7 +84,7 @@ function ponsResearchPanel(s) {
     </div></section>`;
 }
 
-// Live operations are reporting only. Original financial endpoints stay authoritative.
+// Live operations are reporting only. Canonical financial endpoints stay authoritative.
 const PONS_FRESH_SECONDS = 60;
 async function livePonsFeed() {
   try {
@@ -102,7 +102,8 @@ function livePonsEvidence(feed) {
   const observer = feed?.observer;
   const source = feed?.identity?.source_commit;
   const bound = feed?.schema === 'pons-live-operations-v1' && feed.financial_authority === false &&
-    feed.financial_source === 'ORIGINAL_CANONICAL_PORTFOLIO_ONLY' &&
+    ['ORIGINAL_CANONICAL_PORTFOLIO_ONLY','pons_experiment'].includes(feed.financial_source) &&
+    feed.source_ledger_authoritative === false &&
     typeof source === 'string' && /^[0-9a-f]{40}$/.test(source) &&
     observer && typeof observer === 'object' && observer.source_commit === source;
   const freshAt = at => {
@@ -132,11 +133,15 @@ function livePonsPaper(feed,evidence) {
   const states = ['UNAVAILABLE','DISABLED','WARMING','READY','MANAGING','FAILED','STOPPED','STALE'];
   const bound = evidence.bound && p?.schema === 'pons-current-paper-report-v1' &&
     p.source_commit === feed.identity.source_commit && p.epoch_id === feed.identity.epoch_id &&
+    typeof p.epoch_id==='string' && p.epoch_id.length>0 && p.epoch_id.length<=240 &&
+    typeof p.inception_sha256==='string' && /^[0-9a-f]{64}$/.test(p.inception_sha256) &&
     p.inception_sha256 === feed.identity.inception_sha256 &&
     typeof p.policy_sha256 === 'string' && /^[0-9a-f]{64}$/.test(p.policy_sha256) &&
     p.policy_sha256 === feed?.strategy_version?.policy_sha256 && states.includes(p.state) &&
     flag(p.permission_enabled) && flag(p.new_risk_enabled) && hash(p.authority_sha256) &&
     (p.permission_enabled !== true || p.authority_sha256 !== null) &&
+    (p.state !== 'READY' || p.permission_enabled === true) &&
+    (p.state !== 'DISABLED' || p.permission_enabled === false) &&
     (p.new_risk_enabled !== true || p.permission_enabled === true && ['READY','MANAGING'].includes(p.state));
   const current = !!(bound && feed.state === 'CURRENT' && evidence.freshAt(feed.captured_at) &&
     evidence.freshAt(p.heartbeat_at) && !['UNAVAILABLE','STALE'].includes(p.state));
@@ -149,12 +154,28 @@ function livePonsPaper(feed,evidence) {
     gate:current&&p.new_risk_enabled!==null?(p.new_risk_enabled?'OPEN':'CLOSED'):'UNKNOWN',
     heartbeat:bound?p.heartbeat_at:null,epoch:bound?p.epoch_id:null};
 }
-function originalFinancialCutoverPending(p,feed,paper) {
-  const cutover = feed?.account_cutover;
-  // A live owner report is never a binding to the original portfolio account.
-  const pending = cutover?.state !== 'VERIFIED' || p.paper_state === 'STOPPED' && paper.permission === 'DISABLED';
-  if (!pending) return '';
-  return `<p class="banner original-cutover-pending"><strong>Original financial cutover pending.</strong> The original portfolio reports ${esc(p.paper_state||'UNAVAILABLE')}. Live Pons observations and the execution-owner report do not establish trading authority for this portfolio. All balances, trades and P&amp;L remain original-account records.</p>`;
+function selectedFinancialBinding(p,feed,evidence) {
+  const canonical=p?.financial_identity,selected=p?.selected_financial_identity,live=feed?.identity,cutover=feed?.account_cutover;
+  // Canonical snapshot UTC timestamps use Python's explicit +00:00 suffix;
+  // operations publications use Z. Both represent the same supported clock.
+  const accountedAt=typeof p?.as_of==='string'&&p.as_of.endsWith('+00:00')?p.as_of.slice(0,-6)+'Z':p?.as_of;
+  const identity=v=>v&&typeof v==='object'&&!Array.isArray(v)&&
+    typeof v.epoch_id==='string'&&v.epoch_id.length>0&&v.epoch_id.length<=240&&
+    typeof v.inception_sha256==='string'&&/^[0-9a-f]{64}$/.test(v.inception_sha256);
+  const sourced=v=>identity(v)&&typeof v.source_commit==='string'&&/^[0-9a-f]{40}$/.test(v.source_commit);
+  return !!(p?.financial_source==='pons_experiment'&&feed?.financial_source==='pons_experiment'&&
+    evidence.bound&&feed.state==='CURRENT'&&evidence.freshAt(feed.captured_at)&&
+    p.mode==='canonical'&&p.state==='CURRENT'&&p.snapshot_state==='CURRENT'&&evidence.freshAt(accountedAt)&&
+    identity(canonical)&&sourced(selected)&&sourced(live)&&canonical.epoch_id===p?.epoch?.epoch_id&&
+    canonical.epoch_id===selected.epoch_id&&canonical.inception_sha256===selected.inception_sha256&&
+    ['epoch_id','inception_sha256','source_commit'].every(key=>selected[key]===live[key])&&
+    cutover?.state==='VERIFIED'&&cutover.reason==='AUTHENTICATED_SELECTED_CANONICAL_BINDING'&&
+    cutover.current_owner_epoch===selected.epoch_id&&cutover.inception_sha256===selected.inception_sha256);
+}
+function financialAccountCutoverNotice(p,feed,evidence) {
+  if(selectedFinancialBinding(p,feed,evidence))return '';
+  if(p?.financial_source==='pons_experiment')return `<p class="banner original-cutover-pending"><strong>Live account binding unavailable.</strong> Financial cards retain the selected canonical PAPER account. Fresh, matching execution-owner and account identities have not been established; no trading permission is inferred.</p>`;
+  return `<p class="banner original-cutover-pending"><strong>Financial account selection pending.</strong> The original portfolio reports ${esc(p?.paper_state||'UNAVAILABLE')}. Live Pons observations and the execution-owner report do not establish trading authority for this account. Financial cards retain their canonical account records.</p>`;
 }
 function livePonsPanel(feed,p,expanded=false) {
   const evidence = livePonsEvidence(feed),observer = evidence.observer;
@@ -182,12 +203,13 @@ function livePonsPanel(feed,p,expanded=false) {
     <p class="status-notice">Retained observer reference counts are not financial Current qualifications or executed trades. Current and Survivor are evaluated independently; reference eligibility grants no allocation. History coverage: ${esc(observer?.history_coverage||'UNAVAILABLE')}.</p>
     <h3>Reported shadow decisions</h3>${decisionRows?`<div class="table-wrap"><table><thead><tr><th>Observation</th><th>Strategy</th><th>Decision</th><th>Evidence</th><th>Reason</th></tr></thead><tbody>${decisionRows}</tbody></table></div>`:'<p class="status-notice">No verified shadow decisions supplied.</p>'}
     <div class="live-operations-facts"><span>Pending candidates: ${metric('activity','queue_depth')}</span><span>Cumulative provider failures: ${metric('operational','provider_failures')}</span><span>Cumulative provider requests: ${metric('operational','provider_requests')}</span><span>Reported restarts: ${ponsObservationCount(observer?.restart_count)}</span></div>` : '';
-  const epoch = paper.epoch && p.epoch?.epoch_id && paper.epoch === p.epoch.epoch_id ?
+  const accountBound=selectedFinancialBinding(p,feed,evidence);
+  const epoch = accountBound?'Live Pons reports match the selected canonical PAPER account identity. Account selection grants no trading permission.':paper.epoch && p.epoch?.epoch_id && paper.epoch === p.epoch.epoch_id ?
     'A matching epoch label alone is not an authenticated financial cutover.' :
-    'The live execution owner and original portfolio use separate account identities.';
+    'The live execution owner and displayed portfolio are not verified as the same account.';
   return `<section class="panel live-operations-panel" aria-label="Live Pons operations">
     <div class="panelhead"><div><p class="eyebrow">Market observation and resident status</p><h2>Live Pons operations</h2></div>${badge(evidence.state,evidence.current?'MARKET CURRENT':evidence.state)}</div>
-    <div class="panelbody">${originalFinancialCutoverPending(p,feed,paper)}
+    <div class="panelbody">${financialAccountCutoverNotice(p,feed,evidence)}
       <p class="status-notice">${esc(evidence.current?'Market observation is fresh.':'Current market operation is unavailable or stale; retained observations do not prove connectivity.')} ${esc(epoch)}</p>
       <div class="live-operations-kpis">
         <div><span>Processed market events</span><strong>${metric('activity','events_processed')}</strong></div>
@@ -195,7 +217,7 @@ function livePonsPanel(feed,p,expanded=false) {
         <div><span>Observer heartbeat</span><strong>${observer?.heartbeat_at?esc(date(observer.heartbeat_at)):'Unavailable'}</strong></div>
         <div><span>Market evidence</span><strong>${observer?.market_as_of?esc(date(observer.market_as_of)):'Unavailable'}</strong></div>
       </div>
-      <p class="status-notice"><strong>Current resident: ${esc(paper.label)}</strong> · Reported owner permission ${esc(paper.permission)} · Native new-risk gate ${esc(paper.gate)}. These describe the live owner, not original-account authority.</p>
+      <p class="status-notice"><strong>Current resident: ${esc(paper.label)}</strong> · Reported owner permission ${esc(paper.permission)} · Native new-risk gate ${esc(paper.gate)}. ${accountBound?'These are dated reports for the selected account; the dashboard grants no execution authority.':'These describe the live owner; authority for the displayed account is not established.'}</p>
       <p class="status-notice">Native qualification detail: UNAVAILABLE in this feed. Position-protection acceptance: UNAVAILABLE; observer freshness or enabled permission does not establish it. ${paper.heartbeat?'Resident report '+esc(date(paper.heartbeat))+'.':''} Shadow decisions are not entries, fills or profits.</p>
       ${details}${expanded?'':'<a class="link" href="#lanes">Current and Survivor evidence →</a>'}
     </div></section>`;
@@ -210,14 +232,14 @@ function canonicalHistoryIdentity(p,h) {
     a.epoch_id===b.epoch_id&&a.inception_sha256===b.inception_sha256);
 }
 function canonicalPnlGraph(p,h) {
-  // Only original authenticated canonical portfolio equity, never simulator data.
+  // Only the selected authenticated canonical portfolio equity, never operations-feed metrics.
   const fmt=n=>(n<0?'−$':'$')+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const noData=message=>`<section class="panel canonical-pnl-chart"><div class="panelhead"><h2>Total portfolio P&amp;L</h2>${badge('UNAVAILABLE','HISTORY UNAVAILABLE')}</div><div class="panelbody"><p class="canonical-chart-unavailable">${esc(message)}</p></div></section>`;
   const dec=s=>typeof s==='string'&&/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(s)&&Number.isFinite(Number(s))?Number(s):null;
   const basis=dec(p?.starting_capital?.value);
   if(!p?.epoch||!canonicalHistoryIdentity(p,h)||h?.mode!==p.mode||h?.series!=='portfolio'||basis===null||
      dec(h?.reference)!==basis||!Array.isArray(h?.data)||h.data.length>500)
-    return noData('Original portfolio history or verified inception capital is unavailable.');
+    return noData('Canonical portfolio history or verified inception capital is unavailable.');
   let prior=-Infinity,bad=false;
   const rows=h.data.map(item=>{
     const t=Date.parse(item?.at);
@@ -230,7 +252,7 @@ function canonicalPnlGraph(p,h) {
   });
   if(bad)return noData('The canonical history contains an invalid point.');
   const data=rows.filter(v=>v&&v.pnl!==null);
-  if(!data.length)return noData('No original-portfolio equity observations are available for this period.');
+  if(!data.length)return noData('No canonical portfolio equity observations are available for this period.');
   const left=77,right=745,top=16,bottom=215,begin=rows[0].t,end=rows[rows.length-1].t;
   const values=data.map(r=>r.pnl),low=Math.min(0,...values),high=Math.max(0,...values);
   const pad=Math.max(.25,(high-low)*.18),floor=low-pad,ceiling=high+pad;
@@ -257,22 +279,29 @@ function canonicalPnlGraph(p,h) {
   const periods=Array.isArray(h.periods)?h.periods:[];
   const buttons=['1H','6H','24H','7D','30D','ALL'].map(period=>`<button data-period="${period}" class="${state.period===period?'selected':''}" ${periods.includes(period)?'':'disabled'}>${period}</button>`).join('');
   const last=data[data.length-1];
-  return `<section class="panel canonical-pnl-chart" aria-label="Original portfolio cumulative net P&L">
-    <div class="panelhead"><div><p class="eyebrow">Original portfolio · canonical PAPER</p><h2>Total portfolio P&amp;L</h2></div><div class="periods">${buttons}</div></div>
+  return `<section class="panel canonical-pnl-chart" aria-label="PAPER portfolio cumulative net P&L">
+    <div class="panelhead"><div><p class="eyebrow">PAPER portfolio · canonical account</p><h2>Total portfolio P&amp;L</h2></div><div class="periods">${buttons}</div></div>
     <div class="panelbody"><div class="canonical-pnl-meta"><span>Last recorded sample: <strong>${esc(fmt(last.pnl))}</strong></span><small>${esc(date(last.at))} · ${data.length} recorded observations</small></div>
-      <svg class="canonical-pnl-svg" viewBox="0 0 770 260" role="img" aria-label="Time series of original portfolio net profit and loss in US dollars">
-        <title>Original portfolio net P&amp;L over time</title>
+      <svg class="canonical-pnl-svg" viewBox="0 0 770 260" role="img" aria-label="Time series of PAPER portfolio net profit and loss in US dollars">
+        <title>PAPER portfolio net P&amp;L over time</title>
         <g class="canonical-pnl-axis">${grid}${timeline}</g>
         <line class="canonical-pnl-zero" x1="${left}" x2="${right}" y1="${y(0).toFixed(2)}" y2="${y(0).toFixed(2)}"/>
         ${lines}${dots}
       </svg>
-      <p class="canonical-chart-note">Net P&amp;L = recorded marked equity minus ${esc(fmt(basis))} original capital. ${h.truncated?'Earlier samples outside this bounded view are omitted.':''} Gaps remain gaps; no artificial observations. Infrastructure expenses are excluded.</p></div>
+      <p class="canonical-chart-note">Net P&amp;L = recorded marked equity minus ${esc(fmt(basis))} account inception capital. ${h.truncated?'Earlier samples outside this bounded view are omitted.':''} Gaps remain gaps; no artificial observations. Infrastructure expenses are excluded.</p></div>
   </section>`;
 }
 
+function paperStatusLabel(p) {
+  const prefix=p.financial_source==='pons_experiment'?'PAPER':'ORIGINAL PAPER';
+  if(p.mode==='fixture')return 'PAPER · FIXTURE';
+  if(p.snapshot_state&&p.snapshot_state!=='CURRENT')return `${prefix} · ${title(p.snapshot_state)}`;
+  if(p.state&&p.state!=='CURRENT')return `${prefix} · ${title(p.state)}`;
+  return `${prefix} · ${title(p.paper_state||p.state||'UNAVAILABLE')}`;
+}
 function header(name,p) {
   const demo = p.mode==='fixture';
-  return `<div class="pagehead"><div><p class="eyebrow">Portfolio intelligence / Paper only</p><h1>${esc(name)}</h1></div><div class="head-right">${badge(demo?'UNKNOWN':p.state,demo?'DETERMINISTIC FIXTURE':p.paper_state==='STOPPED'?'ORIGINAL PAPER STOPPED':p.state==='CURRENT'?'PAPER':title(p.state))}<small class="muted">Accounting ${date(p.as_of)}</small></div></div>`+
+  return `<div class="pagehead"><div><p class="eyebrow">Portfolio intelligence / Paper only</p><h1>${esc(name)}</h1></div><div class="head-right">${badge(demo?'UNKNOWN':p.state,demo?'DETERMINISTIC FIXTURE':paperStatusLabel(p))}<small class="muted">Accounting ${date(p.as_of)}</small></div></div>`+
     (demo?'<div class="banner fixture"><strong>DEVELOPMENT FIXTURE</strong> · Synthetic balances and trades. Fixed demo clock. These results are not market performance.</div>':'')+
     (p.state==='NOT_INITIALIZED'?`<div class="banner"><strong>Portfolio not initialized.</strong> Planned inception ${value({value:p.desired_starting_capital,state:p.state})}. No canonical inception is connected; historical campaigns are excluded.</div>`:'')+
     (p.state==='FAIL_CLOSED'?'<div class="banner error"><strong>Accounting fail-closed.</strong> Source validation or reconciliation failed. Values are not trusted current balances.</div>':'')+
@@ -535,10 +564,10 @@ function operationsPanel(s,detailed=false) {
 }
 async function overview(p) {
   const [chart,live]=await Promise.all([api('equity',{period:state.period,series:'portfolio',limit:240}),livePonsFeed()]);
-  const mode=p.paper_state||'UNAVAILABLE';
+  const mode=p.state==='CURRENT'?p.paper_state||'UNAVAILABLE':p.state||'UNAVAILABLE';
   return `<div class="overview-page">${overviewAlerts(p)}${hero(p,chart)}
-    <section class="panel canonical-source-card"><div class="panelhead"><h2>Original portfolio status</h2>${badge(mode,mode==='STOPPED'?'PAPER STOPPED':title(mode))}</div>
-      <div class="panelbody">All balances, positions, trades and P&amp;L on this page come from the original canonical portfolio. No experimental account is included. Snapshot ${esc(date(p.as_of))} · Reconciliation ${badge(p.reconciliation?.state||'UNAVAILABLE')}.</div></section>
+    <section class="panel canonical-source-card"><div class="panelhead"><h2>PAPER portfolio status</h2>${badge(mode,mode==='STOPPED'?'PAPER STOPPED':title(mode))}</div>
+      <div class="panelbody">All balances, positions, trades and P&amp;L come from ${p.financial_source==='pons_experiment'?'the selected Pons PAPER account, preserving its existing inception and history':'the original canonical PAPER account'}. Live-operation metrics do not create financial records. Snapshot ${esc(date(p.as_of))} · Reconciliation ${badge(p.reconciliation?.state||'UNAVAILABLE')}.</div></section>
     ${livePonsPanel(live,p)}${canonicalPnlGraph(p,chart)}</div>`;
 }
 
@@ -546,7 +575,7 @@ async function lanePage(lane,p) {
   const [r,chart,positions,trades,live]=await Promise.all([api('lanes/'+lane),api('equity',{series:lane,period:state.period}),api('positions',{lane,limit:25}),api('trades',{lane,limit:10}),livePonsFeed()]);
   const l=r.data,m=l.metrics;
   const metrics=[['Portfolio contribution','contribution_pct','percent'],['Realized net P&L','realized_pnl','money'],['Unrealized net P&L','unrealized_pnl','money'],['Trades taken','trades_taken','count'],['Completed trades','completed_trades','count'],['Open positions','open_positions','count'],['Winners','wins','count'],['Losses','losses','count'],['Breakevens','breakevens','count'],['Win rate','win_rate','percent'],['Deployed capital','deployed_capital','money'],['Fees / costs','fees','money'],['Average completed result','average_result','money'],['Largest winner','largest_winner','money'],['Largest loss','largest_loser','money'],['Average holding time','average_holding_seconds','seconds'],['Max drawdown','max_drawdown_pct','percent'],['Standalone lane return','lane_return_pct','percent']];
-  return header('Original PAPER · '+names[lane]+' lane',p)+livePonsPanel(live,p,true)+`<section class="panel lane-hero ${lane}"><div class="panelhead"><div><p class="eyebrow">Net P&L / ${names[lane]}</p><div class="equity">${value(m.net_pnl,'money',true)}</div><p class="sample-count">${m.completed_trades.value??'Unknown'} completed trades · ${m.open_positions.value??'Unknown'} open · ${m.wins.value??'?'} wins / ${m.losses.value??'?'} losses / ${m.breakevens.value??'?'} breakevens</p></div>${badge(l.health.operational.state,l.health.operational.value)}</div><div class="metric-grid">${metrics.map(([label,key,kind])=>stat(label,m[key],kind,['realized_pnl','unrealized_pnl','contribution_pct'].includes(key))).join('')}</div></section><div class="detail-chart">${chartPanel(chart,false)}</div><div class="tables">${tablePanel('Open exposure',positions,false,'positions')}${tablePanel('Recent completed trades',trades,true,'trades')}</div>${healthPanel(lane,l.health)}`;
+  return header('PAPER · '+names[lane]+' lane',p)+livePonsPanel(live,p,true)+`<section class="panel lane-hero ${lane}"><div class="panelhead"><div><p class="eyebrow">Net P&L / ${names[lane]}</p><div class="equity">${value(m.net_pnl,'money',true)}</div><p class="sample-count">${m.completed_trades.value??'Unknown'} completed trades · ${m.open_positions.value??'Unknown'} open · ${m.wins.value??'?'} wins / ${m.losses.value??'?'} losses / ${m.breakevens.value??'?'} breakevens</p></div>${badge(l.health.operational.state,l.health.operational.value)}</div><div class="metric-grid">${metrics.map(([label,key,kind])=>stat(label,m[key],kind,['realized_pnl','unrealized_pnl','contribution_pct'].includes(key))).join('')}</div></section><div class="detail-chart">${chartPanel(chart,false)}</div><div class="tables">${tablePanel('Open exposure',positions,false,'positions')}${tablePanel('Recent completed trades',trades,true,'trades')}</div>${healthPanel(lane,l.health)}`;
 }
 function healthPanel(lane,h) {
   return `<section class="panel ${lane}"><div class="panelhead"><h2 class="lane-label">${names[lane]}</h2>${badge(h.operational.state,h.operational.value)}</div><div class="panelbody"><div class="health-row"><span>Native accounting reconciliation</span>${badge(h.accounting.state,h.accounting.value===true?'RECONCILED':h.accounting.value===false?'MISMATCH':undefined)}</div><div class="health-row"><span>Evidence freshness</span>${badge(h.evidence.state)}</div><div class="health-row"><span>Progress age</span><span>${value(h.progress_age_seconds,'seconds')}</span></div><div class="health-row"><span>Persisted provider request count</span><span>${value(h.provider_requests,'count')}</span></div><p class="status-notice">A responsive process does not prove fresh evidence. Native campaign telemetry is separate from the new USD portfolio.</p>${nativePanel(h.native_accounting)}<details><summary>Source / policy / configuration identities</summary><p class="status-notice">Runtime-observed identities</p>${identityRows(h.runtime_identities)}<p class="status-notice">Configured source map (not proof of execution)</p>${identityRows(h.configured_identities)}</details></div></section>`;
@@ -562,7 +591,7 @@ async function historyPage(completed,p) {
   const route=completed?'trades':'positions';
   const res=await api(route,{...state.filters,lane:'pons',offset:state.offset,limit:25});
   const f=state.filters;
-  return header(completed?'Original PAPER · Pons trade history':'Original PAPER · Pons open positions',p)+`<form class="filters" id="filters"><input type="search" name="q" aria-label="Search asset, pool or position" placeholder="Search asset, pool, position…" value="${esc(f.q||'')}"><input type="hidden" name="lane" value="pons"><span class="status-notice">Pons lane only</span>${completed?`<select name="outcome" aria-label="Filter outcome"><option value="">All outcomes</option>${['winner','loser','breakeven'].map(o=>`<option ${f.outcome===o?'selected':''}>${o}</option>`).join('')}</select><input name="strategy" aria-label="Strategy or source identity" placeholder="Strategy / source SHA" value="${esc(f.strategy||'')}"><label>From <input type="date" name="from" value="${esc((f.from||'').slice(0,10))}"></label><label>To <input type="date" name="to" value="${esc((f.to||'').slice(0,10))}"></label>`:''}<button type="submit">Apply filters</button></form><section class="panel">${res.total===null?empty('Canonical position state unavailable'):positionsTable(res.data,completed)}<div class="pagination"><span>${res.total===null?'Unknown total':`${res.total} matching lifecycles · ${res.total?res.offset+1:0}–${res.offset+res.data.length}`} · snapshot ${date(res.as_of)}</span><span><button data-page="${Math.max(0,state.offset-25)}" ${state.offset===0?'disabled':''}>Previous</button> <button data-page="${res.next_offset??0}" ${res.next_offset===null?'disabled':''}>Next</button></span></div></section>`;
+  return header(completed?'PAPER · Pons trade history':'PAPER · Pons open positions',p)+`<form class="filters" id="filters"><input type="search" name="q" aria-label="Search asset, pool or position" placeholder="Search asset, pool, position…" value="${esc(f.q||'')}"><input type="hidden" name="lane" value="pons"><span class="status-notice">Pons lane only</span>${completed?`<select name="outcome" aria-label="Filter outcome"><option value="">All outcomes</option>${['winner','loser','breakeven'].map(o=>`<option ${f.outcome===o?'selected':''}>${o}</option>`).join('')}</select><input name="strategy" aria-label="Strategy or source identity" placeholder="Strategy / source SHA" value="${esc(f.strategy||'')}"><label>From <input type="date" name="from" value="${esc((f.from||'').slice(0,10))}"></label><label>To <input type="date" name="to" value="${esc((f.to||'').slice(0,10))}"></label>`:''}<button type="submit">Apply filters</button></form><section class="panel">${res.total===null?empty('Canonical position state unavailable'):positionsTable(res.data,completed)}<div class="pagination"><span>${res.total===null?'Unknown total':`${res.total} matching lifecycles · ${res.total?res.offset+1:0}–${res.offset+res.data.length}`} · snapshot ${date(res.as_of)}</span><span><button data-page="${Math.max(0,state.offset-25)}" ${state.offset===0?'disabled':''}>Previous</button> <button data-page="${res.next_offset??0}" ${res.next_offset===null?'disabled':''}>Next</button></span></div></section>`;
 }
 async function analytics(p) {
   const [lanes,chart,daily]=await Promise.all([api('lanes'),api('equity',{series:state.series,period:state.period}),api('analytics')]);
@@ -571,10 +600,10 @@ async function analytics(p) {
 }
 async function systemPage(p) {
   const [response,live]=await Promise.all([api('system'),livePonsFeed()]),s=response.data;
-  return header('Original portfolio · system & evidence',p)+livePonsPanel(live,p,true)+operationsPanel(s,true)+systemStrip(s)+
-    `<p class="status-notice">Original portfolio telemetry snapshot: ${esc(date(s.observed_at))}. Experimental accounts are not part of this financial view.</p>
+  return header('PAPER portfolio · system & evidence',p)+livePonsPanel(live,p,true)+operationsPanel(s,true)+systemStrip(s)+
+    `<p class="status-notice">PAPER portfolio telemetry snapshot: ${esc(date(s.observed_at))}. Financial records belong only to the selected canonical account.</p>
      <div class="system-grid">${LANES.map(l=>healthPanel(l,s.lanes[l])).join('')}</div>
-     <section class="panel detail-chart"><div class="panelhead"><h2>Original portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}${sharedCapital(p)}</details></div></section>`;
+     <section class="panel detail-chart"><div class="panelhead"><h2>PAPER portfolio reconciliation</h2>${badge(p.reconciliation.state)}</div><div class="panelbody">${p.reconciliation.value?Object.entries(p.reconciliation.value).map(([k,v])=>`<div class="health-row"><span>${esc(title(k))}</span>${badge(v?'CURRENT':'FAIL_CLOSED',v?'MATCH':'MISMATCH')}</div>`).join(''):empty('No canonical USD account connected')}<details><summary>Portfolio inception and source</summary><div class="identity">${p.epoch?esc(p.epoch.epoch_id)+'<br>'+esc(p.epoch.inception_at)+'<br>'+esc(p.epoch.canonical_event_id):'NOT INITIALIZED'}</div>${p.identities?identityRows(p.identities):''}${sharedCapital(p)}</details></div></section>`;
 }
 
 async function showPosition(id) {
@@ -587,9 +616,9 @@ async function showPosition(id) {
 function syncTopbar(p) {
   const indicator=document.querySelector('#live-indicator'),updated=document.querySelector('#last-update');
   if(indicator){
-    const label=p.mode==='fixture'?'ORIGINAL · FIXTURE':p.snapshot_state&&p.snapshot_state!=='CURRENT'?`ORIGINAL PAPER · ${title(p.snapshot_state)}`:p.paper_state==='STOPPED'?'ORIGINAL PAPER · STOPPED':p.paper_state==='RUNNING'&&p.state==='CURRENT'?'ORIGINAL PAPER · RUNNING':'ORIGINAL PAPER · '+title(p.paper_state||p.state||'UNAVAILABLE');
-    indicator.textContent=label;
-    indicator.className='live-indicator '+(p.state==='CURRENT'&&p.paper_state==='RUNNING'?'is-live':'is-caution');
+    indicator.textContent=paperStatusLabel(p);
+    indicator.className='live-indicator '+(p.mode!=='fixture'&&p.state==='CURRENT'&&
+      (!p.snapshot_state||p.snapshot_state==='CURRENT')&&['RUNNING','MANAGING'].includes(p.paper_state)?'is-live':'is-caution');
   }
   if(updated)updated.textContent=p.as_of?date(p.as_of):'Unavailable';
 }
@@ -615,7 +644,7 @@ async function render() {
     syncTopbar(p);
     let html;
     if(route==='overview') html=await overview(p);
-    else if(route==='lanes') { const [lanes,live]=await Promise.all([api('lanes'),livePonsFeed()]); html=header('Original PAPER · Pons lane',p)+livePonsPanel(live,p,true)+laneCards(lanes.data.filter(l=>LANES.includes(l.lane))); }
+    else if(route==='lanes') { const [lanes,live]=await Promise.all([api('lanes'),livePonsFeed()]); html=header('PAPER · Pons lane',p)+livePonsPanel(live,p,true)+laneCards(lanes.data.filter(l=>LANES.includes(l.lane))); }
     else if(route.startsWith('lane/')&&LANES.includes(route.slice(5))) html=await lanePage(route.slice(5),p);
     else if(route==='positions'||route==='trades') html=await historyPage(route==='trades',p);
     else if(route==='analytics') html=await analytics(p);

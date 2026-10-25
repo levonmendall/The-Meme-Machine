@@ -63,7 +63,7 @@ class OriginalPortfolioPnlTests(unittest.TestCase):
           assert(graph.includes('Total portfolio P&amp;L'));
           assert(graph.includes('canonical-pnl-line'));
           assert(graph.includes('−$10.00'));
-          assert(graph.includes('Original portfolio'));
+          assert(graph.includes('PAPER portfolio'));
           assert(!graph.includes('Pons experimental'));
           assert(!graph.includes('simulator equity'));
           const spoof=canonicalPnlGraph(account,{...data,mode:'experimental'});
@@ -79,7 +79,7 @@ class OriginalPortfolioPnlTests(unittest.TestCase):
           const noHistory=canonicalPnlGraph({...account,epoch:null},data);
           assert(noHistory.includes('HISTORY UNAVAILABLE'));
           const unknown=canonicalPnlGraph(account,{...data,data:[]});
-          assert(unknown.includes('No original-portfolio equity observations'));
+          assert(unknown.includes('No canonical portfolio equity observations'));
           const gap=canonicalPnlGraph(account,{...data,
             data:[{at:at1,value:'1000.00'},{at:at2,value:null},{at:at3,value:'1010.00'}]});
           assert(!gap.includes('class="canonical-pnl-line"'));
@@ -89,6 +89,25 @@ class OriginalPortfolioPnlTests(unittest.TestCase):
           syncTopbar({...account,state:'CURRENT',as_of:at3});
           assert(emptyStatus.textContent.includes('STOPPED'));
           assert(!emptyStatus.className.includes('is-live'));
+          const selectedIdentity={epoch_id:'paper-pons-simulator-1000-20261024',
+            inception_sha256:'0098b5790dee06e6b540a1e02fad0db562d115006f10b3575b36ba4e0f221474'};
+          const selected={...account,epoch:{epoch_id:selectedIdentity.epoch_id},financial_identity:selectedIdentity,
+            financial_source:'pons_experiment',state:'CURRENT',snapshot_state:'CURRENT'};
+          syncTopbar({...selected,paper_state:'DISABLED'});
+          assert.equal(emptyStatus.textContent,'PAPER · DISABLED');
+          assert(!emptyStatus.className.includes('is-live'));
+          syncTopbar({...selected,paper_state:'READY'});
+          assert.equal(emptyStatus.textContent,'PAPER · READY');
+          assert(!emptyStatus.className.includes('is-live'));
+          syncTopbar({...selected,paper_state:'MANAGING'});
+          assert.equal(emptyStatus.textContent,'PAPER · MANAGING');
+          syncTopbar({...selected,paper_state:'READY',state:'FAIL_CLOSED'});
+          assert.equal(emptyStatus.textContent,'PAPER · FAIL CLOSED');
+          assert(!emptyStatus.className.includes('is-live'));
+          const selectedGraph=canonicalPnlGraph(selected,{...data,financial_identity:selectedIdentity});
+          assert(selectedGraph.includes('PAPER portfolio')&&!selectedGraph.includes('Original portfolio'));
+          assert(selectedGraph.includes('account inception capital')&&!selectedGraph.includes('original capital'));
+          assert(canonicalPnlGraph(selected,data).includes('HISTORY UNAVAILABLE'));
           process.stdout.write('ORIGINAL_CANONICAL_PNL_PASS');
         `;
         const sandbox={document:{querySelector:()=>({})},Date,AbortController,
