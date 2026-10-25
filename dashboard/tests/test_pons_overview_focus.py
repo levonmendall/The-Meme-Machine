@@ -70,7 +70,7 @@ class PonsFocusedOverviewTests(unittest.TestCase):
               assert(!missing.includes('$1,000.00'));
               process.stdout.write('PONS_OVERVIEW_RENDER_PASS');
             `;
-            const sandbox={document:{querySelector:()=>({})},Date,AbortController,
+            const sandbox={document:{querySelector:()=>({})},Date,assert,process,AbortController,
               URLSearchParams,setTimeout,clearTimeout,fetch(){throw Error('No fetch permitted')}};
             vm.runInNewContext(source.slice(0,stoppedAt)+suffix,sandbox,{timeout:2000});
         """)
