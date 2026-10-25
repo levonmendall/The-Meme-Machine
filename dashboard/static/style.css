@@ -142,3 +142,20 @@ footer{min-height:48px;padding:11px 28px;align-items:center;background:#061019;b
 .pons-system-disclosure>.panel,.pons-system-disclosure>.system-strip{margin-top:16px}
 @media(max-width:900px){.pons-focus-page{grid-template-columns:1fr}}
 @media(max-width:430px){.pons-focus-account .panelhead,.pons-focus-market .panelhead{align-items:flex-start;flex-wrap:wrap}.pons-focus-account .panelbody,.pons-focus-market .panelbody{padding:14px}.pons-focus-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pons-focus-stat:nth-child(3n+1){padding-left:12px}.pons-focus-stat:nth-child(2n+1){padding-left:0}.pons-focus-stat strong{font-size:17px}.pons-focus-balance .equity{font-size:38px}}
+
+/* Original canonical-paper portfolio P&L only; no experimental financial series. */
+.canonical-source-card{border-left:2px solid #39a7c7}.canonical-source-card .panelhead,.canonical-pnl-chart .panelhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.canonical-source-card .panelhead h2,.canonical-pnl-chart .panelhead h2{font-size:15px}
+.canonical-source-card .panelbody{padding:13px 17px;font-size:12px;color:var(--muted);line-height:1.6}
+.canonical-pnl-chart .panelbody{padding:14px 16px 18px}
+.canonical-pnl-chart .eyebrow{font-size:10px;color:#a4b6ca;margin:0 0 5px}
+.canonical-pnl-chart .periods{display:flex;flex-wrap:wrap;gap:2px}
+.canonical-pnl-meta{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;color:var(--muted);font-size:11px}
+.canonical-pnl-meta strong{font-size:20px;color:var(--text);margin-left:6px}.canonical-pnl-meta small,.canonical-chart-note{font-size:10px;color:var(--muted);line-height:1.6}
+.canonical-pnl-svg{display:block;width:100%;height:auto;max-height:310px;overflow:visible}
+.canonical-pnl-axis{font-size:10px;fill:var(--muted)}.canonical-pnl-grid{stroke:#214052;stroke-width:1}
+.canonical-pnl-zero{stroke:#7796a9;stroke-width:1.2;stroke-dasharray:4 4}
+.canonical-pnl-line{stroke:var(--green);stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.canonical-pnl-point{fill:var(--green);stroke:var(--panel);stroke-width:1}
+.canonical-chart-unavailable{color:var(--muted);text-align:center;padding:34px 10px;border:1px solid #214052;border-radius:8px}
+@media(max-width:780px){.canonical-pnl-chart .panelbody{padding:12px 9px 14px}.canonical-source-card .panelbody{padding:12px}}
