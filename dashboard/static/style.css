@@ -142,3 +142,24 @@ footer{min-height:48px;padding:11px 28px;align-items:center;background:#061019;b
 .pons-system-disclosure>.panel,.pons-system-disclosure>.system-strip{margin-top:16px}
 @media(max-width:900px){.pons-focus-page{grid-template-columns:1fr}}
 @media(max-width:430px){.pons-focus-account .panelhead,.pons-focus-market .panelhead{align-items:flex-start;flex-wrap:wrap}.pons-focus-account .panelbody,.pons-focus-market .panelbody{padding:14px}.pons-focus-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pons-focus-stat:nth-child(3n+1){padding-left:12px}.pons-focus-stat:nth-child(2n+1){padding-left:0}.pons-focus-stat strong{font-size:17px}.pons-focus-balance .equity{font-size:38px}}
+
+/* Recorded Pons PAPER equity history, presented as cumulative portfolio net P&L. */
+.pons-pnl-chart{width:100%;min-width:0;overflow:hidden}
+.pons-pnl-chart .panelhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pons-pnl-chart .panelhead .eyebrow{font-size:10px;letter-spacing:.09em;margin:0 0 5px;color:#af99d4}
+.pons-pnl-chart .panelhead h2{font-size:15px;letter-spacing:.02em}
+.pons-pnl-chart .panelbody{padding:16px 20px 17px}
+.pons-pnl-meta{display:flex;justify-content:space-between;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:13px}
+.pons-pnl-meta span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.pons-pnl-meta strong{display:block;font-size:23px;margin-top:5px;font-weight:700}
+.pons-pnl-meta small{color:var(--muted);font-size:10px}
+.pons-pnl-svg{display:block;width:100%;height:auto;max-height:310px;overflow:visible}
+.pons-pnl-axis{font-size:10px;fill:var(--muted)}
+.pons-pnl-grid{stroke:#234050;stroke-width:1}
+.pons-pnl-zero{stroke:#698b9d;stroke-width:1.2;stroke-dasharray:4 4;opacity:.86}
+.pons-pnl-line{fill:none;stroke:var(--pons);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.pons-pnl-point{fill:var(--pons);stroke:var(--panel);stroke-width:1}
+.pons-pnl-point.estimated{fill:var(--panel);stroke:var(--pons);stroke-width:1.8}
+.pons-pnl-note{color:var(--muted);font-size:11px;line-height:1.6;margin:12px 0 0}
+.pons-pnl-empty{padding:32px 12px;text-align:center;color:var(--muted);font-size:13px;background:#0c1b27;border-radius:8px;border:1px solid #233646}
+@media(max-width:780px){.pons-pnl-chart .panelbody{padding:13px 12px 15px}.pons-pnl-meta strong{font-size:20px}.pons-pnl-axis{font-size:11px}.pons-pnl-note{font-size:10px}}
