@@ -1,4 +1,4 @@
-name: POE named provider binding presence only
+name: POE recorded RPC binding validation only
 on:
   push:
     branches: [poe-provider-presence-20261027]
@@ -7,65 +7,23 @@ on:
 permissions:
   contents: read
 jobs:
-  repository-bindings:
+  validate-recorded-provider-binding:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Return only named-binding availability
+      - name: Validate provider host without returning URL or key
         env:
-          POE_SCOPE: repository
-          HAS_SECRET_0: ${{ secrets.SOLANA_ROI_ALCHEMY_API_KEY != '' }}
-          HAS_VARIABLE_0: ${{ vars.SOLANA_ROI_ALCHEMY_API_KEY != '' }}
-          HAS_SECRET_1: ${{ secrets.ALCHEMY_API_KEY != '' }}
-          HAS_VARIABLE_1: ${{ vars.ALCHEMY_API_KEY != '' }}
-          HAS_SECRET_2: ${{ secrets.SOLANA_ROI_RPC_ENDPOINTS_JSON != '' }}
-          HAS_VARIABLE_2: ${{ vars.SOLANA_ROI_RPC_ENDPOINTS_JSON != '' }}
-          HAS_SECRET_3: ${{ secrets.HELIUS_API_KEY != '' }}
-          HAS_VARIABLE_3: ${{ vars.HELIUS_API_KEY != '' }}
-          HAS_SECRET_4: ${{ secrets.ALCHEMY_RPC_URL != '' }}
-          HAS_VARIABLE_4: ${{ vars.ALCHEMY_RPC_URL != '' }}
-          HAS_SECRET_5: ${{ secrets.HELIUS_RPC_URL != '' }}
-          HAS_VARIABLE_5: ${{ vars.HELIUS_RPC_URL != '' }}
-          HAS_SECRET_6: ${{ secrets.MM_SOLANA_READ_RPC_URL != '' }}
-          HAS_VARIABLE_6: ${{ vars.MM_SOLANA_READ_RPC_URL != '' }}
-          HAS_SECRET_7: ${{ secrets.SOLANA_RPC_URL != '' }}
-          HAS_VARIABLE_7: ${{ vars.SOLANA_RPC_URL != '' }}
+          POE_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: |
           python3 -I - <<'PY'
-          import json,os
-          names=["SOLANA_ROI_ALCHEMY_API_KEY","ALCHEMY_API_KEY","SOLANA_ROI_RPC_ENDPOINTS_JSON","HELIUS_API_KEY","ALCHEMY_RPC_URL","HELIUS_RPC_URL","MM_SOLANA_READ_RPC_URL","SOLANA_RPC_URL"]
-          print(json.dumps({"project":"pump-opportunity-engine","presenceOnly":True,"scope":os.environ["POE_SCOPE"],"bindings":{name:{"secretPresent":os.environ["HAS_SECRET_"+str(i)]=="true","variablePresent":os.environ["HAS_VARIABLE_"+str(i)]=="true"} for i,name in enumerate(names)},"secretValuesReadByJob":False,"providerRequests":0,"deployment":False},sort_keys=True))
-          PY
-
-  existing-environment-bindings:
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    environment:
-      name: release/portfolio-dashboard-v1 - meme-machine-dashboard-staging
-      deployment: false
-    steps:
-      - name: Return only named-binding availability
-        env:
-          POE_SCOPE: environment:release/portfolio-dashboard-v1 - meme-machine-dashboard-staging
-          HAS_SECRET_0: ${{ secrets.SOLANA_ROI_ALCHEMY_API_KEY != '' }}
-          HAS_VARIABLE_0: ${{ vars.SOLANA_ROI_ALCHEMY_API_KEY != '' }}
-          HAS_SECRET_1: ${{ secrets.ALCHEMY_API_KEY != '' }}
-          HAS_VARIABLE_1: ${{ vars.ALCHEMY_API_KEY != '' }}
-          HAS_SECRET_2: ${{ secrets.SOLANA_ROI_RPC_ENDPOINTS_JSON != '' }}
-          HAS_VARIABLE_2: ${{ vars.SOLANA_ROI_RPC_ENDPOINTS_JSON != '' }}
-          HAS_SECRET_3: ${{ secrets.HELIUS_API_KEY != '' }}
-          HAS_VARIABLE_3: ${{ vars.HELIUS_API_KEY != '' }}
-          HAS_SECRET_4: ${{ secrets.ALCHEMY_RPC_URL != '' }}
-          HAS_VARIABLE_4: ${{ vars.ALCHEMY_RPC_URL != '' }}
-          HAS_SECRET_5: ${{ secrets.HELIUS_RPC_URL != '' }}
-          HAS_VARIABLE_5: ${{ vars.HELIUS_RPC_URL != '' }}
-          HAS_SECRET_6: ${{ secrets.MM_SOLANA_READ_RPC_URL != '' }}
-          HAS_VARIABLE_6: ${{ vars.MM_SOLANA_READ_RPC_URL != '' }}
-          HAS_SECRET_7: ${{ secrets.SOLANA_RPC_URL != '' }}
-          HAS_VARIABLE_7: ${{ vars.SOLANA_RPC_URL != '' }}
-        run: |
-          python3 -I - <<'PY'
-          import json,os
-          names=["SOLANA_ROI_ALCHEMY_API_KEY","ALCHEMY_API_KEY","SOLANA_ROI_RPC_ENDPOINTS_JSON","HELIUS_API_KEY","ALCHEMY_RPC_URL","HELIUS_RPC_URL","MM_SOLANA_READ_RPC_URL","SOLANA_RPC_URL"]
-          print(json.dumps({"project":"pump-opportunity-engine","presenceOnly":True,"scope":os.environ["POE_SCOPE"],"bindings":{name:{"secretPresent":os.environ["HAS_SECRET_"+str(i)]=="true","variablePresent":os.environ["HAS_VARIABLE_"+str(i)]=="true"} for i,name in enumerate(names)},"secretValuesReadByJob":False,"providerRequests":0,"deployment":False},sort_keys=True))
+          import json,os,urllib.parse
+          value=os.environ.get("POE_READ_RPC_URL","")
+          result={"project":"pump-opportunity-engine","credentialBound":bool(value),"scope":"repository","binding":"MM_SOLANA_READ_RPC_URL","providerRequests":0,"credentialValuesExported":False,"credentialStoredOutsideJob":False,"deployment":False}
+          try:
+              url=urllib.parse.urlsplit(value)
+              approved=url.hostname=="solana-mainnet.g.alchemy.com"
+              result.update({"recognizedProvider":"Alchemy Solana mainnet" if approved else None,"recognizedPublicHost":url.hostname if approved else None,"https":url.scheme=="https","embeddedUserInfoAbsent":url.username is None and url.password is None,"pathCarriesAppKey":approved and url.path.startswith("/v2/") and len(url.path)>4,"providerAuthenticationVerified":False,"freeQuotaVerified":False})
+          except Exception:
+              result.update({"recognizedProvider":None,"formatValid":False,"providerAuthenticationVerified":False,"freeQuotaVerified":False})
+          print(json.dumps(result,sort_keys=True))
           PY
